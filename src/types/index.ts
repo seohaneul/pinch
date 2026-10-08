@@ -1,4 +1,16 @@
-export type PlaceCategory = 'restaurant' | 'cafe' | 'spot' | 'stay' | 'shopping' | 'other';
+export type PlaceCategory =
+  | 'ALL'
+  | 'CAFE'
+  | 'RESTAURANT'
+  | 'ATTRACTION'
+  | 'LODGING'
+  | 'SHOPPING'
+  | 'cafe'
+  | 'restaurant'
+  | 'spot'
+  | 'stay'
+  | 'shopping'
+  | 'other';
 
 export interface Place {
   id: string;
@@ -14,6 +26,7 @@ export interface Place {
   isPinned: boolean;
   createdAt: string;
   tags?: string[];
+  sourcePlatform?: 'instagram' | 'youtube' | 'naver' | 'tiktok' | 'manual';
 }
 
 export interface DaySchedule {
