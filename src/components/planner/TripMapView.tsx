@@ -1,26 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Platform, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import MapView, { Marker, Polyline, Callout, UrlTile } from 'react-native-maps';
 import type { ScheduleItem } from '../../types';
-import { MapPin, Navigation, Sparkles, Layers, RefreshCw } from 'lucide-react-native';
+import { MapPin, Navigation, Sparkles } from 'lucide-react-native';
 import { openInGoogleMaps, openMultiStopRouteInGoogleMaps } from '../../utils/mapUtils';
-
-// Safely attempt react-native-maps import for native mobile, fallback gracefully
-let NativeMapView: any = null;
-let NativeMarker: any = null;
-let NativePolyline: any = null;
-let NativeCallout: any = null;
-let PROVIDER_GOOGLE: any = null;
-
-try {
-  const Maps = require('react-native-maps');
-  NativeMapView = Maps.default || Maps.MapView;
-  NativeMarker = Maps.Marker;
-  NativePolyline = Maps.Polyline;
-  NativeCallout = Maps.Callout;
-  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
-} catch (e) {
-  // Graceful fallback on web or unlinked environments
-}
 
 interface TripMapViewProps {
   stops: ScheduleItem[];
@@ -28,11 +11,9 @@ interface TripMapViewProps {
 }
 
 export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) => {
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<MapView | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
-  const [mapError, setMapError] = useState(false);
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
-  const [viewMode, setViewMode] = useState<'map' | 'schematic'>('map');
 
   // Compute bounding region with comfortable padding around all stops
   const getCalculatedRegion = () => {
@@ -44,8 +25,8 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
         longitudeDelta: 0.05,
       };
     }
-    const lats = stops.map((s) => s.latitude);
-    const lngs = stops.map((s) => s.longitude);
+    const lats = stops.map((s) => Number(s.latitude));
+    const lngs = stops.map((s) => Number(s.longitude));
     const minLat = Math.min(...lats);
     const maxLat = Math.max(...lats);
     const minLng = Math.min(...lngs);
@@ -53,8 +34,8 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
 
     const midLat = (minLat + maxLat) / 2;
     const midLng = (minLng + maxLng) / 2;
-    const deltaLat = Math.max((maxLat - minLat) * 1.5, 0.025);
-    const deltaLng = Math.max((maxLng - minLng) * 1.5, 0.025);
+    const deltaLat = Math.max((maxLat - minLat) * 1.6, 0.025);
+    const deltaLng = Math.max((maxLng - minLng) * 1.6, 0.025);
 
     return {
       latitude: midLat,
@@ -65,8 +46,8 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
   };
 
   const polylineCoords = stops.map((s) => ({
-    latitude: s.latitude,
-    longitude: s.longitude,
+    latitude: Number(s.latitude),
+    longitude: Number(s.longitude),
   }));
 
   // Force re-rendering custom markers on Android initially, then disable to save battery
@@ -74,7 +55,7 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
     setTracksViewChanges(true);
     const timer = setTimeout(() => {
       setTracksViewChanges(false);
-    }, 1200);
+    }, 1500);
     return () => clearTimeout(timer);
   }, [stops, selectedDay]);
 
@@ -91,7 +72,7 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
           }, 500);
         } else {
           mapRef.current.fitToCoordinates(polylineCoords, {
-            edgePadding: { top: 60, right: 60, bottom: 60, left: 60 },
+            edgePadding: { top: 70, right: 60, bottom: 60, left: 60 },
             animated: true,
           });
         }
@@ -115,7 +96,7 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
             }, 500);
           } else {
             mapRef.current.fitToCoordinates(polylineCoords, {
-              edgePadding: { top: 60, right: 60, bottom: 60, left: 60 },
+              edgePadding: { top: 70, right: 60, bottom: 60, left: 60 },
               animated: true,
             });
           }
@@ -124,176 +105,92 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
     }
   };
 
-  // If native map is supported and user selected map view
-  if (NativeMapView && Platform.OS !== 'web' && !mapError && viewMode === 'map') {
-    return (
-      <View style={styles.mapContainer}>
-        <NativeMapView
-          ref={mapRef}
-          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-          style={styles.map}
-          initialRegion={getCalculatedRegion()}
-          onMapReady={handleMapReady}
-          onError={() => setMapError(true)}
-          showsUserLocation={false}
-          showsCompass={true}
-          toolbarEnabled={false}
-        >
-          {stops.map((stop) => (
-            <NativeMarker
-              key={stop.id}
-              coordinate={{
-                latitude: Number(stop.latitude),
-                longitude: Number(stop.longitude),
-              }}
-              title={`${stop.order_index}. ${stop.place_name}`}
-              description={`도착: ${stop.arrival_time} · 터치 시 구글 지도`}
-              tracksViewChanges={tracksViewChanges}
-              onCalloutPress={() => openInGoogleMaps(stop.place_name, stop.latitude, stop.longitude)}
-            >
-              <View style={styles.markerBadge}>
-                <Text style={styles.markerText}>{stop.order_index}</Text>
-              </View>
-              {NativeCallout && (
-                <NativeCallout tooltip={false}>
-                  <View style={styles.calloutBox}>
-                    <Text style={styles.calloutTitle}>
-                      {stop.order_index}. {stop.place_name}
-                    </Text>
-                    <Text style={styles.calloutSubtitle}>
-                      도착 {stop.arrival_time} · 구글 지도 열기 ↗
-                    </Text>
-                  </View>
-                </NativeCallout>
-              )}
-            </NativeMarker>
-          ))}
-
-          {polylineCoords.length > 1 && (
-            <NativePolyline
-              coordinates={polylineCoords}
-              strokeColor="#FF6B6B"
-              strokeWidth={4}
-              lineDashPattern={[1, 0]}
-            />
-          )}
-        </NativeMapView>
-
-        {/* Top Floating Badge & View Switcher */}
-        <View style={styles.overlayHeader}>
-          <View style={styles.overlayBadge}>
-            <Sparkles size={13} color="#FF6B6B" />
-            <Text style={styles.overlayText}>DAY {selectedDay} 실시간 동선 지도</Text>
-          </View>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setViewMode('schematic')}
-            style={styles.switchButton}
-            accessibilityLabel="동선 노드 뷰로 변경"
-          >
-            <Layers size={13} color="#4B5563" />
-            <Text style={styles.switchButtonText}>동선 뷰</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Quick Google Maps App Launcher */}
-        {stops.length > 0 && (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => openMultiStopRouteInGoogleMaps(stops)}
-            style={styles.googleMapsButton}
-            accessibilityLabel="구글 지도에서 전체 경로 열기"
-          >
-            <Navigation size={12} color="#FFF" />
-            <Text style={styles.googleMapsButtonText}>구글 지도 전체 경로 ↗</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  }
-
-  // Fallback rich interactive map visualization (Web & schematic mode)
   return (
     <View style={styles.mapContainer}>
-      <View style={styles.fallbackBackground}>
-        {/* Background Map Graphic Pattern */}
-        <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=800&auto=format&fit=crop' }}
-          style={StyleSheet.absoluteFillObject}
-          resizeMode="cover"
-        />
-        <View style={styles.fallbackDarkOverlay} />
-
-        {/* Interactive Stops overlay nodes */}
-        <View style={styles.stopsTrack}>
-          {stops.map((stop, index) => (
-            <React.Fragment key={stop.id}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => openInGoogleMaps(stop.place_name, stop.latitude, stop.longitude)}
-                style={styles.stopNode}
-              >
-                <View style={styles.stopPinCircle}>
-                  <Text style={styles.stopPinNumber}>{stop.order_index}</Text>
-                </View>
-                <View style={styles.stopNameCard}>
-                  <Text style={styles.stopNameText} numberOfLines={1}>
-                    {stop.place_name}
-                  </Text>
-                  <Text style={styles.stopTimeText}>
-                    {stop.arrival_time}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              {index < stops.length - 1 && (
-                <View style={styles.routeConnector}>
-                  <View style={styles.routeConnectorIcon}>
-                    <Navigation size={10} color="#FFF" />
-                  </View>
-                </View>
-              )}
-            </React.Fragment>
-          ))}
-        </View>
-
-        {/* Top Header with Badge & Map Mode Switcher */}
-        <View style={styles.overlayHeader}>
-          <View style={styles.overlayBadge}>
-            <MapPin size={13} color="#FF6B6B" fill="#FF6B6B" />
-            <Text style={styles.overlayText}>
-              DAY {selectedDay} 스마트 동선 ({stops.length}개 스팟)
-            </Text>
-          </View>
-
-          {NativeMapView && Platform.OS !== 'web' && (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => {
-                setMapError(false);
-                setViewMode('map');
-              }}
-              style={styles.switchButton}
-            >
-              <RefreshCw size={12} color="#4B5563" />
-              <Text style={styles.switchButtonText}>구글 지도 뷰</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Google Maps External Route Launch Button */}
-        {stops.length > 0 && (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => openMultiStopRouteInGoogleMaps(stops)}
-            style={styles.googleMapsButton}
-          >
-            <Navigation size={12} color="#FFF" />
-            <Text style={styles.googleMapsButtonText}>구글 지도 전체 경로 ↗</Text>
-          </TouchableOpacity>
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={getCalculatedRegion()}
+        onMapReady={handleMapReady}
+        showsUserLocation={false}
+        showsCompass={true}
+        toolbarEnabled={false}
+        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
+      >
+        {/* Real Google Maps Tile Layer (Works smoothly on Android without requiring SHA-1 API key) */}
+        {Platform.OS === 'android' && (
+          <UrlTile
+            urlTemplate="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+            maximumZ={19}
+            flipY={false}
+            zIndex={1}
+          />
         )}
+
+        {/* Real Route Polyline drawn DIRECTLY ON TOP OF Google Maps */}
+        {polylineCoords.length > 1 && (
+          <Polyline
+            coordinates={polylineCoords}
+            strokeColor="#FF6B6B"
+            strokeWidth={4}
+            lineDashPattern={[1, 0]}
+            zIndex={5}
+          />
+        )}
+
+        {/* Stop Markers drawn DIRECTLY ON TOP OF Google Maps */}
+        {stops.map((stop) => (
+          <Marker
+            key={stop.id}
+            coordinate={{
+              latitude: Number(stop.latitude),
+              longitude: Number(stop.longitude),
+            }}
+            title={`${stop.order_index}. ${stop.place_name}`}
+            description={`도착: ${stop.arrival_time} · 터치 시 구글 지도`}
+            tracksViewChanges={tracksViewChanges}
+            zIndex={10}
+            onCalloutPress={() => openInGoogleMaps(stop.place_name, stop.latitude, stop.longitude)}
+          >
+            <View style={styles.markerBadge}>
+              <Text style={styles.markerText}>{stop.order_index}</Text>
+            </View>
+            <Callout tooltip={false}>
+              <View style={styles.calloutBox}>
+                <Text style={styles.calloutTitle}>
+                  {stop.order_index}. {stop.place_name}
+                </Text>
+                <Text style={styles.calloutSubtitle}>
+                  도착 {stop.arrival_time} · 구글 지도 열기 ↗
+                </Text>
+              </View>
+            </Callout>
+          </Marker>
+        ))}
+      </MapView>
+
+      {/* Top Floating Badge */}
+      <View style={styles.overlayHeader}>
+        <View style={styles.overlayBadge}>
+          <Sparkles size={13} color="#FF6B6B" />
+          <Text style={styles.overlayText}>
+            DAY {selectedDay} 실시간 동선 지도 ({stops.length}개 스팟)
+          </Text>
+        </View>
       </View>
+
+      {/* Quick Google Maps App Launcher */}
+      {stops.length > 0 && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => openMultiStopRouteInGoogleMaps(stops)}
+          style={styles.googleMapsButton}
+          accessibilityLabel="구글 지도 앱에서 전체 경로 열기"
+        >
+          <Navigation size={12} color="#FFF" />
+          <Text style={styles.googleMapsButtonText}>구글 지도 전체 경로 ↗</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -305,9 +202,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#E2E8F0',
     position: 'relative',
+    overflow: 'hidden',
     ...Platform.select({
       ios: {
-        overflow: 'hidden',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
@@ -315,14 +212,11 @@ const styles = StyleSheet.create({
       },
       android: {
         elevation: 3,
-        // Avoid overflow: hidden on Android as it blanks Native Google Maps
-        borderRadius: 22,
       },
     }),
   },
   map: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 22,
   },
   markerBadge: {
     width: 32,
@@ -372,9 +266,9 @@ const styles = StyleSheet.create({
   },
   overlayBadge: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     elevation: 2,
@@ -387,26 +281,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#2B2D42',
-    marginLeft: 5,
-  },
-  switchButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  switchButtonText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#4B5563',
-    marginLeft: 4,
+    marginLeft: 6,
   },
   googleMapsButton: {
     position: 'absolute',
@@ -430,87 +305,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     marginLeft: 5,
-  },
-  fallbackBackground: {
-    width: '100%',
-    height: '100%',
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  fallbackDarkOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-  },
-  stopsTrack: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    width: '100%',
-    maxWidth: 380,
-    paddingHorizontal: 8,
-    zIndex: 10,
-  },
-  stopNode: {
-    alignItems: 'center',
-  },
-  stopPinCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FF6B6B',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-  },
-  stopPinNumber: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 13,
-  },
-  stopNameCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    marginTop: 5,
-    alignItems: 'center',
-    maxWidth: 90,
-  },
-  stopNameText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  stopTimeText: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  routeConnector: {
-    flex: 1,
-    height: 2,
-    backgroundColor: '#FF6B6B',
-    marginHorizontal: 4,
-    position: 'relative',
-    bottom: 12,
-  },
-  routeConnectorIcon: {
-    position: 'absolute',
-    top: -8,
-    left: '50%',
-    marginLeft: -8,
-    backgroundColor: '#4ECDC4',
-    padding: 3,
-    borderRadius: 10,
   },
 });
