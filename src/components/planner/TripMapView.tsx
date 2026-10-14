@@ -1,8 +1,8 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
-import MapView, { Marker, Polyline, Callout, UrlTile } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import type { ScheduleItem } from '../../types';
-import { MapPin, Navigation, Sparkles } from 'lucide-react-native';
+import { Sparkles, Navigation } from 'lucide-react-native';
 import { openInGoogleMaps, openMultiStopRouteInGoogleMaps } from '../../utils/mapUtils';
 
 interface TripMapViewProps {
@@ -11,166 +11,189 @@ interface TripMapViewProps {
 }
 
 export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) => {
-  const mapRef = useRef<MapView | null>(null);
-  const [isMapReady, setIsMapReady] = useState(false);
-  const [tracksViewChanges, setTracksViewChanges] = useState(true);
-
-  // Compute bounding region with comfortable padding around all stops
-  const getCalculatedRegion = () => {
-    if (stops.length === 0) {
-      return {
-        latitude: 35.6762,
-        longitude: 139.6503,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      };
+  // Center coordinates calculation
+  const { defaultLat, defaultLng } = useMemo(() => {
+    if (stops.length > 0) {
+      const avgLat = stops.reduce((acc, s) => acc + Number(s.latitude), 0) / stops.length;
+      const avgLng = stops.reduce((acc, s) => acc + Number(s.longitude), 0) / stops.length;
+      return { defaultLat: avgLat, defaultLng: avgLng };
     }
-    const lats = stops.map((s) => Number(s.latitude));
-    const lngs = stops.map((s) => Number(s.longitude));
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
+    // Default Tokyo Shibuya coordinates
+    return { defaultLat: 35.6762, defaultLng: 139.6503 };
+  }, [stops]);
 
-    const midLat = (minLat + maxLat) / 2;
-    const midLng = (minLng + maxLng) / 2;
-    const deltaLat = Math.max((maxLat - minLat) * 1.6, 0.025);
-    const deltaLng = Math.max((maxLng - minLng) * 1.6, 0.025);
+  // Clean data for Leaflet injection
+  const stopsData = useMemo(() => {
+    return stops.map((s) => ({
+      id: s.id,
+      order_index: s.order_index,
+      place_name: s.place_name,
+      arrival_time: s.arrival_time,
+      latitude: Number(s.latitude),
+      longitude: Number(s.longitude),
+    }));
+  }, [stops]);
 
-    return {
-      latitude: midLat,
-      longitude: midLng,
-      latitudeDelta: deltaLat,
-      longitudeDelta: deltaLng,
-    };
-  };
+  // Generate interactive Leaflet Map HTML
+  const mapHtml = useMemo(() => {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body, #map { width: 100%; height: 100%; background: #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .custom-pin {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background-color: #FF6B6B;
+      color: #FFFFFF;
+      font-size: 13px;
+      font-weight: 800;
+      border: 2.5px solid #FFFFFF;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      cursor: pointer;
+    }
+    .leaflet-popup-content-wrapper {
+      border-radius: 14px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+      padding: 2px;
+    }
+    .popup-box {
+      padding: 6px 10px;
+      text-align: center;
+      min-width: 140px;
+    }
+    .popup-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1E293B;
+      margin-bottom: 2px;
+    }
+    .popup-time {
+      font-size: 11px;
+      font-weight: 600;
+      color: #059669;
+      margin-bottom: 6px;
+    }
+    .popup-btn {
+      display: inline-block;
+      background: #059669;
+      color: #FFF;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 12px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .leaflet-control-attribution {
+      font-size: 8px !important;
+      background: rgba(255,255,255,0.7) !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    var stops = ${JSON.stringify(stopsData)};
+    var defaultCenter = [${defaultLat}, ${defaultLng}];
+    
+    var map = L.map('map', {
+      zoomControl: false,
+      attributionControl: true
+    }).setView(defaultCenter, 14);
 
-  const polylineCoords = stops.map((s) => ({
-    latitude: Number(s.latitude),
-    longitude: Number(s.longitude),
-  }));
+    // High quality CartoDB Voyager Map Tiles (Clean Google-like typography & street lines)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      subdomains: 'abcd',
+      attribution: '© OSM, © CARTO'
+    }).addTo(map);
 
-  // Force re-rendering custom markers on Android initially, then disable to save battery
-  useEffect(() => {
-    setTracksViewChanges(true);
-    const timer = setTimeout(() => {
-      setTracksViewChanges(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [stops, selectedDay]);
+    if (stops && stops.length > 0) {
+      var latlngs = [];
+      stops.forEach(function(s) {
+        var pos = [Number(s.latitude), Number(s.longitude)];
+        latlngs.push(pos);
 
-  // Recalculate camera position when day or stops change
-  useEffect(() => {
-    if (mapRef.current && isMapReady && polylineCoords.length > 0) {
-      try {
-        if (polylineCoords.length === 1) {
-          mapRef.current.animateToRegion({
-            latitude: polylineCoords[0].latitude,
-            longitude: polylineCoords[0].longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          }, 500);
-        } else {
-          mapRef.current.fitToCoordinates(polylineCoords, {
-            edgePadding: { top: 70, right: 60, bottom: 60, left: 60 },
-            animated: true,
-          });
-        }
-      } catch (err) {
-        // Safe fallback
+        var customIcon = L.divIcon({
+          className: '',
+          html: '<div class="custom-pin">' + s.order_index + '</div>',
+          iconSize: [30, 30],
+          iconAnchor: [15, 15],
+          popupAnchor: [0, -16]
+        });
+
+        var escapedName = (s.place_name || '').replace(/'/g, "\\\\'");
+        var popupHtml = '<div class="popup-box">' +
+          '<div class="popup-title">' + s.order_index + '. ' + s.place_name + '</div>' +
+          '<div class="popup-time">도착: ' + s.arrival_time + '</div>' +
+          '<div class="popup-btn" onclick="window.ReactNativeWebView.postMessage(JSON.stringify({type:\\'NAVIGATE\\', placeName:\\'' + escapedName + '\\', lat:' + s.latitude + ', lng:' + s.longitude + '}))">구글 지도 길찾기 ↗</div>' +
+          '</div>';
+
+        L.marker(pos, { icon: customIcon }).addTo(map).bindPopup(popupHtml);
+      });
+
+      // Draw polyline connecting all day stops directly ON the map
+      if (latlngs.length > 1) {
+        L.polyline(latlngs, {
+          color: '#FF6B6B',
+          weight: 4,
+          opacity: 0.9,
+          lineJoin: 'round'
+        }).addTo(map);
+      }
+
+      // Auto-fit bounds with padding so all markers are visible
+      if (latlngs.length === 1) {
+        map.setView(latlngs[0], 15);
+      } else {
+        map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 16 });
       }
     }
-  }, [stops, selectedDay, isMapReady]);
+  </script>
+</body>
+</html>
+    `;
+  }, [stopsData, defaultLat, defaultLng]);
 
-  const handleMapReady = () => {
-    setIsMapReady(true);
-    if (mapRef.current && polylineCoords.length > 0) {
-      setTimeout(() => {
-        try {
-          if (polylineCoords.length === 1) {
-            mapRef.current.animateToRegion({
-              latitude: polylineCoords[0].latitude,
-              longitude: polylineCoords[0].longitude,
-              latitudeDelta: 0.02,
-              longitudeDelta: 0.02,
-            }, 500);
-          } else {
-            mapRef.current.fitToCoordinates(polylineCoords, {
-              edgePadding: { top: 70, right: 60, bottom: 60, left: 60 },
-              animated: true,
-            });
-          }
-        } catch (e) {}
-      }, 300);
+  // Handle messages sent from inside the WebView (e.g. clicking popup button)
+  const handleWebViewMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'NAVIGATE') {
+        openInGoogleMaps(data.placeName, data.lat, data.lng);
+      }
+    } catch (e) {
+      // Ignore
     }
   };
 
   return (
     <View style={styles.mapContainer}>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={getCalculatedRegion()}
-        onMapReady={handleMapReady}
-        showsUserLocation={false}
-        showsCompass={true}
-        toolbarEnabled={false}
-        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
-      >
-        {/* Real Google Maps Tile Layer (Works smoothly on Android without requiring SHA-1 API key) */}
-        {Platform.OS === 'android' && (
-          <UrlTile
-            urlTemplate="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-            maximumZ={19}
-            flipY={false}
-            zIndex={1}
-          />
-        )}
-
-        {/* Real Route Polyline drawn DIRECTLY ON TOP OF Google Maps */}
-        {polylineCoords.length > 1 && (
-          <Polyline
-            coordinates={polylineCoords}
-            strokeColor="#FF6B6B"
-            strokeWidth={4}
-            lineDashPattern={[1, 0]}
-            zIndex={5}
-          />
-        )}
-
-        {/* Stop Markers drawn DIRECTLY ON TOP OF Google Maps */}
-        {stops.map((stop) => (
-          <Marker
-            key={stop.id}
-            coordinate={{
-              latitude: Number(stop.latitude),
-              longitude: Number(stop.longitude),
-            }}
-            title={`${stop.order_index}. ${stop.place_name}`}
-            description={`도착: ${stop.arrival_time} · 터치 시 구글 지도`}
-            tracksViewChanges={tracksViewChanges}
-            zIndex={10}
-            onCalloutPress={() => openInGoogleMaps(stop.place_name, stop.latitude, stop.longitude)}
-          >
-            <View style={styles.markerBadge}>
-              <Text style={styles.markerText}>{stop.order_index}</Text>
-            </View>
-            <Callout tooltip={false}>
-              <View style={styles.calloutBox}>
-                <Text style={styles.calloutTitle}>
-                  {stop.order_index}. {stop.place_name}
-                </Text>
-                <Text style={styles.calloutSubtitle}>
-                  도착 {stop.arrival_time} · 구글 지도 열기 ↗
-                </Text>
-              </View>
-            </Callout>
-          </Marker>
-        ))}
-      </MapView>
+      <WebView
+        originWhitelist={['*']}
+        source={{ html: mapHtml }}
+        style={styles.webview}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        onMessage={handleWebViewMessage}
+        scrollEnabled={false}
+        overScrollMode="never"
+        androidHardwareAccelerationDisabled={false}
+      />
 
       {/* Top Floating Badge */}
-      <View style={styles.overlayHeader}>
+      <View style={styles.overlayHeader} pointerEvents="box-none">
         <View style={styles.overlayBadge}>
           <Sparkles size={13} color="#FF6B6B" />
           <Text style={styles.overlayText}>
@@ -215,44 +238,9 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  markerBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FF6B6B',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-  },
-  markerText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 13,
-  },
-  calloutBox: {
-    padding: 8,
-    minWidth: 140,
-    alignItems: 'center',
-  },
-  calloutTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 2,
-  },
-  calloutSubtitle: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#059669',
+  webview: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
   },
   overlayHeader: {
     position: 'absolute',
