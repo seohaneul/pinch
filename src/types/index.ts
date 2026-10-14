@@ -1,3 +1,5 @@
+import { TransportMode } from '../utils/routeUtils';
+
 export type PlaceCategory =
   | 'ALL'
   | 'CAFE'
@@ -27,6 +29,25 @@ export interface Place {
   createdAt: string;
   tags?: string[];
   sourcePlatform?: 'instagram' | 'youtube' | 'naver' | 'tiktok' | 'manual';
+}
+
+export interface ScheduleItem {
+  id: string;
+  trip_id: string;
+  place_id: string;
+  place_name: string;
+  category: string;
+  latitude: number;
+  longitude: number;
+  day_number: number;
+  order_index: number;
+  stay_duration_minutes: number;
+  transport_mode: TransportMode;
+  travel_duration_minutes: number;
+  arrival_time: string;
+  memo?: string;
+  imageUrl?: string;
+  address?: string;
 }
 
 export interface DaySchedule {
