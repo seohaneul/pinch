@@ -383,6 +383,7 @@ export default function PlannerScreen() {
                                 nextStop.place_name,
                                 stop.latitude,
                                 stop.longitude,
+                                stop.place_name,
                                 nextStop.transport_mode
                               )
                             }

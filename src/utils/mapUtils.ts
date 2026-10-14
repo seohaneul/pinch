@@ -1,24 +1,31 @@
 import { Linking, Platform } from 'react-native';
 
 /**
- * Open place in Google Maps (App if installed, otherwise Web)
+ * Open single place in Google Maps (App if installed, otherwise Web)
  */
 export async function openInGoogleMaps(
   placeName: string,
   latitude?: number,
   longitude?: number
 ): Promise<void> {
-  const query = latitude && longitude
+  const hasCoords = latitude !== undefined && longitude !== undefined && latitude !== 0 && longitude !== 0;
+
+  // Universal Google Maps search URL
+  const query = hasCoords
     ? `${latitude},${longitude}`
     : encodeURIComponent(placeName);
 
-  const webUrl = latitude && longitude
-    ? `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}&query_place_id=${encodeURIComponent(placeName)}`
+  const webUrl = hasCoords
+    ? `https://www.google.com/maps/search/?api=1&query=${query}`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName)}`;
 
   const appUrl = Platform.select({
-    ios: `comgooglemaps://?q=${encodeURIComponent(placeName)}&center=${latitude || 0},${longitude || 0}`,
-    android: `geo:${latitude || 0},${longitude || 0}?q=${encodeURIComponent(placeName)}`,
+    ios: hasCoords
+      ? `comgooglemaps://?q=${encodeURIComponent(placeName)}&center=${latitude},${longitude}&zoom=16`
+      : `comgooglemaps://?q=${encodeURIComponent(placeName)}`,
+    android: hasCoords
+      ? `geo:${latitude},${longitude}?q=${latitude},${longitude}(${encodeURIComponent(placeName)})`
+      : `geo:0,0?q=${encodeURIComponent(placeName)}`,
     default: webUrl,
   });
 
@@ -34,7 +41,8 @@ export async function openInGoogleMaps(
 }
 
 /**
- * Open Turn-by-Turn Navigation / Route Directions in Google Maps
+ * Open Route Directions between two specific stops in Google Maps
+ * Explicitly pins both origin and destination so Google Maps NEVER defaults to "My Location".
  */
 export async function openGoogleMapsDirections(
   destLat: number,
@@ -42,31 +50,49 @@ export async function openGoogleMapsDirections(
   destName: string,
   startLat?: number,
   startLng?: number,
+  startName?: string,
   mode: 'WALK' | 'TRANSIT' | 'DRIVE' = 'TRANSIT'
 ): Promise<void> {
   const travelMode = mode === 'WALK' ? 'walking' : mode === 'DRIVE' ? 'driving' : 'transit';
 
-  let webUrl = `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}&travelmode=${travelMode}`;
-  if (startLat && startLng) {
-    webUrl += `&origin=${startLat},${startLng}`;
+  // Construct destination query
+  const destQuery = `${destLat},${destLng}`;
+
+  // Construct origin query (if start coordinates exist, use them so Google Maps won't use current GPS)
+  let originQuery = '';
+  if (startLat !== undefined && startLng !== undefined && startLat !== 0 && startLng !== 0) {
+    originQuery = `${startLat},${startLng}`;
   }
 
-  const appUrl = Platform.select({
-    ios: `comgooglemaps://?daddr=${destLat},${destLng}&directionsmode=${travelMode}${
-      startLat && startLng ? `&saddr=${startLat},${startLng}` : ''
-    }`,
-    android: `google.navigation:q=${destLat},${destLng}&mode=${travelMode === 'walking' ? 'w' : travelMode === 'driving' ? 'd' : 'r'}`,
-    default: webUrl,
-  });
+  // Official Google Maps Directions API URL
+  // Supported natively by both Google Maps App (Android/iOS) and Web
+  let directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destQuery}&travelmode=${travelMode}`;
+  if (originQuery) {
+    directionsUrl += `&origin=${originQuery}`;
+  }
 
-  try {
-    if (appUrl && (await Linking.canOpenURL(appUrl))) {
-      await Linking.openURL(appUrl);
-    } else {
-      await Linking.openURL(webUrl);
+  // iOS Google Maps App Custom Scheme
+  const iosAppUrl = originQuery
+    ? `comgooglemaps://?saddr=${originQuery}&daddr=${destQuery}&directionsmode=${travelMode}`
+    : `comgooglemaps://?daddr=${destQuery}&directionsmode=${travelMode}`;
+
+  // On iOS, check if Google Maps app is installed, otherwise use universal directionsUrl
+  if (Platform.OS === 'ios') {
+    try {
+      if (await Linking.canOpenURL(iosAppUrl)) {
+        await Linking.openURL(iosAppUrl);
+        return;
+      }
+    } catch (e) {
+      // Fall through to directionsUrl
     }
+  }
+
+  // Universal directionsUrl opens Google Maps app directly on Android / web on browser
+  try {
+    await Linking.openURL(directionsUrl);
   } catch (err) {
-    await Linking.openURL(webUrl);
+    console.warn('Failed to open Google Maps directions:', err);
   }
 }
 
