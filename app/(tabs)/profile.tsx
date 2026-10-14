@@ -6,11 +6,13 @@ import {
   TouchableOpacity,
   Switch,
   Image,
+  Alert,
 } from 'react-native';
 import { Header } from '../../src/components/common/Header';
 import { Card, Badge } from '../../src/components/common/Card';
 import { usePlaceStore } from '../../src/store/usePlaceStore';
 import { useTripStore } from '../../src/store/useTripStore';
+import { useWalletStore } from '../../src/store/useWalletStore';
 import {
   User,
   Settings,
@@ -24,14 +26,36 @@ import {
   Sparkles,
   LogOut,
   Share2,
+  RotateCcw,
 } from 'lucide-react-native';
 
 export default function ProfileScreen() {
   const [pushEnabled, setPushEnabled] = React.useState(true);
   const [cloudSync, setCloudSync] = React.useState(true);
   
-  const { places } = usePlaceStore();
-  const { trips } = useTripStore();
+  const { places, resetToDefaults: resetPlaces } = usePlaceStore();
+  const { trips, resetToDefaults: resetTrips } = useTripStore();
+  const { resetToDefaults: resetWallet } = useWalletStore();
+
+  const handleResetAllData = () => {
+    Alert.alert(
+      '데이터 초기화 및 예시 복원',
+      '저장된 모든 장소, 일정, 가계부 지출을 초기화하고 [도쿄 3박 4일 감성 여행] 공식 예시 데이터로 복원하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '복원하기',
+          style: 'destructive',
+          onPress: () => {
+            resetPlaces();
+            resetTrips();
+            resetWallet();
+            Alert.alert('복원 완료! 🎉', '도쿄 여행 공식 핫플, 일정 및 가계부 예시 데이터가 복원되었습니다.');
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <View className="flex-1 bg-background">
@@ -135,19 +159,46 @@ export default function ProfileScreen() {
               />
             </View>
 
-            {/* Device Info */}
-            <TouchableOpacity className="flex-row items-center justify-between p-4">
-              <View className="flex-row items-center">
-                <Smartphone size={18} color="#8D99AE" className="mr-3" />
-                <Text className="text-sm font-bold text-darkText">버전 정보</Text>
-              </View>
-              <View className="flex-row items-center">
-                <Text className="text-xs text-mutedText mr-2 font-medium">v1.0.0 (Expo SDK 52)</Text>
-                <ChevronRight size={16} color="#CBD5E0" />
-              </View>
-            </TouchableOpacity>
-          </Card>
-        </View>
+              {/* Device Info */}
+              <TouchableOpacity className="flex-row items-center justify-between p-4">
+                <View className="flex-row items-center">
+                  <Smartphone size={18} color="#8D99AE" className="mr-3" />
+                  <Text className="text-sm font-bold text-darkText">버전 정보</Text>
+                </View>
+                <View className="flex-row items-center">
+                  <Text className="text-xs text-mutedText mr-2 font-medium">v1.0.0 (Expo SDK 57)</Text>
+                  <ChevronRight size={16} color="#CBD5E0" />
+                </View>
+              </TouchableOpacity>
+            </Card>
+          </View>
+
+          {/* Data Reset & Demo Seeding */}
+          <View className="px-4 mt-6">
+            <Text className="text-sm font-bold text-mutedText mb-2 px-1 uppercase tracking-wider">
+              테스트 & 데이터 관리
+            </Text>
+
+            <Card className="p-0 overflow-hidden">
+              <TouchableOpacity
+                onPress={handleResetAllData}
+                className="flex-row items-center justify-between p-4 bg-rose-50/50"
+              >
+                <View className="flex-row items-center flex-1 mr-2">
+                  <RotateCcw size={18} color="#FF6B6B" className="mr-3" />
+                  <View>
+                    <Text className="text-sm font-extrabold text-primary">
+                      데이터 초기화 및 도쿄 여행 예시 복원
+                    </Text>
+                    <Text className="text-[11px] text-mutedText">
+                      장소, 일정, 가계부 데이터를 초기 기본값으로 리셋
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight size={16} color="#FF6B6B" />
+              </TouchableOpacity>
+            </Card>
+          </View>
 
         {/* Security & Support */}
         <View className="px-4 mt-6">

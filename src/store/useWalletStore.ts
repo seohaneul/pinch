@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   CurrencyCode,
   ExpenseItem,
@@ -29,6 +31,7 @@ export interface WalletState {
   getTransactions: () => SettlementTransaction[];
   getTotalKrw: () => number;
   generateShareText: (tripTitle?: string) => string;
+  resetToDefaults: () => void;
 }
 
 const MOCK_MEMBERS: WalletMember[] = [
@@ -123,7 +126,9 @@ const INITIAL_EXPENSES: ExpenseItem[] = [
   },
 ];
 
-export const useWalletStore = create<WalletState>((set, get) => ({
+export const useWalletStore = create<WalletState>()(
+  persist(
+    (set, get) => ({
   expenses: INITIAL_EXPENSES,
   members: MOCK_MEMBERS,
   activeTab: 'expenses',
@@ -213,4 +218,24 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
     return formatSettlementShareText(tripTitle, totalKrw, memberBalances, txns);
   },
-}));
+
+  resetToDefaults: () => {
+    set({
+      expenses: INITIAL_EXPENSES,
+      members: MOCK_MEMBERS,
+      activeTab: 'expenses',
+      exchangeRates: { ...DEFAULT_EXCHANGE_RATES },
+      settledTransactionIds: [],
+    });
+  },
+}),
+{
+  name: 'pinch-wallet-storage',
+  storage: createJSONStorage(() => AsyncStorage),
+  partialize: (state) => ({
+    expenses: state.expenses,
+    exchangeRates: state.exchangeRates,
+    settledTransactionIds: state.settledTransactionIds,
+  }),
+}
+));

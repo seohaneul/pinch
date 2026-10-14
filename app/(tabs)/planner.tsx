@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,14 +6,24 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { Header } from '../../src/components/common/Header';
 import { Card, Badge, EmptyState } from '../../src/components/common/Card';
 import { Button } from '../../src/components/common/Button';
 import { useTripStore } from '../../src/store/useTripStore';
 import { usePlaceStore } from '../../src/store/usePlaceStore';
+import { useWalletStore } from '../../src/store/useWalletStore';
 import { TripMapView } from '../../src/components/planner/TripMapView';
 import { TransportMode, calculateDistance } from '../../src/utils/routeUtils';
+import {
+  CurrencyCode,
+  WalletCategory,
+  CURRENCY_SYMBOLS,
+  convertToKrw,
+} from '../../src/utils/settlementUtils';
+import { ScheduleItem } from '../../src/types';
 import {
   MapPin,
   Calendar,
@@ -28,6 +38,10 @@ import {
   Plus,
   ArrowUpDown,
   Navigation,
+  Coins,
+  Receipt,
+  X,
+  Check,
 } from 'lucide-react-native';
 
 export default function PlannerScreen() {
@@ -46,6 +60,17 @@ export default function PlannerScreen() {
   } = useTripStore();
 
   const { places } = usePlaceStore();
+  const { addExpense, members, exchangeRates } = useWalletStore();
+
+  // Expense modal for stop
+  const [expenseModalVisible, setExpenseModalVisible] = useState(false);
+  const [selectedStopForExpense, setSelectedStopForExpense] = useState<ScheduleItem | null>(null);
+  const [expenseTitle, setExpenseTitle] = useState('');
+  const [expenseAmountStr, setExpenseAmountStr] = useState('');
+  const [expenseCurrency, setExpenseCurrency] = useState<CurrencyCode>('JPY');
+  const [expenseCategory, setExpenseCategory] = useState<WalletCategory>('FOOD');
+  const [expensePaidBy, setExpensePaidBy] = useState<string>(members[0]?.id || 'm1');
+  const [expenseSplitMembers, setExpenseSplitMembers] = useState<string[]>(members.map((m) => m.id));
 
   // Get current day's sorted schedule items
   const dayStops = scheduleItems
@@ -55,6 +80,54 @@ export default function PlannerScreen() {
   useEffect(() => {
     recalculateTimes(selectedDay);
   }, [selectedDay]);
+
+  const handleOpenExpenseModal = (stop: ScheduleItem) => {
+    setSelectedStopForExpense(stop);
+    setExpenseTitle(stop.place_name ? `${stop.place_name} 지출` : '일정 지출');
+    setExpenseAmountStr('');
+    setExpenseCurrency('JPY');
+    const defaultCat: WalletCategory =
+      stop.category === 'CAFE' || stop.category === 'RESTAURANT'
+        ? 'FOOD'
+        : stop.category === 'SHOPPING'
+        ? 'SHOPPING'
+        : stop.category === 'LODGING'
+        ? 'LODGING'
+        : 'ACTIVITY';
+    setExpenseCategory(defaultCat);
+    setExpensePaidBy(members[0]?.id || 'm1');
+    setExpenseSplitMembers(members.map((m) => m.id));
+    setExpenseModalVisible(true);
+  };
+
+  const handleSaveStopExpense = () => {
+    if (!selectedStopForExpense) return;
+    const numAmount = parseFloat(expenseAmountStr.replace(/,/g, ''));
+    if (isNaN(numAmount) || numAmount <= 0) {
+      Alert.alert('알림', '올바른 금액을 입력해주세요.');
+      return;
+    }
+
+    addExpense({
+      trip_id: currentTrip?.id || 't_tokyo',
+      schedule_id: selectedStopForExpense.id,
+      place_name: selectedStopForExpense.place_name,
+      title: expenseTitle.trim() || `${selectedStopForExpense.place_name} 지출`,
+      paid_by: expensePaidBy,
+      currency: expenseCurrency,
+      amount: numAmount,
+      exchange_rate: exchangeRates[expenseCurrency] || 1,
+      split_members: expenseSplitMembers,
+      category: expenseCategory,
+    });
+
+    setExpenseModalVisible(false);
+    Alert.alert(
+      '가계부에 핀치 완료! 💳',
+      `"${selectedStopForExpense.place_name}" 지출이 여행 가계부에 등록되었습니다.`
+    );
+    setSelectedStopForExpense(null);
+  };
 
   const handleOptimizeRoute = () => {
     if (dayStops.length <= 1) {
@@ -243,29 +316,42 @@ export default function PlannerScreen() {
                           </Text>
                         )}
 
-                        {/* Stay Duration selector pills */}
-                        <View className="flex-row items-center pt-2 border-t border-gray-100">
-                          <Text className="text-[11px] text-mutedText mr-2 font-medium">체류 시간:</Text>
-                          {[30, 60, 90, 120].map((mins) => {
-                            const isSelected = stop.stay_duration_minutes === mins;
-                            return (
-                              <TouchableOpacity
-                                key={mins}
-                                onPress={() => updateStayDuration(stop.id, mins)}
-                                className={`px-2 py-0.5 rounded-md mr-1 ${
-                                  isSelected ? 'bg-darkText' : 'bg-gray-100'
-                                }`}
-                              >
-                                <Text
-                                  className={`text-[10px] font-bold ${
-                                    isSelected ? 'text-white' : 'text-gray-600'
+                        {/* Stay Duration & Add Expense Quick Action */}
+                        <View className="flex-row items-center justify-between pt-2 border-t border-gray-100 mt-1">
+                          <View className="flex-row items-center">
+                            <Text className="text-[11px] text-mutedText mr-1.5 font-medium">체류:</Text>
+                            {[30, 60, 90, 120].map((mins) => {
+                              const isSelected = stop.stay_duration_minutes === mins;
+                              return (
+                                <TouchableOpacity
+                                  key={mins}
+                                  onPress={() => updateStayDuration(stop.id, mins)}
+                                  className={`px-1.5 py-0.5 rounded-md mr-1 ${
+                                    isSelected ? 'bg-darkText' : 'bg-gray-100'
                                   }`}
                                 >
-                                  {mins}분
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
+                                  <Text
+                                    className={`text-[10px] font-bold ${
+                                      isSelected ? 'text-white' : 'text-gray-600'
+                                    }`}
+                                  >
+                                    {mins}분
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+
+                          {/* Quick Add Expense button linking to Wallet */}
+                          <TouchableOpacity
+                            onPress={() => handleOpenExpenseModal(stop)}
+                            className="bg-primary/10 px-2.5 py-1 rounded-full flex-row items-center"
+                          >
+                            <Coins size={12} color="#FF6B6B" />
+                            <Text className="text-[11px] font-extrabold text-primary ml-1">
+                              지출 추가
+                            </Text>
+                          </TouchableOpacity>
                         </View>
                       </Card>
                     </View>
@@ -343,6 +429,145 @@ export default function PlannerScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Add Expense for Stop Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={expenseModalVisible}
+        onRequestClose={() => setExpenseModalVisible(false)}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-surface rounded-t-3xl p-5">
+            <View className="flex-row items-center justify-between pb-3 border-b border-gray-100">
+              <View className="flex-row items-center">
+                <Receipt size={18} color="#FF6B6B" />
+                <Text className="text-base font-extrabold text-darkText ml-1.5">
+                  일정 연동 지출 기록 💳
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setExpenseModalVisible(false)}
+                className="w-7 h-7 rounded-full bg-gray-100 items-center justify-center"
+              >
+                <X size={15} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedStopForExpense && (
+              <ScrollView showsVerticalScrollIndicator={false} className="mt-3">
+                <View className="p-3 bg-gray-50 rounded-2xl mb-3 border border-borderLine">
+                  <View className="flex-row items-center mb-0.5">
+                    <MapPin size={12} color="#FF6B6B" />
+                    <Text className="text-xs font-bold text-primary ml-1">
+                      DAY {selectedStopForExpense.day_number} · #{selectedStopForExpense.order_index} 스팟
+                    </Text>
+                  </View>
+                  <Text className="text-base font-extrabold text-darkText">
+                    {selectedStopForExpense.place_name}
+                  </Text>
+                </View>
+
+                {/* Currency selector */}
+                <Text className="text-xs font-bold text-mutedText mb-1.5">통화 및 금액</Text>
+                <View className="flex-row gap-2 mb-2">
+                  {(['JPY', 'KRW', 'USD', 'EUR'] as CurrencyCode[]).map((cur) => (
+                    <TouchableOpacity
+                      key={cur}
+                      onPress={() => setExpenseCurrency(cur)}
+                      className={`flex-1 py-2 rounded-xl items-center border ${
+                        expenseCurrency === cur
+                          ? 'bg-primary border-primary'
+                          : 'bg-white border-borderLine'
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs font-extrabold ${
+                          expenseCurrency === cur ? 'text-white' : 'text-darkText'
+                        }`}
+                      >
+                        {CURRENCY_SYMBOLS[cur]} {cur}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Amount input */}
+                <View className="bg-gray-50 border border-borderLine rounded-2xl px-4 py-2.5 flex-row items-center mb-1">
+                  <Text className="text-xl font-bold text-primary mr-2">
+                    {CURRENCY_SYMBOLS[expenseCurrency]}
+                  </Text>
+                  <TextInput
+                    value={expenseAmountStr}
+                    onChangeText={setExpenseAmountStr}
+                    placeholder="0"
+                    keyboardType="numeric"
+                    className="flex-1 text-2xl font-extrabold text-darkText"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+
+                {expenseCurrency !== 'KRW' && (
+                  <Text className="text-[11px] font-bold text-primary mb-3 px-1">
+                    ≈ 약{' '}
+                    {convertToKrw(
+                      parseFloat(expenseAmountStr.replace(/,/g, '')) || 0,
+                      expenseCurrency,
+                      exchangeRates[expenseCurrency]
+                    ).toLocaleString()}
+                    원 (환율 자동 적용)
+                  </Text>
+                )}
+
+                {/* Title */}
+                <Text className="text-xs font-bold text-mutedText mb-1.5 mt-1">지출 내용</Text>
+                <TextInput
+                  value={expenseTitle}
+                  onChangeText={setExpenseTitle}
+                  placeholder="예: 입장료, 점심 식사, 굿즈 구매"
+                  className="bg-gray-50 border border-borderLine rounded-2xl px-4 py-2.5 text-sm font-bold text-darkText mb-3"
+                  placeholderTextColor="#9CA3AF"
+                />
+
+                {/* Paid By */}
+                <Text className="text-xs font-bold text-mutedText mb-1.5">결제한 사람</Text>
+                <View className="flex-row gap-2 mb-4">
+                  {members.map((m) => {
+                    const isSelected = expensePaidBy === m.id;
+                    return (
+                      <TouchableOpacity
+                        key={m.id}
+                        onPress={() => setExpensePaidBy(m.id)}
+                        className={`flex-1 py-2 rounded-xl border flex-row items-center justify-center ${
+                          isSelected
+                            ? 'bg-darkText border-darkText'
+                            : 'bg-white border-borderLine'
+                        }`}
+                      >
+                        <Text
+                          className={`text-xs font-bold ${
+                            isSelected ? 'text-white' : 'text-darkText'
+                          }`}
+                        >
+                          {m.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Button
+                  title="가계부에 지출 추가하기"
+                  onPress={handleSaveStopExpense}
+                  variant="primary"
+                  size="lg"
+                  className="w-full mb-3"
+                />
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

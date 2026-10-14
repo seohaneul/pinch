@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Place, PlaceCategory } from '../types';
 import { parseSnsUrl } from '../services/parserService';
 
@@ -18,6 +20,7 @@ interface PlaceState {
   removePlace: (id: string) => void;
   togglePin: (id: string) => void;
   extractFromUrl: (url: string) => Promise<Place | null>;
+  resetToDefaults: () => void;
 }
 
 const INITIAL_PLACES: Place[] = [
@@ -87,49 +90,70 @@ const INITIAL_PLACES: Place[] = [
   },
 ];
 
-export const usePlaceStore = create<PlaceState>((set, get) => ({
-  places: INITIAL_PLACES,
-  selectedCategory: 'ALL',
-  searchQuery: '',
-  isParsing: false,
-  isExtracting: false,
+export const usePlaceStore = create<PlaceState>()(
+  persist(
+    (set, get) => ({
+      places: INITIAL_PLACES,
+      selectedCategory: 'ALL',
+      searchQuery: '',
+      isParsing: false,
+      isExtracting: false,
 
-  setCategory: (category) => set({ selectedCategory: category }),
-  setSearchQuery: (query) => set({ searchQuery: query }),
+      setCategory: (category) => set({ selectedCategory: category }),
+      setSearchQuery: (query) => set({ searchQuery: query }),
 
-  addPlace: (place) => {
-    set((state) => ({
-      places: [place, ...state.places],
-    }));
-  },
+      addPlace: (place) => {
+        set((state) => ({
+          places: [place, ...state.places],
+        }));
+      },
 
-  removePlace: (id) => {
-    set((state) => ({
-      places: state.places.filter((p) => p.id !== id),
-    }));
-  },
+      removePlace: (id) => {
+        set((state) => ({
+          places: state.places.filter((p) => p.id !== id),
+        }));
+      },
 
-  togglePin: (id) => {
-    set((state) => ({
-      places: state.places.map((p) =>
-        p.id === id ? { ...p, isPinned: !p.isPinned } : p
-      ),
-    }));
-  },
+      togglePin: (id) => {
+        set((state) => ({
+          places: state.places.map((p) =>
+            p.id === id ? { ...p, isPinned: !p.isPinned } : p
+          ),
+        }));
+      },
 
-  extractFromUrl: async (url) => {
-    set({ isParsing: true, isExtracting: true });
-    try {
-      const newPlace = await parseSnsUrl(url);
-      set((state) => ({
-        places: [newPlace, ...state.places],
-        isParsing: false,
-        isExtracting: false,
-      }));
-      return newPlace;
-    } catch (err) {
-      set({ isParsing: false, isExtracting: false });
-      return null;
+      extractFromUrl: async (url) => {
+        set({ isParsing: true, isExtracting: true });
+        try {
+          const newPlace = await parseSnsUrl(url);
+          set((state) => ({
+            places: [newPlace, ...state.places],
+            isParsing: false,
+            isExtracting: false,
+          }));
+          return newPlace;
+        } catch (err) {
+          set({ isParsing: false, isExtracting: false });
+          return null;
+        }
+      },
+
+      resetToDefaults: () => {
+        set({
+          places: INITIAL_PLACES,
+          selectedCategory: 'ALL',
+          searchQuery: '',
+          isParsing: false,
+          isExtracting: false,
+        });
+      },
+    }),
+    {
+      name: 'pinch-place-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        places: state.places,
+      }),
     }
-  },
-}));
+  )
+);

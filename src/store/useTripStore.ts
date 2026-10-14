@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Trip, ScheduleItem, Place, Member, Expense } from '../types';
 import {
   TransportMode,
@@ -29,6 +31,7 @@ interface TripState {
   removeScheduleItem: (scheduleId: string) => void;
   addExpense: (expense: Omit<Expense, 'id'>) => void;
   deleteExpense: (expenseId: string) => void;
+  resetToDefaults: () => void;
 }
 
 const MOCK_MEMBERS: Member[] = [
@@ -186,7 +189,9 @@ const INITIAL_EXPENSES: Expense[] = [
   },
 ];
 
-export const useTripStore = create<TripState>((set, get) => ({
+export const useTripStore = create<TripState>()(
+  persist(
+    (set, get) => ({
   trips: [DEFAULT_TRIP],
   currentTrip: DEFAULT_TRIP,
   activeTripId: DEFAULT_TRIP.id,
@@ -380,4 +385,28 @@ export const useTripStore = create<TripState>((set, get) => ({
   deleteExpense: (expenseId) => {
     set({ expenses: get().expenses.filter((e) => e.id !== expenseId) });
   },
-}));
+
+  resetToDefaults: () => {
+    set({
+      trips: [DEFAULT_TRIP],
+      currentTrip: DEFAULT_TRIP,
+      activeTripId: DEFAULT_TRIP.id,
+      selectedDay: 1,
+      scheduleItems: INITIAL_SCHEDULE_ITEMS,
+      expenses: INITIAL_EXPENSES,
+    });
+  },
+}),
+{
+  name: 'pinch-trip-storage',
+  storage: createJSONStorage(() => AsyncStorage),
+  partialize: (state) => ({
+    trips: state.trips,
+    currentTrip: state.currentTrip,
+    activeTripId: state.activeTripId,
+    scheduleItems: state.scheduleItems,
+    selectedDay: state.selectedDay,
+    expenses: state.expenses,
+  }),
+}
+));

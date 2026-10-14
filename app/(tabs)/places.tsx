@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Modal,
 } from 'react-native';
 import { Header } from '../../src/components/common/Header';
 import { Card, Badge, EmptyState } from '../../src/components/common/Card';
@@ -15,6 +16,8 @@ import { usePlaceStore, CategoryFilter } from '../../src/store/usePlaceStore';
 import { useClipboardListener } from '../../src/hooks/useClipboardListener';
 import { ClipboardToast } from '../../src/components/places/ClipboardToast';
 import { AddPlaceModal } from '../../src/components/places/AddPlaceModal';
+import { useTripStore } from '../../src/store/useTripStore';
+import { Place } from '../../src/types';
 import {
   Search,
   Bookmark,
@@ -24,6 +27,9 @@ import {
   Trash2,
   ExternalLink,
   Sparkles,
+  Calendar,
+  X,
+  Check,
 } from 'lucide-react-native';
 
 const CATEGORIES: { label: string; value: CategoryFilter }[] = [
@@ -48,8 +54,30 @@ export default function PlacesScreen() {
     extractFromUrl,
   } = usePlaceStore();
 
+  const { currentTrip, addPlaceToSchedule } = useTripStore();
+
   const [modalVisible, setModalVisible] = useState(false);
+  const [plannerModalVisible, setPlannerModalVisible] = useState(false);
+  const [selectedPlaceForPlanner, setSelectedPlaceForPlanner] = useState<Place | null>(null);
+  const [targetDay, setTargetDay] = useState<number>(1);
   const { detectedUrl, dismissDetectedUrl } = useClipboardListener();
+
+  const handleOpenPlannerModal = (place: Place) => {
+    setSelectedPlaceForPlanner(place);
+    setTargetDay(1);
+    setPlannerModalVisible(true);
+  };
+
+  const handleConfirmAddToPlanner = () => {
+    if (!selectedPlaceForPlanner) return;
+    addPlaceToSchedule(targetDay, selectedPlaceForPlanner);
+    setPlannerModalVisible(false);
+    Alert.alert(
+      '일정에 핀치 완료! 🤏',
+      `"${selectedPlaceForPlanner.name}" 장소를 Day ${targetDay} 일정에 핀치했어요!\n동선 플래너 탭에서 최단 경로를 확인해보세요.`
+    );
+    setSelectedPlaceForPlanner(null);
+  };
 
   const handleExtractUrl = async (url: string) => {
     const newPlace = await extractFromUrl(url);
@@ -242,7 +270,7 @@ export default function PlacesScreen() {
                     )}
                   </View>
 
-                  <View className="flex-row items-center justify-between pt-1.5 border-t border-gray-100 mt-1">
+                  <View className="flex-row items-center justify-between pt-2 border-t border-gray-100 mt-1.5">
                     {place.rating ? (
                       <View className="flex-row items-center">
                         <Star size={12} color="#FF9F1C" fill="#FF9F1C" />
@@ -254,9 +282,21 @@ export default function PlacesScreen() {
                       <View />
                     )}
 
-                    <TouchableOpacity onPress={() => removePlace(place.id)} className="p-1">
-                      <Trash2 size={14} color="#CBD5E0" />
-                    </TouchableOpacity>
+                    <View className="flex-row items-center gap-1.5">
+                      <TouchableOpacity
+                        onPress={() => handleOpenPlannerModal(place)}
+                        className="bg-primary/10 px-2.5 py-1 rounded-full flex-row items-center"
+                      >
+                        <Plus size={12} color="#FF6B6B" />
+                        <Text className="text-[11px] font-extrabold text-primary ml-1">
+                          일정 담기
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity onPress={() => removePlace(place.id)} className="p-1">
+                        <Trash2 size={13} color="#CBD5E0" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -286,6 +326,97 @@ export default function PlacesScreen() {
         onExtract={handleExtractUrl}
         loading={isParsing}
       />
+
+      {/* Add To Planner Mini-Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={plannerModalVisible}
+        onRequestClose={() => setPlannerModalVisible(false)}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-surface rounded-t-3xl p-5">
+            <View className="flex-row items-center justify-between pb-3 border-b border-gray-100">
+              <View className="flex-row items-center">
+                <Calendar size={18} color="#FF6B6B" />
+                <Text className="text-base font-extrabold text-darkText ml-1.5">
+                  동선 플래너에 일정 담기
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setPlannerModalVisible(false)}
+                className="w-7 h-7 rounded-full bg-gray-100 items-center justify-center"
+              >
+                <X size={15} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedPlaceForPlanner && (
+              <View className="py-3">
+                <View className="p-3 bg-gray-50 rounded-2xl mb-4 border border-borderLine">
+                  <Text className="text-xs font-bold text-primary mb-0.5">
+                    {getCategoryBadgeLabel(selectedPlaceForPlanner.category)}
+                  </Text>
+                  <Text className="text-base font-extrabold text-darkText mb-1">
+                    {selectedPlaceForPlanner.name}
+                  </Text>
+                  <Text className="text-xs text-mutedText" numberOfLines={1}>
+                    {selectedPlaceForPlanner.address}
+                  </Text>
+                </View>
+
+                <Text className="text-xs font-bold text-mutedText mb-2">
+                  담을 일차 선택 ({currentTrip?.title || '도쿄 여행'})
+                </Text>
+                <View className="flex-row gap-2 mb-6">
+                  {(currentTrip?.schedules || [
+                    { dayNumber: 1, date: '11.10' },
+                    { dayNumber: 2, date: '11.11' },
+                    { dayNumber: 3, date: '11.12' },
+                    { dayNumber: 4, date: '11.13' },
+                  ]).map((sch) => {
+                    const isSelected = targetDay === sch.dayNumber;
+                    return (
+                      <TouchableOpacity
+                        key={sch.dayNumber}
+                        onPress={() => setTargetDay(sch.dayNumber)}
+                        className={`flex-1 py-3 px-2 rounded-2xl border items-center justify-center ${
+                          isSelected
+                            ? 'bg-primary border-primary'
+                            : 'bg-white border-borderLine'
+                        }`}
+                      >
+                        <Text
+                          className={`text-xs font-extrabold ${
+                            isSelected ? 'text-white' : 'text-darkText'
+                          }`}
+                        >
+                          DAY {sch.dayNumber}
+                        </Text>
+                        <Text
+                          className={`text-[10px] mt-0.5 font-bold ${
+                            isSelected ? 'text-white/80' : 'text-mutedText'
+                          }`}
+                        >
+                          {sch.date ? sch.date.split('-').slice(1).join('.') : ''}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Button
+                  title={`Day ${targetDay} 일정에 핀치하기 🤏`}
+                  onPress={handleConfirmAddToPlanner}
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                />
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
