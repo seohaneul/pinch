@@ -17,6 +17,7 @@ interface TripState {
   expenses: Expense[];
 
   // Actions
+  getActiveTrip: () => Trip;
   setSelectedDay: (day: number) => void;
   setActiveTrip: (id: string) => void;
   reorderSchedule: (dayNumber: number, fromIndex: number, toIndex: number) => void;
@@ -26,6 +27,8 @@ interface TripState {
   recalculateTimes: (dayNumber: number) => void;
   addPlaceToSchedule: (dayNumber: number, place: Place) => void;
   removeScheduleItem: (scheduleId: string) => void;
+  addExpense: (expense: Omit<Expense, 'id'>) => void;
+  deleteExpense: (expenseId: string) => void;
 }
 
 const MOCK_MEMBERS: Member[] = [
@@ -150,13 +153,51 @@ const DEFAULT_TRIP: Trip = {
   ],
 };
 
+const INITIAL_EXPENSES: Expense[] = [
+  {
+    id: 'e1',
+    tripId: 't_tokyo',
+    amount: 32000,
+    category: 'food',
+    description: '푸글렌 도쿄 커피 & 디저트',
+    payerId: 'm1',
+    date: '11.10',
+    splitMemberIds: ['m1', 'm2', 'm3'],
+  },
+  {
+    id: 'e2',
+    tripId: 't_tokyo',
+    amount: 145000,
+    category: 'shopping',
+    description: '빔즈 하라주쿠 맨투맨 티셔츠',
+    payerId: 'm2',
+    date: '11.10',
+    splitMemberIds: ['m1', 'm2', 'm3'],
+  },
+  {
+    id: 'e3',
+    tripId: 't_tokyo',
+    amount: 18000,
+    category: 'transport',
+    description: '도쿄 메트로 패스 3일권',
+    payerId: 'm3',
+    date: '11.10',
+    splitMemberIds: ['m1', 'm2', 'm3'],
+  },
+];
+
 export const useTripStore = create<TripState>((set, get) => ({
   trips: [DEFAULT_TRIP],
   currentTrip: DEFAULT_TRIP,
   activeTripId: DEFAULT_TRIP.id,
   selectedDay: 1,
   scheduleItems: INITIAL_SCHEDULE_ITEMS,
-  expenses: [],
+  expenses: INITIAL_EXPENSES,
+
+  getActiveTrip: () => {
+    const { trips, activeTripId, currentTrip } = get();
+    return trips.find((t) => t.id === activeTripId) || currentTrip || DEFAULT_TRIP;
+  },
 
   setSelectedDay: (day) => set({ selectedDay: day }),
 
@@ -326,5 +367,17 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     set({ scheduleItems: updated });
     recalculateTimes(target.day_number);
+  },
+
+  addExpense: (expenseData) => {
+    const newExpense: Expense = {
+      ...expenseData,
+      id: `exp_${Date.now()}`,
+    };
+    set({ expenses: [newExpense, ...get().expenses] });
+  },
+
+  deleteExpense: (expenseId) => {
+    set({ expenses: get().expenses.filter((e) => e.id !== expenseId) });
   },
 }));

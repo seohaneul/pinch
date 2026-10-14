@@ -329,7 +329,7 @@ export default function PlannerScreen() {
           ) : (
             <EmptyState
               icon={<MapPin size={28} color="#FF6B6B" />}
-              title="DAY " + selectedDay + " 동선이 비어있습니다"
+              title={`DAY ${selectedDay} 동선이 비어있습니다`}
               description="보관함에서 핫플을 추가하거나 스팟 추가 버튼을 눌러 일정을 채워보세요."
               actionButton={
                 <Button
