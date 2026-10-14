@@ -1,4 +1,4 @@
-import { Place, PlaceCategory } from '../types';
+import type { Place, PlaceCategory } from '../types';
 
 interface MockPlaceTemplate {
   name: string;

@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
+import type {
   CurrencyCode,
   ExpenseItem,
   WalletMember,
   SettlementTransaction,
   MemberBalance,
+} from '../utils/settlementUtils';
+import {
   DEFAULT_EXCHANGE_RATES,
   calculateMemberBalances,
   calculateMinCashFlowSettlement,

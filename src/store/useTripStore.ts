@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Trip, ScheduleItem, Place, Member, Expense } from '../types';
+import type { Trip, ScheduleItem, Place, Member, Expense } from '../types';
+import type { TransportMode } from '../utils/routeUtils';
 import {
-  TransportMode,
   calculateDistance,
   estimateTravelTime,
   formatMinutesToTime,
