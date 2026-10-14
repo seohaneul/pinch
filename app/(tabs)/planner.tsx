@@ -25,7 +25,8 @@ import {
   CURRENCY_SYMBOLS,
   convertToKrw,
 } from '../../src/utils/settlementUtils';
-import { ScheduleItem } from '../../src/types';
+import type { ScheduleItem } from '../../src/types';
+import { openInGoogleMaps, openGoogleMapsDirections } from '../../src/utils/mapUtils';
 import {
   MapPin,
   Calendar,
@@ -342,16 +343,29 @@ export default function PlannerScreen() {
                             })}
                           </View>
 
-                          {/* Quick Add Expense button linking to Wallet */}
-                          <TouchableOpacity
-                            onPress={() => handleOpenExpenseModal(stop)}
-                            className="bg-primary/10 px-2.5 py-1 rounded-full flex-row items-center"
-                          >
-                            <Coins size={12} color="#FF6B6B" />
-                            <Text className="text-[11px] font-extrabold text-primary ml-1">
-                              지출 추가
-                            </Text>
-                          </TouchableOpacity>
+                          <View className="flex-row items-center gap-1.5">
+                            <TouchableOpacity
+                              onPress={() => openInGoogleMaps(stop.place_name, stop.latitude, stop.longitude)}
+                              className="bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-row items-center"
+                              accessibilityLabel="구글 지도 열기"
+                            >
+                              <Navigation size={11} color="#059669" />
+                              <Text className="text-[11px] font-bold text-emerald-700 ml-1">
+                                지도
+                              </Text>
+                            </TouchableOpacity>
+
+                            {/* Quick Add Expense button linking to Wallet */}
+                            <TouchableOpacity
+                              onPress={() => handleOpenExpenseModal(stop)}
+                              className="bg-primary/10 px-2.5 py-1 rounded-full flex-row items-center"
+                            >
+                              <Coins size={12} color="#FF6B6B" />
+                              <Text className="text-[11px] font-extrabold text-primary ml-1">
+                                지출 추가
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       </Card>
                     </View>
@@ -360,12 +374,28 @@ export default function PlannerScreen() {
                     {!isLast && nextStop && (
                       <View className="pl-7 my-2 relative">
                         <View className="bg-secondary/10 border border-secondary/30 rounded-2xl p-2.5 flex-row items-center justify-between">
-                          <View className="flex-row items-center">
-                            <Navigation size={14} color="#3BB3AA" className="mr-1.5" />
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() =>
+                              openGoogleMapsDirections(
+                                nextStop.latitude,
+                                nextStop.longitude,
+                                nextStop.place_name,
+                                stop.latitude,
+                                stop.longitude,
+                                nextStop.transport_mode
+                              )
+                            }
+                            className="flex-row items-center"
+                          >
+                            <Navigation size={13} color="#3BB3AA" className="mr-1.5" />
                             <Text className="text-xs font-bold color-secondary-dark">
                               이동 {nextStop.travel_duration_minutes}분 · {nextDist}km
                             </Text>
-                          </View>
+                            <Text className="text-[10px] font-bold text-emerald-700 ml-1 bg-emerald-100/60 px-1.5 py-0.5 rounded">
+                              길찾기 ↗
+                            </Text>
+                          </TouchableOpacity>
 
                           {/* Transport Mode Toggle Pills */}
                           <View className="flex-row items-center bg-surface p-1 rounded-xl border border-secondary/20">

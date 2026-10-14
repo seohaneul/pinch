@@ -17,7 +17,8 @@ import { useClipboardListener } from '../../src/hooks/useClipboardListener';
 import { ClipboardToast } from '../../src/components/places/ClipboardToast';
 import { AddPlaceModal } from '../../src/components/places/AddPlaceModal';
 import { useTripStore } from '../../src/store/useTripStore';
-import { Place } from '../../src/types';
+import type { Place } from '../../src/types';
+import { openInGoogleMaps } from '../../src/utils/mapUtils';
 import {
   Search,
   Bookmark,
@@ -30,6 +31,7 @@ import {
   Calendar,
   X,
   Check,
+  Navigation,
 } from 'lucide-react-native';
 
 const CATEGORIES: { label: string; value: CategoryFilter }[] = [
@@ -283,6 +285,17 @@ export default function PlacesScreen() {
                     )}
 
                     <View className="flex-row items-center gap-1.5">
+                      <TouchableOpacity
+                        onPress={() => openInGoogleMaps(place.name, place.latitude, place.longitude)}
+                        className="bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-row items-center"
+                        accessibilityLabel="구글 지도 열기"
+                      >
+                        <Navigation size={11} color="#059669" />
+                        <Text className="text-[11px] font-bold text-emerald-700 ml-1">
+                          지도
+                        </Text>
+                      </TouchableOpacity>
+
                       <TouchableOpacity
                         onPress={() => handleOpenPlannerModal(place)}
                         className="bg-primary/10 px-2.5 py-1 rounded-full flex-row items-center"
