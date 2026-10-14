@@ -46,20 +46,21 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body, #map { width: 100%; height: 100%; background: #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #E2E8F0; }
     .custom-pin {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 30px;
-      height: 30px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       background-color: #FF6B6B;
       color: #FFFFFF;
       font-size: 13px;
       font-weight: 800;
       border: 2.5px solid #FFFFFF;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.35);
       cursor: pointer;
     }
     .leaflet-popup-content-wrapper {
@@ -112,12 +113,21 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
       attributionControl: true
     }).setView(defaultCenter, 14);
 
-    // High quality CartoDB Voyager Map Tiles (Clean Google-like typography & street lines)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      subdomains: 'abcd',
-      attribution: '© OSM, © CARTO'
+    // Official Google Maps Tile Stream (Loads directly with crisp roads, buildings and subway lines)
+    var googleTiles = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      subdomains: ['0', '1', '2', '3'],
+      attribution: '© Google Maps'
     }).addTo(map);
+
+    // Fallback to CartoDB Voyager if Google fails
+    googleTiles.on('tileerror', function() {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        subdomains: 'abcd',
+        attribution: '© OpenStreetMap, © CARTO'
+      }).addTo(map);
+    });
 
     if (stops && stops.length > 0) {
       var latlngs = [];
@@ -128,9 +138,9 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
         var customIcon = L.divIcon({
           className: '',
           html: '<div class="custom-pin">' + s.order_index + '</div>',
-          iconSize: [30, 30],
-          iconAnchor: [15, 15],
-          popupAnchor: [0, -16]
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+          popupAnchor: [0, -18]
         });
 
         var escapedName = (s.place_name || '').replace(/'/g, "\\\\'");
@@ -153,13 +163,19 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
         }).addTo(map);
       }
 
-      // Auto-fit bounds with padding so all markers are visible
+      // Auto-fit bounds with comfortable padding so all markers are visible
       if (latlngs.length === 1) {
         map.setView(latlngs[0], 15);
       } else {
         map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 16 });
       }
     }
+
+    // Invalidate size on layout render to ensure tiles always calculate and download
+    setTimeout(function() { map.invalidateSize(true); }, 150);
+    setTimeout(function() { map.invalidateSize(true); }, 450);
+    window.addEventListener('load', function() { map.invalidateSize(true); });
+    window.addEventListener('resize', function() { map.invalidateSize(true); });
   </script>
 </body>
 </html>
@@ -182,10 +198,12 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
     <View style={styles.mapContainer}>
       <WebView
         originWhitelist={['*']}
-        source={{ html: mapHtml }}
+        source={{ html: mapHtml, baseUrl: 'https://www.google.com' }}
         style={styles.webview}
         javaScriptEnabled={true}
         domStorageEnabled={true}
+        cacheEnabled={true}
+        mixedContentMode="always"
         onMessage={handleWebViewMessage}
         scrollEnabled={false}
         overScrollMode="never"
@@ -240,7 +258,7 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#E2E8F0',
   },
   overlayHeader: {
     position: 'absolute',
