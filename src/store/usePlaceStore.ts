@@ -9,6 +9,7 @@ interface PlaceState {
   selectedCategory: CategoryFilter;
   searchQuery: string;
   isParsing: boolean;
+  isExtracting: boolean;
 
   // Actions
   setCategory: (category: CategoryFilter) => void;
@@ -91,6 +92,7 @@ export const usePlaceStore = create<PlaceState>((set, get) => ({
   selectedCategory: 'ALL',
   searchQuery: '',
   isParsing: false,
+  isExtracting: false,
 
   setCategory: (category) => set({ selectedCategory: category }),
   setSearchQuery: (query) => set({ searchQuery: query }),
@@ -116,16 +118,17 @@ export const usePlaceStore = create<PlaceState>((set, get) => ({
   },
 
   extractFromUrl: async (url) => {
-    set({ isParsing: true });
+    set({ isParsing: true, isExtracting: true });
     try {
       const newPlace = await parseSnsUrl(url);
       set((state) => ({
         places: [newPlace, ...state.places],
         isParsing: false,
+        isExtracting: false,
       }));
       return newPlace;
     } catch (err) {
-      set({ isParsing: false });
+      set({ isParsing: false, isExtracting: false });
       return null;
     }
   },
