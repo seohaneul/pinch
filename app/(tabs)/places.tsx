@@ -178,7 +178,7 @@ export default function PlacesScreen() {
                 activeOpacity={0.75}
                 className={`mr-2 px-3.5 py-2 rounded-2xl border flex-row items-center ${
                   isSelected
-                    ? 'bg-primary border-primary shadow-sm'
+                    ? 'bg-primary border-primary'
                     : 'bg-surface border-gray-200'
                 }`}
               >

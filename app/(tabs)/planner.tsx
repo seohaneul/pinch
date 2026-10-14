@@ -3,11 +3,13 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   Image,
   Alert,
   TextInput,
   Modal,
+  StyleSheet,
 } from 'react-native';
 import { Header } from '../../src/components/common/Header';
 import { Card, Badge, EmptyState } from '../../src/components/common/Card';
@@ -77,6 +79,9 @@ export default function PlannerScreen() {
     .filter((s) => s.day_number === selectedDay)
     .sort((a, b) => a.order_index - b.order_index);
 
+  // Safe schedules list — guards against currentTrip being null during hydration
+  const tripSchedules = currentTrip?.schedules ?? [];
+
   useEffect(() => {
     recalculateTimes(selectedDay);
   }, [selectedDay]);
@@ -144,11 +149,20 @@ export default function PlannerScreen() {
     addPlaceToSchedule(selectedDay, randomPlace);
   };
 
+  // Show a simple loading placeholder during Zustand hydration
+  if (!currentTrip) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center">
+        <Text className="text-mutedText text-sm font-medium">일정을 불러오는 중...</Text>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-background">
       <Header
         title="동선 플래너 🗺️"
-        subtitle={currentTrip ? currentTrip.title : '도쿄 3박 4일 감성 여행'}
+        subtitle={currentTrip.title}
         rightAction={
           <TouchableOpacity
             onPress={handleOptimizeRoute}
@@ -166,57 +180,43 @@ export default function PlannerScreen() {
           <TripMapView stops={dayStops} selectedDay={selectedDay} />
         </View>
 
-        {/* Day Selector Tabs */}
-        <View className="bg-surface border-y border-borderLine py-3 px-4">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {currentTrip.schedules.map((schedule) => {
+        {/* Day Selector Tabs — using style props (not className) to avoid NativeWind + gesture handler conflict in nested ScrollViews */}
+        <View style={dayTabStyles.container}>
+          <FlatList
+            data={tripSchedules}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => String(item.dayNumber)}
+            renderItem={({ item: schedule }) => {
               const isSelected = selectedDay === schedule.dayNumber;
               const count = scheduleItems.filter((s) => s.day_number === schedule.dayNumber).length;
-
               return (
                 <TouchableOpacity
-                  key={schedule.dayNumber}
                   onPress={() => setSelectedDay(schedule.dayNumber)}
                   activeOpacity={0.8}
-                  className={`mr-3 px-4 py-2 rounded-2xl border flex-row items-center ${
-                    isSelected
-                      ? 'bg-primary border-primary shadow-sm'
-                      : 'bg-gray-50 border-gray-200'
-                  }`}
+                  style={[
+                    dayTabStyles.tab,
+                    isSelected ? dayTabStyles.tabActive : dayTabStyles.tabInactive,
+                  ]}
                 >
                   <View>
-                    <Text
-                      className={`text-xs font-bold ${
-                        isSelected ? 'text-white' : 'text-darkText'
-                      }`}
-                    >
+                    <Text style={[dayTabStyles.tabDayLabel, isSelected ? dayTabStyles.tabTextActive : dayTabStyles.tabTextInactive]}>
                       DAY {schedule.dayNumber}
                     </Text>
-                    <Text
-                      className={`text-[10px] mt-0.5 font-medium ${
-                        isSelected ? 'text-white/80' : 'text-mutedText'
-                      }`}
-                    >
+                    <Text style={[dayTabStyles.tabDateLabel, isSelected ? dayTabStyles.tabSubTextActive : dayTabStyles.tabSubTextInactive]}>
                       {schedule.date.slice(5)}
                     </Text>
                   </View>
-                  <View
-                    className={`ml-2 px-1.5 py-0.5 rounded-full ${
-                      isSelected ? 'bg-white/20' : 'bg-gray-200'
-                    }`}
-                  >
-                    <Text
-                      className={`text-[10px] font-extrabold ${
-                        isSelected ? 'text-white' : 'text-gray-600'
-                      }`}
-                    >
+                  <View style={[dayTabStyles.countBadge, isSelected ? dayTabStyles.countBadgeActive : dayTabStyles.countBadgeInactive]}>
+                    <Text style={[dayTabStyles.countText, isSelected ? dayTabStyles.countTextActive : dayTabStyles.countTextInactive]}>
                       {count}
                     </Text>
                   </View>
                 </TouchableOpacity>
               );
-            })}
-          </ScrollView>
+            }}
+            contentContainerStyle={{ paddingHorizontal: 0 }}
+          />
         </View>
 
         {/* Day Itinerary Timeline List */}
@@ -571,3 +571,76 @@ export default function PlannerScreen() {
     </View>
   );
 }
+
+// StyleSheet for Day Selector — avoids NativeWind className inside nested ScrollViews
+// which causes "Couldn't find a navigation context" in expo-router + gesture handler
+const dayTabStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#F0F0F5',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  tabActive: {
+    backgroundColor: '#FF6B6B',
+    borderColor: '#FF6B6B',
+  },
+  tabInactive: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+  },
+  tabDayLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  tabDateLabel: {
+    fontSize: 10,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  tabTextActive: {
+    color: '#FFFFFF',
+  },
+  tabTextInactive: {
+    color: '#2B2D42',
+  },
+  tabSubTextActive: {
+    color: 'rgba(255,255,255,0.8)',
+  },
+  tabSubTextInactive: {
+    color: '#8D99AE',
+  },
+  countBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 99,
+  },
+  countBadgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  countBadgeInactive: {
+    backgroundColor: '#E5E7EB',
+  },
+  countText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  countTextActive: {
+    color: '#FFFFFF',
+  },
+  countTextInactive: {
+    color: '#4B5563',
+  },
+});

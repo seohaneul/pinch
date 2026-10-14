@@ -8,6 +8,7 @@ import {
   Modal,
   Alert,
   Platform,
+  StyleSheet,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Header } from '../../src/components/common/Header';
@@ -216,23 +217,26 @@ export default function WalletScreen() {
       />
 
       {/* Segmented Control Tabs */}
-      <View className="px-4 pt-2 pb-1">
-        <View className="flex-row bg-gray-200/70 p-1 rounded-2xl">
+      <View style={tabStyles.container}>
+        <View style={tabStyles.track}>
           <TouchableOpacity
             onPress={() => setActiveTab('expenses')}
-            className={`flex-1 py-2.5 rounded-xl items-center justify-center flex-row ${
-              activeTab === 'expenses' ? 'bg-white shadow-sm' : ''
-            }`}
+            activeOpacity={0.8}
+            style={[
+              tabStyles.tab,
+              activeTab === 'expenses' ? tabStyles.activeTab : tabStyles.inactiveTab,
+            ]}
           >
             <Receipt
               size={16}
               color={activeTab === 'expenses' ? '#FF6B6B' : '#6B7280'}
-              className="mr-1.5"
+              style={{ marginRight: 6 }}
             />
             <Text
-              className={`text-xs font-bold ${
-                activeTab === 'expenses' ? 'text-primary' : 'text-mutedText'
-              }`}
+              style={[
+                tabStyles.tabText,
+                activeTab === 'expenses' ? tabStyles.activeTabText : tabStyles.inactiveTabText,
+              ]}
             >
               지출 내역 ({expenses.length})
             </Text>
@@ -240,19 +244,22 @@ export default function WalletScreen() {
 
           <TouchableOpacity
             onPress={() => setActiveTab('settlement')}
-            className={`flex-1 py-2.5 rounded-xl items-center justify-center flex-row ${
-              activeTab === 'settlement' ? 'bg-white shadow-sm' : ''
-            }`}
+            activeOpacity={0.8}
+            style={[
+              tabStyles.tab,
+              activeTab === 'settlement' ? tabStyles.activeTab : tabStyles.inactiveTab,
+            ]}
           >
             <Users
               size={16}
               color={activeTab === 'settlement' ? '#FF6B6B' : '#6B7280'}
-              className="mr-1.5"
+              style={{ marginRight: 6 }}
             />
             <Text
-              className={`text-xs font-bold ${
-                activeTab === 'settlement' ? 'text-primary' : 'text-mutedText'
-              }`}
+              style={[
+                tabStyles.tabText,
+                activeTab === 'settlement' ? tabStyles.activeTabText : tabStyles.inactiveTabText,
+              ]}
             >
               1/N 정산 ({transactions.length}건 송금)
             </Text>
@@ -584,9 +591,8 @@ export default function WalletScreen() {
                       {/* Settlement Status Toggle */}
                       <TouchableOpacity
                         onPress={() => toggleTransactionSettled(tx.id)}
-                        className={`mt-2.5 pt-2 border-t border-gray-100 flex-row items-center justify-center ${
-                          tx.is_settled ? 'opacity-80' : ''
-                        }`}
+                        className="mt-2.5 pt-2 border-t border-gray-100 flex-row items-center justify-center"
+                        style={{ opacity: tx.is_settled ? 0.8 : 1 }}
                       >
                         <CheckCircle2
                           size={14}
@@ -966,3 +972,46 @@ export default function WalletScreen() {
     </View>
   );
 }
+
+const tabStyles = StyleSheet.create({
+  container: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  track: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    padding: 4,
+    borderRadius: 16,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  activeTab: {
+    backgroundColor: '#FFFFFF',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  inactiveTab: {
+    backgroundColor: 'transparent',
+  },
+  tabText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  activeTabText: {
+    color: '#FF6B6B',
+  },
+  inactiveTabText: {
+    color: '#6B7280',
+  },
+});

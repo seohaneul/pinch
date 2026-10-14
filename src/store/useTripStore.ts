@@ -12,7 +12,7 @@ import {
 
 interface TripState {
   trips: Trip[];
-  currentTrip: Trip;
+  currentTrip: Trip | null;
   activeTripId: string;
   selectedDay: number;
   scheduleItems: ScheduleItem[];
@@ -200,8 +200,8 @@ export const useTripStore = create<TripState>()(
   expenses: INITIAL_EXPENSES,
 
   getActiveTrip: () => {
-    const { trips, activeTripId, currentTrip } = get();
-    return trips.find((t) => t.id === activeTripId) || currentTrip || DEFAULT_TRIP;
+    const { trips, activeTripId } = get();
+    return trips.find((t) => t.id === activeTripId) || DEFAULT_TRIP;
   },
 
   setSelectedDay: (day) => set({ selectedDay: day }),
