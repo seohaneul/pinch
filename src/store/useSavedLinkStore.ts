@@ -35,7 +35,7 @@ const INITIAL_SAVED_LINKS: SavedLink[] = [
         latitude: 35.6664,
         longitude: 139.6917,
         memo: '노르웨이 오슬로 감성 로스팅 카페 & 핸드드립 커피 맛집 ☕',
-        imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&auto=format&fit=crop',
+        imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=1000&auto=format&fit=crop',
         rating: 4.8,
         tags: ['도쿄카페', '푸글렌', '핸드드립'],
       },
@@ -47,7 +47,7 @@ const INITIAL_SAVED_LINKS: SavedLink[] = [
         latitude: 35.6591,
         longitude: 139.7027,
         memo: '도쿄 최고 높이의 루프탑 야경 전망대! 예약 필수 인생샷 성지 🗼',
-        imageUrl: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop',
+        imageUrl: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1000&auto=format&fit=crop',
         rating: 4.9,
         tags: ['시부야', '전망대', '야경'],
       },
@@ -59,7 +59,7 @@ const INITIAL_SAVED_LINKS: SavedLink[] = [
         latitude: 35.6618,
         longitude: 139.7001,
         memo: '나만의 레시피로 커스텀하는 진한 돈코츠 라멘 🍜',
-        imageUrl: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&auto=format&fit=crop',
+        imageUrl: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=1000&auto=format&fit=crop',
         rating: 4.7,
         tags: ['도쿄라멘', '이치란', '돈코츠'],
       },
@@ -79,7 +79,7 @@ const INITIAL_SAVED_LINKS: SavedLink[] = [
   },
   {
     id: 'link_sample_2',
-    trip_id: 't_tokyo',
+    trip_id: 't_osaka',
     title: '오사카 먹방 성지 도톤보리 & 우메다 필수 4곳 🍢',
     url: 'https://youtube.com/shorts/osaka_food_best',
     platform: 'youtube',
@@ -134,14 +134,18 @@ export const useSavedLinkStore = create<SavedLinkState>()(
       isExtractingLink: false,
 
       getLinksByTrip: (tripId: string) => {
-        return get().savedLinks.filter((l) => !l.trip_id || l.trip_id === tripId);
+        return get().savedLinks.filter((l) => l.trip_id === tripId);
       },
 
       addLinkFromUrl: async (url: string, tripId?: string) => {
         set({ isExtractingLink: true });
         try {
-          const activeTripId = tripId || useTripStore.getState().currentTrip?.id || 't_tokyo';
-          const newSavedLink = await parseLinkWithPlaces(url, activeTripId);
+          const allTrips = useTripStore.getState().trips;
+          const currentTrip = useTripStore.getState().currentTrip;
+          const activeTripId = tripId || currentTrip?.id || 't_tokyo';
+          const targetTrip = allTrips.find((t) => t.id === activeTripId) || currentTrip;
+          const destinationHint = targetTrip?.destination || targetTrip?.title || '';
+          const newSavedLink = await parseLinkWithPlaces(url, activeTripId, destinationHint);
 
           set((state) => ({
             savedLinks: [newSavedLink, ...state.savedLinks],

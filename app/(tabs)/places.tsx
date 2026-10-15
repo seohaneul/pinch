@@ -20,6 +20,7 @@ import { useClipboardListener } from '../../src/hooks/useClipboardListener';
 import { ClipboardToast } from '../../src/components/places/ClipboardToast';
 import { AddPlaceModal } from '../../src/components/places/AddPlaceModal';
 import { LinkPlacesModal } from '../../src/components/places/LinkPlacesModal';
+import { PlaceDetailModal } from '../../src/components/places/PlaceDetailModal';
 import { useTripStore } from '../../src/store/useTripStore';
 import type { Place, SavedLink } from '../../src/types';
 import { openInGoogleMaps } from '../../src/utils/mapUtils';
@@ -76,7 +77,7 @@ export default function PlacesScreen() {
     removeSavedLink,
   } = useSavedLinkStore();
 
-  const { currentTrip, addPlaceToSchedule } = useTripStore();
+  const { currentTrip, activeTripId, addPlaceToSchedule } = useTripStore();
 
   // 세그먼트 탭: 'PLACES' (저장한 장소) vs 'LINKS' (링크 보관함)
   const [activeTab, setActiveTab] = useState<'PLACES' | 'LINKS'>('PLACES');
@@ -87,6 +88,9 @@ export default function PlacesScreen() {
 
   // 링크 속 장소 확인 모달 상태
   const [selectedLinkForPlaces, setSelectedLinkForPlaces] = useState<SavedLink | null>(null);
+
+  // 장소 상세 모달 상태
+  const [selectedPlaceForDetail, setSelectedPlaceForDetail] = useState<Place | null>(null);
 
   const [selectedPlaceForPlanner, setSelectedPlaceForPlanner] = useState<Place | null>(null);
   const [targetDay, setTargetDay] = useState<number>(1);
@@ -111,8 +115,8 @@ export default function PlacesScreen() {
 
   // 링크 핀치 핸들러: 링크 보관함에 먼저 추가하고, 장소 선택 모달을 띄움
   const handleExtractUrl = async (url: string) => {
-    const activeTripId = currentTrip?.id || 't_tokyo';
-    const newSavedLink = await addLinkFromUrl(url, activeTripId);
+    const activeId = activeTripId || currentTrip?.id || 't_tokyo';
+    const newSavedLink = await addLinkFromUrl(url, activeId);
 
     if (newSavedLink) {
       dismissDetectedUrl();
@@ -137,14 +141,22 @@ export default function PlacesScreen() {
     }
   };
 
-  // 여행별 필터링
-  const tripPlaces = places.filter(
-    (place) => !place.trip_id || place.trip_id === currentTrip?.id
-  );
+  // 여행별 엄격한 격리 필터링
+  const currentTripId = activeTripId || currentTrip?.id || 't_tokyo';
 
-  const tripLinks = savedLinks.filter(
-    (link) => !link.trip_id || link.trip_id === currentTrip?.id
-  );
+  const tripPlaces = places.filter((place) => {
+    if (currentTripId === 't_tokyo') {
+      return !place.trip_id || place.trip_id === 't_tokyo';
+    }
+    return place.trip_id === currentTripId;
+  });
+
+  const tripLinks = savedLinks.filter((link) => {
+    if (currentTripId === 't_tokyo') {
+      return !link.trip_id || link.trip_id === 't_tokyo';
+    }
+    return link.trip_id === currentTripId;
+  });
 
   const filteredPlaces = tripPlaces.filter((place) => {
     const matchesCategory =
@@ -200,7 +212,7 @@ export default function PlacesScreen() {
     <View style={styles.container}>
       <Header
         title="장소 & 링크 보관함 📌"
-        subtitle={`수집한 핫플 ${tripPlaces.length}개 · 저장된 링크 ${tripLinks.length}개`}
+        subtitle={`${currentTrip?.title || '여행'} · 핫플 ${tripPlaces.length}개 · 링크 ${tripLinks.length}개`}
         rightAction={
           <TouchableOpacity
             onPress={() => setModalVisible(true)}
@@ -219,15 +231,20 @@ export default function PlacesScreen() {
           onPress={() => setTripSwitcherVisible(true)}
           style={styles.tripBadge}
         >
-          <Text style={styles.tripBadgeText}>
-            📍 현재 여행: <Text style={styles.tripTitleHighlight}>{currentTrip?.title || '도쿄 3박 4일 감성 여행'}</Text>
+          <View style={styles.tripDot} />
+          <Text style={styles.tripBadgeText} numberOfLines={1}>
+            {currentTrip?.title || '도쿄 3박 4일 감성 여행'}
           </Text>
-          <ChevronDown size={14} color="#6B7280" />
+          <ChevronDown size={14} color="#FF6B6B" style={{ marginLeft: 4 }} />
         </TouchableOpacity>
 
-        <Text style={styles.tripSummaryText}>
-          {activeTab === 'PLACES' ? `${tripPlaces.length}개 장소` : `${tripLinks.length}개 링크`}
-        </Text>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => setTripSwitcherVisible(true)}
+          style={styles.switchTripBtn}
+        >
+          <Text style={styles.switchTripBtnText}>여행 변경</Text>
+        </TouchableOpacity>
       </View>
 
       {/* 2단 세그먼트 탭: [📍 저장한 장소] vs [🔗 여행 링크 보관함] */}
@@ -345,101 +362,107 @@ export default function PlacesScreen() {
               contentContainerStyle={{ paddingBottom: 36 }}
             >
               {filteredPlaces.map((place) => (
-                <Card key={place.id} className="mb-3.5 p-3">
-                  <View className="flex-row">
-                    {place.imageUrl && (
-                      <Image
-                        source={{ uri: place.imageUrl }}
-                        className="w-24 h-28 rounded-2xl mr-3"
-                        resizeMode="cover"
-                      />
-                    )}
-                    <View className="flex-1 justify-between py-0.5">
-                      <View>
-                        <View className="flex-row items-center justify-between mb-1">
-                          <Badge
-                            label={getCategoryBadgeLabel(place.category)}
-                            variant={place.category === 'CAFE' || place.category === 'cafe' ? 'secondary' : 'primary'}
-                          />
-                          <TouchableOpacity onPress={() => togglePin(place.id)} className="p-1">
-                            <Bookmark
-                              size={18}
-                              color={place.isPinned ? '#FF6B6B' : '#8D99AE'}
-                              fill={place.isPinned ? '#FF6B6B' : 'none'}
+                <TouchableOpacity
+                  key={place.id}
+                  activeOpacity={0.88}
+                  onPress={() => setSelectedPlaceForDetail(place)}
+                >
+                  <Card className="mb-3.5 p-3">
+                    <View className="flex-row">
+                      {place.imageUrl && (
+                        <Image
+                          source={{ uri: place.imageUrl }}
+                          className="w-24 h-28 rounded-2xl mr-3"
+                          resizeMode="cover"
+                        />
+                      )}
+                      <View className="flex-1 justify-between py-0.5">
+                        <View>
+                          <View className="flex-row items-center justify-between mb-1">
+                            <Badge
+                              label={getCategoryBadgeLabel(place.category)}
+                              variant={place.category === 'CAFE' || place.category === 'cafe' ? 'secondary' : 'primary'}
                             />
-                          </TouchableOpacity>
+                            <TouchableOpacity onPress={() => togglePin(place.id)} className="p-1">
+                              <Bookmark
+                                size={18}
+                                color={place.isPinned ? '#FF6B6B' : '#8D99AE'}
+                                fill={place.isPinned ? '#FF6B6B' : 'none'}
+                              />
+                            </TouchableOpacity>
+                          </View>
+
+                          <Text className="text-base font-bold text-darkText mb-0.5" numberOfLines={1}>
+                            {place.name}
+                          </Text>
+
+                          <View className="flex-row items-center mb-1.5">
+                            <MapPin size={12} color="#8D99AE" />
+                            <Text className="text-xs text-mutedText ml-1 flex-1" numberOfLines={1}>
+                              {place.address}
+                            </Text>
+                          </View>
+
+                          {place.memo && (
+                            <Text className="text-xs text-gray-600 bg-gray-50 p-2 rounded-xl mb-1.5 leading-4" numberOfLines={2}>
+                              💬 {place.memo}
+                            </Text>
+                          )}
+
+                          {place.tags && place.tags.length > 0 && (
+                            <View className="flex-row flex-wrap mb-1">
+                              {place.tags.map((t, idx) => (
+                                <Text key={idx} className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-md mr-1 mb-1">
+                                  #{t}
+                                </Text>
+                              ))}
+                            </View>
+                          )}
                         </View>
 
-                        <Text className="text-base font-bold text-darkText mb-0.5" numberOfLines={1}>
-                          {place.name}
-                        </Text>
-
-                        <View className="flex-row items-center mb-1.5">
-                          <MapPin size={12} color="#8D99AE" />
-                          <Text className="text-xs text-mutedText ml-1 flex-1" numberOfLines={1}>
-                            {place.address}
-                          </Text>
-                        </View>
-
-                        {place.memo && (
-                          <Text className="text-xs text-gray-600 bg-gray-50 p-2 rounded-xl mb-1.5 leading-4" numberOfLines={2}>
-                            💬 {place.memo}
-                          </Text>
-                        )}
-
-                        {place.tags && place.tags.length > 0 && (
-                          <View className="flex-row flex-wrap mb-1">
-                            {place.tags.map((t, idx) => (
-                              <Text key={idx} className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-md mr-1 mb-1">
-                                #{t}
+                        <View className="flex-row items-center justify-between pt-2 border-t border-gray-100 mt-1.5">
+                          {place.rating ? (
+                            <View className="flex-row items-center">
+                              <Star size={12} color="#FF9F1C" fill="#FF9F1C" />
+                              <Text className="text-xs font-bold text-gray-700 ml-1">
+                                {place.rating}
                               </Text>
-                            ))}
+                            </View>
+                          ) : (
+                            <View />
+                          )}
+
+                          <View className="flex-row items-center gap-1.5">
+                            <TouchableOpacity
+                              onPress={() => openInGoogleMaps(place.name, place.latitude, place.longitude)}
+                              className="bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-row items-center"
+                              accessibilityLabel="구글 지도 열기"
+                            >
+                              <Navigation size={11} color="#059669" />
+                              <Text className="text-[11px] font-bold text-emerald-700 ml-1">
+                                지도
+                              </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              onPress={() => handleOpenPlannerModal(place)}
+                              className="bg-primary/10 px-2.5 py-1 rounded-full flex-row items-center"
+                            >
+                              <Plus size={12} color="#FF6B6B" />
+                              <Text className="text-[11px] font-extrabold text-primary ml-1">
+                                일정 담기
+                              </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity onPress={() => removePlace(place.id)} className="p-1">
+                              <Trash2 size={13} color="#CBD5E0" />
+                            </TouchableOpacity>
                           </View>
-                        )}
-                      </View>
-
-                      <View className="flex-row items-center justify-between pt-2 border-t border-gray-100 mt-1.5">
-                        {place.rating ? (
-                          <View className="flex-row items-center">
-                            <Star size={12} color="#FF9F1C" fill="#FF9F1C" />
-                            <Text className="text-xs font-bold text-gray-700 ml-1">
-                              {place.rating}
-                            </Text>
-                          </View>
-                        ) : (
-                          <View />
-                        )}
-
-                        <View className="flex-row items-center gap-1.5">
-                          <TouchableOpacity
-                            onPress={() => openInGoogleMaps(place.name, place.latitude, place.longitude)}
-                            className="bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-row items-center"
-                            accessibilityLabel="구글 지도 열기"
-                          >
-                            <Navigation size={11} color="#059669" />
-                            <Text className="text-[11px] font-bold text-emerald-700 ml-1">
-                              지도
-                            </Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            onPress={() => handleOpenPlannerModal(place)}
-                            className="bg-primary/10 px-2.5 py-1 rounded-full flex-row items-center"
-                          >
-                            <Plus size={12} color="#FF6B6B" />
-                            <Text className="text-[11px] font-extrabold text-primary ml-1">
-                              일정 담기
-                            </Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity onPress={() => removePlace(place.id)} className="p-1">
-                            <Trash2 size={13} color="#CBD5E0" />
-                          </TouchableOpacity>
                         </View>
                       </View>
                     </View>
-                  </View>
-                </Card>
+                  </Card>
+                </TouchableOpacity>
               ))}
             </ScrollView>
           ) : (
@@ -663,6 +686,23 @@ export default function PlacesScreen() {
         visible={tripSwitcherVisible}
         onClose={() => setTripSwitcherVisible(false)}
       />
+
+      {/* 장소 상세 설명 모달 (PlaceDetailModal) */}
+      <PlaceDetailModal
+        visible={Boolean(selectedPlaceForDetail)}
+        place={selectedPlaceForDetail}
+        onClose={() => setSelectedPlaceForDetail(null)}
+        onTogglePin={(id) => togglePin(id)}
+        onRemove={(id) => removePlace(id)}
+        onAddToPlanner={(targetPlace, day) => {
+          addPlaceToSchedule(day, targetPlace);
+          setSelectedPlaceForDetail(null);
+          Alert.alert(
+            '일정에 핀치 완료! 🤏',
+            `"${targetPlace.name}" 장소를 Day ${day} 일정에 핀치했어요!\n동선 플래너 탭에서 확인해보세요.`
+          );
+        }}
+      />
     </View>
   );
 }
@@ -693,29 +733,42 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   tripBadge: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFF5F5',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    borderColor: '#FFE4E6',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 20,
+    marginRight: 10,
+  },
+  tripDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FF6B6B',
+    marginRight: 6,
   },
   tripBadgeText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginRight: 4,
-  },
-  tripTitleHighlight: {
-    color: '#FF6B6B',
     fontWeight: '800',
+    color: '#1E293B',
+    flex: 1,
   },
-  tripSummaryText: {
+  switchTripBtn: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  switchTripBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#475569',
   },
   segmentContainer: {
     flexDirection: 'row',

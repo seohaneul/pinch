@@ -400,6 +400,30 @@ describe('Store Actions & Cross-Store Integration (FN-PLC, FN-PLN, FN-WAL)', () 
         assert.ok(!p.trip_id || p.trip_id === 't_jeju');
       });
     });
+
+    it('successfully pinches and adds places to another trip without duplicate collision across trips', async () => {
+      // Switch to Osaka trip
+      useTripStore.getState().setActiveTrip('t_osaka');
+
+      const osakaPlace = {
+        id: 'p_osaka_pinch_test',
+        trip_id: 't_osaka',
+        name: '푸글렌 도쿄 (Fuglen Tokyo)', // Same name as existing Tokyo place, but in Osaka
+        address: '오사카시 주오구',
+        category: 'CAFE' as const,
+        latitude: 34.6937,
+        longitude: 135.5023,
+        isPinned: false,
+        createdAt: '2026-10-15T00:00:00Z',
+      };
+
+      // Adding to Osaka should SUCCEED because checkIsDuplicate is scoped to tripId
+      const added = usePlaceStore.getState().addPlace(osakaPlace, 't_osaka');
+      assert.strictEqual(added, true);
+
+      const osakaPlaces = usePlaceStore.getState().getPlacesByTrip('t_osaka');
+      assert.ok(osakaPlaces.some((p) => p.id === 'p_osaka_pinch_test'));
+    });
   });
 
   describe('[Task 5 & 6] useAuthStore Management & Actions', () => {

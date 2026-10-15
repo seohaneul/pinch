@@ -29,6 +29,7 @@ export interface PlannerMapViewProps {
   onSelectStopIndex?: (index: number) => void;
   tripCenterLat?: number;
   tripCenterLng?: number;
+  onPressStop?: (stop: ScheduleItem) => void;
 }
 
 export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
@@ -40,6 +41,7 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
   onSelectStopIndex,
   tripCenterLat,
   tripCenterLng,
+  onPressStop,
 }) => {
   const { currentTrip } = useTripStore();
 
@@ -319,7 +321,10 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
           '<div class="popup-box">' +
             '<div class="popup-title">#' + stop.order_index + ' ' + stop.place_name + '</div>' +
             '<div class="popup-time">' + (stop.arrival_time ? '도착 ' + stop.arrival_time : '') + '</div>' +
-            '<a href="javascript:void(0)" class="popup-btn" onclick="sendNavMessage(' + stop.latitude + ',' + stop.longitude + ',\\'' + encodeURIComponent(stop.place_name) + '\\')">길찾기 ↗</a>' +
+            '<div style="display:flex;gap:6px;margin-top:6px;">' +
+              '<a href="javascript:void(0)" class="popup-btn" style="background:#FF6B6B;color:#FFFFFF;flex:1;text-align:center;" onclick="sendDetailMessage(' + idx + ')">상세보기 ✨</a>' +
+              '<a href="javascript:void(0)" class="popup-btn" style="flex:1;text-align:center;" onclick="sendNavMessage(' + stop.latitude + ',' + stop.longitude + ',\\'' + encodeURIComponent(stop.place_name) + '\\')">길찾기 ↗</a>' +
+            '</div>' +
           '</div>';
 
         marker.bindPopup(popupHtml);
@@ -353,6 +358,15 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
       setTimeout(function() { map.invalidateSize(); }, 1200);
     }
 
+    function sendDetailMessage(idx) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'VIEW_DETAIL',
+          index: idx
+        }));
+      }
+    }
+
     function sendNavMessage(lat, lng, name) {
       if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -382,6 +396,9 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'NAVIGATE') {
         openInGoogleMaps(data.placeName, data.lat, data.lng);
+      } else if (data.type === 'VIEW_DETAIL' && onPressStop) {
+        const target = validStops[data.index];
+        if (target) onPressStop(target);
       } else if (data.type === 'SELECT_STOP' && onSelectStopIndex) {
         onSelectStopIndex(data.index);
       }
@@ -454,13 +471,17 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
 
             <TouchableOpacity
               style={styles.navStopInfo}
-              onPress={() =>
-                openInGoogleMaps(
-                  currentActiveStop.place_name,
-                  currentActiveStop.latitude,
-                  currentActiveStop.longitude
-                )
-              }
+              onPress={() => {
+                if (onPressStop) {
+                  onPressStop(currentActiveStop);
+                } else {
+                  openInGoogleMaps(
+                    currentActiveStop.place_name,
+                    currentActiveStop.latitude,
+                    currentActiveStop.longitude
+                  );
+                }
+              }}
             >
               <View style={styles.navIndexCircle}>
                 <Text style={styles.navIndexText}>{currentActiveStop.order_index}</Text>

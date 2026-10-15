@@ -25,9 +25,15 @@ export interface WalletState {
   lastExchangeRateUpdate: string;
   isUpdatingRates: boolean;
   settledTransactionIds: string[];
+  tripCurrencies: Record<string, CurrencyCode>;
+  categoryBudgets: Record<string, Record<string, number>>;
 
   // Actions
   setActiveTab: (tab: 'expenses' | 'settlement') => void;
+  setTripCurrency: (tripId: string, currency: CurrencyCode) => void;
+  getTripCurrency: (tripId?: string) => CurrencyCode;
+  setCategoryBudget: (tripId: string, category: string, amount: number) => void;
+  getCategoryBudgets: (tripId?: string) => Record<string, number>;
   addExpense: (expense: Omit<ExpenseItem, 'id' | 'created_at' | 'krw_amount'>) => void;
   deleteExpense: (id: string) => void;
   updateExchangeRate: (currency: CurrencyCode, rate: number) => void;
@@ -132,6 +138,39 @@ const INITIAL_EXPENSES: ExpenseItem[] = [
   },
 ];
 
+const INITIAL_CATEGORY_BUDGETS: Record<string, Record<string, number>> = {
+  t_tokyo: {
+    FOOD: 400000,
+    STAY: 600000,
+    TRANSPORT: 250000,
+    SHOPPING: 350000,
+    ACTIVITY: 150000,
+    OTHER: 100000,
+  },
+  t_osaka: {
+    FOOD: 300000,
+    STAY: 350000,
+    TRANSPORT: 150000,
+    SHOPPING: 200000,
+    ACTIVITY: 100000,
+    OTHER: 50000,
+  },
+};
+
+const INITIAL_TRIP_CURRENCIES: Record<string, CurrencyCode> = {
+  t_tokyo: 'JPY',
+  t_osaka: 'JPY',
+};
+
+export const DEFAULT_CATEGORY_BUDGET_MAP: Record<string, number> = {
+  FOOD: 400000,
+  STAY: 600000,
+  TRANSPORT: 250000,
+  SHOPPING: 350000,
+  ACTIVITY: 150000,
+  OTHER: 100000,
+};
+
 export const useWalletStore = create<WalletState>()(
   persist(
     (set, get) => ({
@@ -142,8 +181,44 @@ export const useWalletStore = create<WalletState>()(
   lastExchangeRateUpdate: '실시간 환율 연동',
   isUpdatingRates: false,
   settledTransactionIds: [],
+  tripCurrencies: INITIAL_TRIP_CURRENCIES,
+  categoryBudgets: INITIAL_CATEGORY_BUDGETS,
 
   setActiveTab: (tab) => set({ activeTab: tab }),
+
+  setTripCurrency: (tripId: string, currency: CurrencyCode) => {
+    set((state) => ({
+      tripCurrencies: {
+        ...state.tripCurrencies,
+        [tripId]: currency,
+      },
+    }));
+  },
+
+  getTripCurrency: (tripId?: string) => {
+    if (!tripId) return 'JPY';
+    return get().tripCurrencies?.[tripId] || 'JPY';
+  },
+
+  setCategoryBudget: (tripId: string, category: string, amount: number) => {
+    set((state) => {
+      const current = state.categoryBudgets[tripId] || { ...DEFAULT_CATEGORY_BUDGET_MAP };
+      return {
+        categoryBudgets: {
+          ...state.categoryBudgets,
+          [tripId]: {
+            ...current,
+            [category]: amount,
+          },
+        },
+      };
+    });
+  },
+
+  getCategoryBudgets: (tripId?: string) => {
+    if (!tripId) return { ...DEFAULT_CATEGORY_BUDGET_MAP };
+    return get().categoryBudgets?.[tripId] || { ...DEFAULT_CATEGORY_BUDGET_MAP };
+  },
 
   refreshLiveExchangeRates: async () => {
     set({ isUpdatingRates: true });
@@ -279,6 +354,8 @@ export const useWalletStore = create<WalletState>()(
       activeTab: 'expenses',
       exchangeRates: { ...DEFAULT_EXCHANGE_RATES },
       settledTransactionIds: [],
+      tripCurrencies: INITIAL_TRIP_CURRENCIES,
+      categoryBudgets: INITIAL_CATEGORY_BUDGETS,
     });
   },
 }),
@@ -289,6 +366,8 @@ export const useWalletStore = create<WalletState>()(
     expenses: state.expenses,
     exchangeRates: state.exchangeRates,
     settledTransactionIds: state.settledTransactionIds,
+    tripCurrencies: state.tripCurrencies,
+    categoryBudgets: state.categoryBudgets,
   }),
 }
 ));

@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWalletStore } from '../../src/store/useWalletStore';
 import { useTripStore } from '../../src/store/useTripStore';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
+import { CategoryBudgetModal } from '../../src/components/wallet/CategoryBudgetModal';
 import {
   CurrencyCode,
   WalletCategory,
@@ -81,6 +82,10 @@ export default function WalletScreen() {
     getTransactions,
     getTotalKrw,
     generateShareText,
+    setTripCurrency,
+    getTripCurrency,
+    setCategoryBudget,
+    getCategoryBudgets,
   } = useWalletStore();
 
   useEffect(() => {
@@ -89,6 +94,11 @@ export default function WalletScreen() {
 
   const { currentTrip, scheduleItems } = useTripStore();
   const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
+  const [categoryBudgetModalVisible, setCategoryBudgetModalVisible] = useState(false);
+  const [isCategoryBudgetExpanded, setIsCategoryBudgetExpanded] = useState(true);
+
+  const activeTripCurrency = getTripCurrency(currentTrip?.id);
+  const activeBudgets = getCategoryBudgets(currentTrip?.id);
 
   // Active trip members fallback
   const tripMembers: WalletMember[] = (currentTrip?.members && currentTrip.members.length > 0)
@@ -104,14 +114,18 @@ export default function WalletScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [title, setTitle] = useState('');
   const [amountStr, setAmountStr] = useState('');
-  const [currency, setCurrency] = useState<CurrencyCode>('JPY');
+  const [currency, setCurrency] = useState<CurrencyCode>(activeTripCurrency);
   const [category, setCategory] = useState<WalletCategory>('FOOD');
   const [paidBy, setPaidBy] = useState<string>(tripMembers[0]?.id || 'm1');
   const [splitMembers, setSplitMembers] = useState<string[]>(tripMembers.map((m) => m.id));
   const [selectedPlaceName, setSelectedPlaceName] = useState<string>('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL');
 
-  // Sync members when switching trip
+  // Sync currency and members when switching trip
+  useEffect(() => {
+    setCurrency(activeTripCurrency);
+  }, [activeTripCurrency]);
+
   useEffect(() => {
     if (tripMembers.length > 0) {
       setPaidBy(tripMembers[0].id);
@@ -126,8 +140,9 @@ export default function WalletScreen() {
 
   // Stats
   const totalKrw = getTotalKrw(currentTrip?.id);
-  const budget = currentTrip?.budget || 1200000;
-  const budgetUsagePercent = Math.min(Math.round((totalKrw / budget) * 100), 100);
+  const totalCategoryBudgetKrw = Object.values(activeBudgets).reduce((sum, val) => sum + (val || 0), 0);
+  const effectiveBudget = totalCategoryBudgetKrw > 0 ? totalCategoryBudgetKrw : (currentTrip?.budget || 1200000);
+  const budgetUsagePercent = Math.min(Math.round((totalKrw / effectiveBudget) * 100), 100);
 
   const memberBalances = getMemberBalances(currentTrip?.id, tripMembers);
   const transactions = getTransactions(currentTrip?.id, tripMembers);
@@ -139,12 +154,29 @@ export default function WalletScreen() {
   });
 
   // Calculate Currency totals for active trip
-  const jpyTotal = tripExpenses
-    .filter((e) => e.currency === 'JPY')
+  const currentRate = exchangeRates[activeTripCurrency] || 1;
+  const foreignTotalDirect = tripExpenses
+    .filter((e) => e.currency === activeTripCurrency)
     .reduce((sum, e) => sum + e.amount, 0);
-  const krwDirectTotal = tripExpenses
-    .filter((e) => e.currency === 'KRW')
-    .reduce((sum, e) => sum + e.amount, 0);
+  const totalInSelectedCurrency =
+    activeTripCurrency === 'KRW'
+      ? totalKrw
+      : Math.round(totalKrw / currentRate);
+
+  const getExchangeRateLabel = (cur: CurrencyCode) => {
+    switch (cur) {
+      case 'JPY':
+        return `100 JPY = ${Math.round(exchangeRates.JPY * 100)}원`;
+      case 'USD':
+        return `1 USD = ${Math.round(exchangeRates.USD)}원`;
+      case 'EUR':
+        return `1 EUR = ${Math.round(exchangeRates.EUR)}원`;
+      case 'KRW':
+        return `1 KRW = 1원`;
+      default:
+        return `${cur} 실시간 환율`;
+    }
+  };
 
   // Active trip schedule items for linking
   const activeScheduleItems = scheduleItems.filter(
@@ -336,54 +368,72 @@ export default function WalletScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 48 }}
       >
-        {/* Total Spending & Dual Currency Dashboard */}
+        {/* Total Spending & Dynamic Currency Dashboard */}
         <View className="p-4 mx-4 mt-3 bg-surface rounded-3xl border border-borderLine shadow-sm">
-          <View className="flex-row items-center justify-between mb-1.5">
+          <View className="flex-row items-center justify-between mb-2">
             <View className="flex-row items-center">
               <Coins size={15} color="#FF6B6B" className="mr-1" />
               <Text className="text-xs font-bold text-mutedText">총 여행 지출</Text>
             </View>
-            <Badge label={`예산의 ${budgetUsagePercent}% 소진`} variant="secondary" />
+            {/* Currency Selector Pills */}
+            <View className="flex-row items-center gap-1 bg-gray-100 p-1 rounded-full">
+              {(['JPY', 'USD', 'EUR', 'KRW'] as CurrencyCode[]).map((cur) => (
+                <TouchableOpacity
+                  key={cur}
+                  onPress={() => setTripCurrency(currentTrip?.id || 't_tokyo', cur)}
+                  className={`px-2 py-0.5 rounded-full ${
+                    activeTripCurrency === cur ? 'bg-primary' : 'bg-transparent'
+                  }`}
+                >
+                  <Text
+                    className={`text-[10px] font-extrabold ${
+                      activeTripCurrency === cur ? 'text-white' : 'text-gray-500'
+                    }`}
+                  >
+                    {CURRENCY_SYMBOLS[cur]} {cur}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
-          {/* Main KRW Amount */}
-          <View className="flex-row items-baseline mb-2">
-            <Text className="text-3xl font-extrabold text-darkText tracking-tight">
-              {totalKrw.toLocaleString()}
-            </Text>
-            <Text className="text-lg font-bold text-darkText ml-1">원</Text>
-          </View>
-
-          {/* Dual Currency Sub-breakdown */}
-          <View className="flex-row items-center flex-wrap gap-2 py-2 px-3 bg-gray-50 rounded-2xl mb-3">
-            {jpyTotal > 0 && (
-              <View className="flex-row items-center">
-                <Text className="text-[11px] font-bold text-gray-500">엔화(JPY): </Text>
-                <Text className="text-[11px] font-extrabold text-primary">
-                  ¥{jpyTotal.toLocaleString()}
+          {/* Main KRW Amount & Foreign Converted Amount */}
+          <View className="flex-row items-baseline justify-between mb-2">
+            <View className="flex-row items-baseline">
+              <Text className="text-3xl font-extrabold text-darkText tracking-tight">
+                {totalKrw.toLocaleString()}
+              </Text>
+              <Text className="text-lg font-bold text-darkText ml-1">원</Text>
+            </View>
+            {activeTripCurrency !== 'KRW' && (
+              <View className="items-end">
+                <Text className="text-[10px] font-semibold text-gray-400">환산 합계</Text>
+                <Text className="text-base font-extrabold text-primary">
+                  {CURRENCY_SYMBOLS[activeTripCurrency]}
+                  {totalInSelectedCurrency.toLocaleString()} {activeTripCurrency}
                 </Text>
               </View>
             )}
-            {krwDirectTotal > 0 && (
-              <View className="flex-row items-center">
-                <Text className="text-[11px] font-bold text-gray-500"> · 원화(KRW): </Text>
-                <Text className="text-[11px] font-extrabold text-darkText">
-                  ₩{krwDirectTotal.toLocaleString()}
-                </Text>
-              </View>
-            )}
+          </View>
+
+          {/* Dual Currency Sub-breakdown & Live Exchange Rate */}
+          <View className="flex-row items-center justify-between flex-wrap gap-2 py-2 px-3 bg-gray-50 rounded-2xl mb-3">
+            <View className="flex-row items-center">
+              <Text className="text-[11px] font-bold text-gray-500">{activeTripCurrency} 직접 결제: </Text>
+              <Text className="text-[11px] font-extrabold text-primary">
+                {CURRENCY_SYMBOLS[activeTripCurrency]}
+                {foreignTotalDirect.toLocaleString()}
+              </Text>
+            </View>
+
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => refreshLiveExchangeRates()}
-              className="ml-auto flex-row items-center bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg"
+              className="flex-row items-center bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg"
             >
-              <RefreshCw
-                size={11}
-                color="#059669"
-                style={{ marginRight: 4 }}
-              />
+              <RefreshCw size={11} color="#059669" style={{ marginRight: 4 }} />
               <Text className="text-[10px] font-bold text-emerald-700">
-                100엔={Math.round(exchangeRates.JPY * 100)}원 ({lastExchangeRateUpdate || '실시간'})
+                {getExchangeRateLabel(activeTripCurrency)} ({lastExchangeRateUpdate || '실시간'})
               </Text>
             </TouchableOpacity>
           </View>
@@ -398,12 +448,112 @@ export default function WalletScreen() {
 
           <View className="flex-row items-center justify-between">
             <Text className="text-xs text-mutedText">
-              설정 예산: {budget.toLocaleString()}원
+              설정 예산: {effectiveBudget.toLocaleString()}원
             </Text>
             <Text className="text-xs font-bold text-primary">
-              남은 예산: {Math.max(budget - totalKrw, 0).toLocaleString()}원
+              남은 예산: {Math.max(effectiveBudget - totalKrw, 0).toLocaleString()}원 ({100 - budgetUsagePercent}%)
             </Text>
           </View>
+        </View>
+
+        {/* CATEGORY BUDGET PLANNER SECTION */}
+        <View className="p-4 mx-4 mt-3 bg-surface rounded-3xl border border-borderLine shadow-sm">
+          <View className="flex-row items-center justify-between pb-2.5 border-b border-gray-100 mb-2">
+            <View className="flex-row items-center flex-1 mr-2">
+              <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center mr-2">
+                <Layers size={16} color="#FF6B6B" />
+              </View>
+              <View>
+                <Text className="text-sm font-extrabold text-darkText">카테고리별 예산 설정 & 계획 📊</Text>
+                <Text className="text-[11px] font-semibold text-mutedText">
+                  항목마다 약 얼마가 들지 정리 & 실시간 소진율
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setCategoryBudgetModalVisible(true)}
+              className="bg-primary/10 px-3 py-1.5 rounded-xl flex-row items-center"
+            >
+              <Sparkles size={12} color="#FF6B6B" style={{ marginRight: 4 }} />
+              <Text className="text-xs font-extrabold text-primary">예산 설정</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Category Budget Items */}
+          {CATEGORIES.map((cat) => {
+            const catBudget = activeBudgets[cat.key] || 0;
+            const catSpent = tripExpenses
+              .filter((e) => e.category === cat.key)
+              .reduce((acc, curr) => acc + curr.krw_amount, 0);
+            const catPercent = catBudget > 0 ? Math.min(Math.round((catSpent / catBudget) * 100), 150) : 0;
+            const isOverBudget = catSpent > catBudget && catBudget > 0;
+            const IconComp = cat.icon;
+
+            const foreignBudget =
+              activeTripCurrency === 'KRW'
+                ? catBudget
+                : Math.round(catBudget / (exchangeRates[activeTripCurrency] || 1));
+            const foreignSpent =
+              activeTripCurrency === 'KRW'
+                ? catSpent
+                : Math.round(catSpent / (exchangeRates[activeTripCurrency] || 1));
+
+            return (
+              <View key={cat.key} className="py-2 border-b border-gray-50 last:border-b-0">
+                <View className="flex-row items-center justify-between mb-1">
+                  <View className="flex-row items-center">
+                    <View
+                      className="w-7 h-7 rounded-lg items-center justify-center mr-2"
+                      style={{ backgroundColor: `${cat.color}15` }}
+                    >
+                      <IconComp size={13} color={cat.color} />
+                    </View>
+                    <View>
+                      <Text className="text-xs font-bold text-darkText">{cat.label}</Text>
+                      {activeTripCurrency !== 'KRW' && (
+                        <Text className="text-[10px] text-gray-400">
+                          {CURRENCY_SYMBOLS[activeTripCurrency]}
+                          {foreignSpent.toLocaleString()} / {CURRENCY_SYMBOLS[activeTripCurrency]}
+                          {foreignBudget.toLocaleString()}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+
+                  <View className="items-end">
+                    <Text className="text-xs font-bold text-darkText">
+                      {catSpent.toLocaleString()}원 / {catBudget.toLocaleString()}원
+                    </Text>
+                    <Text
+                      className={`text-[10px] font-semibold ${
+                        isOverBudget ? 'text-rose-500 font-bold' : 'text-mutedText'
+                      }`}
+                    >
+                      {isOverBudget
+                        ? `${(catSpent - catBudget).toLocaleString()}원 초과 ⚠️`
+                        : `${(catBudget - catSpent).toLocaleString()}원 남음 (${catPercent}%)`}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Progress bar */}
+                <View className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1">
+                  <View
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min(catPercent, 100)}%`,
+                      backgroundColor: isOverBudget
+                        ? '#EF4444'
+                        : catPercent > 80
+                        ? '#F59E0B'
+                        : cat.color,
+                    }}
+                  />
+                </View>
+              </View>
+            );
+          })}
         </View>
 
         {/* TAB 1: EXPENSES LIST */}
@@ -783,10 +933,15 @@ export default function WalletScreen() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View className="flex-1 justify-end bg-black/40">
+        <View className="flex-1 justify-end bg-black/45">
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => setModalVisible(false)}
+          />
           <View
             className="w-full bg-surface rounded-t-3xl p-5 max-h-[90%]"
-            style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+            style={{ paddingBottom: insets.bottom > 0 ? insets.bottom : 16 }}
           >
             {/* Modal Header */}
             <View className="flex-row items-center justify-between pb-3 border-b border-gray-100">
@@ -845,7 +1000,7 @@ export default function WalletScreen() {
               {/* Live KRW conversion preview */}
               {currency !== 'KRW' && (
                 <Text className="text-xs font-bold text-primary mb-4 px-1">
-                  ≈ 실시간 환율 적용: {liveKrwAmount.toLocaleString()}원 (100엔당 915원)
+                  ≈ 실시간 환율 적용: {liveKrwAmount.toLocaleString()}원 ({getExchangeRateLabel(currency)})
                 </Text>
               )}
 
@@ -1047,6 +1202,22 @@ export default function WalletScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Category Budget Modal */}
+      <CategoryBudgetModal
+        visible={categoryBudgetModalVisible}
+        onClose={() => setCategoryBudgetModalVisible(false)}
+        tripTitle={currentTrip?.title}
+        tripId={currentTrip?.id || 't_tokyo'}
+        currency={activeTripCurrency}
+        exchangeRate={exchangeRates[activeTripCurrency]}
+        initialBudgets={activeBudgets}
+        onSave={(newBudgets) => {
+          Object.entries(newBudgets).forEach(([catKey, amt]) => {
+            setCategoryBudget(currentTrip?.id || 't_tokyo', catKey, amt);
+          });
+        }}
+      />
 
       {/* Trip Switcher Modal */}
       <TripSwitcherModal

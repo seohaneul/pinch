@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Trip, ScheduleItem, Place, Member, Expense } from '../types';
+import type { Trip, ScheduleItem, Place, Member, Expense, LodgingInfo } from '../types';
 import type { TransportMode } from '../utils/routeUtils';
 import {
   calculateDistance,
@@ -17,6 +17,8 @@ interface TripState {
   selectedDay: number;
   scheduleItems: ScheduleItem[];
   expenses: Expense[];
+  dayStartTimes: Record<string, string>;
+  dayLodgings: Record<string, LodgingInfo>;
 
   // Actions
   getActiveTrip: () => Trip;
@@ -41,6 +43,12 @@ interface TripState {
   recalculateTimes: (dayNumber: number) => void;
   addPlaceToSchedule: (dayNumber: number, place: Place) => void;
   removeScheduleItem: (scheduleId: string) => void;
+  updateCustomTransport: (scheduleId: string, customName: string, minutes: number) => void;
+  setDayStartTime: (dayNumber: number, timeStr: string) => void;
+  getDayStartTime: (dayNumber: number) => string;
+  setDayLodging: (dayNumber: number, lodging: LodgingInfo) => void;
+  getDayLodging: (dayNumber: number) => LodgingInfo | null;
+  applyFlightStartTime: (dayNumber: number, flightTimeStr: string, bufferMinutes?: number) => string;
   addExpense: (expense: Omit<Expense, 'id'>) => void;
   deleteExpense: (expenseId: string) => void;
   resetToDefaults: () => void;
@@ -69,7 +77,7 @@ const INITIAL_SCHEDULE_ITEMS: ScheduleItem[] = [
     travel_duration_minutes: 0,
     arrival_time: '10:00 AM',
     address: '1 Chome-16-11 Tomigaya, Shibuya',
-    imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=1000&auto=format&fit=crop',
     memo: '인스타 감성 브루잉 카페',
   },
   {
@@ -125,7 +133,7 @@ const INITIAL_SCHEDULE_ITEMS: ScheduleItem[] = [
     travel_duration_minutes: 0,
     arrival_time: '10:00 AM',
     address: '68 Fukakusa Yabunouchicho, Kyoto',
-    imageUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=600&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=1000&auto=format&fit=crop',
     memo: '붉은 토리이 인생샷',
   },
   {
@@ -143,7 +151,7 @@ const INITIAL_SCHEDULE_ITEMS: ScheduleItem[] = [
     travel_duration_minutes: 25,
     arrival_time: '11:55 AM',
     address: '5 Chome-3-2 Nakasu, Fukuoka',
-    imageUrl: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=1000&auto=format&fit=crop',
     memo: '돈코츠 라멘 전문점',
   },
 ];
@@ -201,15 +209,55 @@ const INITIAL_EXPENSES: Expense[] = [
   },
 ];
 
+const OSAKA_TRIP: Trip = {
+  id: 't_osaka',
+  title: '오사카 식도락 2박 3일 🍢',
+  destination: '일본 오사카 / 도톤보리',
+  startDate: '2026-12-05',
+  endDate: '2026-12-07',
+  coverImage: 'https://images.unsplash.com/photo-1590559899731-a382839e5549?w=800&auto=format&fit=crop',
+  status: 'planning',
+  budget: 900000,
+  createdAt: '2026-10-05T00:00:00Z',
+  members: [MOCK_MEMBERS[0], MOCK_MEMBERS[1]],
+  places: [],
+  schedules: [
+    { dayNumber: 1, date: '2026-12-05', placeIds: [] },
+    { dayNumber: 2, date: '2026-12-06', placeIds: [] },
+    { dayNumber: 3, date: '2026-12-07', placeIds: [] },
+  ],
+};
+
+const INITIAL_TRIPS: Trip[] = [DEFAULT_TRIP, OSAKA_TRIP];
+
+const INITIAL_DAY_START_TIMES: Record<string, string> = {
+  t_tokyo_day_1: '10:00',
+  t_tokyo_day_2: '10:00',
+};
+
+const INITIAL_DAY_LODGINGS: Record<string, LodgingInfo> = {
+  t_tokyo_day_1: {
+    name: '호텔 그레이서리 신주쿠 (Hotel Gracery Shinjuku)',
+    address: '1 Chome-19-1 Kabukicho, Shinjuku City, Tokyo',
+    checkInTime: '15:00',
+    checkOutTime: '11:00',
+    memo: '고질라 헤드가 보이는 가부키초 중심 호텔. 아고다 예약 완료 (예약번호 #GRC-9281)',
+    phoneNumber: '+81 3-6833-1111',
+    imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1000&auto=format&fit=crop',
+  },
+};
+
 export const useTripStore = create<TripState>()(
   persist(
     (set, get) => ({
-  trips: [DEFAULT_TRIP],
+  trips: INITIAL_TRIPS,
   currentTrip: DEFAULT_TRIP,
   activeTripId: DEFAULT_TRIP.id,
   selectedDay: 1,
   scheduleItems: INITIAL_SCHEDULE_ITEMS,
   expenses: INITIAL_EXPENSES,
+  dayStartTimes: INITIAL_DAY_START_TIMES,
+  dayLodgings: INITIAL_DAY_LODGINGS,
 
   getActiveTrip: () => {
     const { trips, activeTripId } = get();
@@ -399,20 +447,29 @@ export const useTripStore = create<TripState>()(
 
     if (dayItems.length === 0) return;
 
-    let currentMinutes = 10 * 60; // Start day at 10:00 AM (600 mins from midnight)
+    const startKey = `${activeTripId}_day_${dayNumber}`;
+    const startTimeStr = get().dayStartTimes?.[startKey] || '10:00';
+    let [startHour, startMin] = startTimeStr.split(':').map((v) => parseInt(v, 10));
+    if (isNaN(startHour)) startHour = 10;
+    if (isNaN(startMin)) startMin = 0;
+    let currentMinutes = startHour * 60 + startMin;
 
     const updatedDayItems = dayItems.map((item, index) => {
       let travelMins = 0;
 
       if (index > 0) {
-        const prev = dayItems[index - 1];
-        const distKm = calculateDistance(
-          prev.latitude,
-          prev.longitude,
-          item.latitude,
-          item.longitude
-        );
-        travelMins = estimateTravelTime(distKm, item.transport_mode);
+        if (item.custom_travel_minutes !== undefined && item.custom_travel_minutes > 0) {
+          travelMins = item.custom_travel_minutes;
+        } else {
+          const prev = dayItems[index - 1];
+          const distKm = calculateDistance(
+            prev.latitude,
+            prev.longitude,
+            item.latitude,
+            item.longitude
+          );
+          travelMins = estimateTravelTime(distKm, item.transport_mode);
+        }
         currentMinutes += travelMins;
       }
 
@@ -430,6 +487,70 @@ export const useTripStore = create<TripState>()(
 
     const otherItems = scheduleItems.filter((s) => s.day_number !== dayNumber || !isTripMatch(s));
     set({ scheduleItems: [...otherItems, ...updatedDayItems] });
+  },
+
+  updateCustomTransport: (scheduleId, customName, minutes) => {
+    const { scheduleItems, recalculateTimes } = get();
+    const target = scheduleItems.find((s) => s.id === scheduleId);
+    if (!target) return;
+
+    set({
+      scheduleItems: scheduleItems.map((s) =>
+        s.id === scheduleId
+          ? {
+              ...s,
+              custom_transport_name: customName,
+              custom_travel_minutes: minutes,
+            }
+          : s
+      ),
+    });
+
+    recalculateTimes(target.day_number);
+  },
+
+  setDayStartTime: (dayNumber, timeStr) => {
+    const { activeTripId, dayStartTimes, recalculateTimes } = get();
+    const startKey = `${activeTripId}_day_${dayNumber}`;
+    set({
+      dayStartTimes: {
+        ...dayStartTimes,
+        [startKey]: timeStr,
+      },
+    });
+    recalculateTimes(dayNumber);
+  },
+
+  getDayStartTime: (dayNumber) => {
+    const { activeTripId, dayStartTimes } = get();
+    return dayStartTimes?.[`${activeTripId}_day_${dayNumber}`] || '10:00';
+  },
+
+  setDayLodging: (dayNumber, lodging) => {
+    const { activeTripId, dayLodgings } = get();
+    const key = `${activeTripId}_day_${dayNumber}`;
+    set({
+      dayLodgings: {
+        ...dayLodgings,
+        [key]: lodging,
+      },
+    });
+  },
+
+  getDayLodging: (dayNumber) => {
+    const { activeTripId, dayLodgings } = get();
+    return dayLodgings?.[`${activeTripId}_day_${dayNumber}`] || null;
+  },
+
+  applyFlightStartTime: (dayNumber, flightTimeStr, bufferMinutes = 90) => {
+    const [h, m] = flightTimeStr.split(':').map((v) => parseInt(v, 10));
+    const totalFlightMinutes = (isNaN(h) ? 12 : h) * 60 + (isNaN(m) ? 0 : m);
+    const startMins = (totalFlightMinutes + bufferMinutes) % (24 * 60);
+    const newH = Math.floor(startMins / 60).toString().padStart(2, '0');
+    const newM = (startMins % 60).toString().padStart(2, '0');
+    const formatted = `${newH}:${newM}`;
+    get().setDayStartTime(dayNumber, formatted);
+    return formatted;
   },
 
   addPlaceToSchedule: (dayNumber, place) => {
@@ -499,12 +620,14 @@ export const useTripStore = create<TripState>()(
 
   resetToDefaults: () => {
     set({
-      trips: [DEFAULT_TRIP],
+      trips: INITIAL_TRIPS,
       currentTrip: DEFAULT_TRIP,
       activeTripId: DEFAULT_TRIP.id,
       selectedDay: 1,
       scheduleItems: INITIAL_SCHEDULE_ITEMS,
       expenses: INITIAL_EXPENSES,
+      dayStartTimes: INITIAL_DAY_START_TIMES,
+      dayLodgings: INITIAL_DAY_LODGINGS,
     });
   },
 }),
@@ -518,6 +641,8 @@ export const useTripStore = create<TripState>()(
     scheduleItems: state.scheduleItems,
     selectedDay: state.selectedDay,
     expenses: state.expenses,
+    dayStartTimes: state.dayStartTimes,
+    dayLodgings: state.dayLodgings,
   }),
 }
 ));

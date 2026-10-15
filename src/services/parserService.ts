@@ -1,4 +1,6 @@
 import type { Place, PlaceCategory, SavedLink, ExtractedPlaceItem } from '../types';
+import { extractPlacesWithGemini } from './geminiService';
+import { fetchRealPlaceImage } from './imageSearchService';
 
 export interface ExtractedMeta {
   title: string;
@@ -232,7 +234,7 @@ export async function geocodePlace(query: string): Promise<{ latitude: number; l
 }
 
 // 7. 메인 함수: 링크 분석 및 Place 객체 생성
-export async function parseSnsUrl(url: string): Promise<Place> {
+export async function parseSnsUrl(url: string, destinationHint?: string): Promise<Place> {
   const platform = detectSnsPlatform(url);
 
   // 1) OpenGraph 메타데이터 추출
@@ -246,17 +248,31 @@ export async function parseSnsUrl(url: string): Promise<Place> {
 
   // 4) 위치 좌표 및 주소 획득 (지오코딩 또는 스마트 기본값)
   const geocodeResult = await geocodePlace(placeName);
-  const defaultCoord = CITY_ANCHOR_COORDS['도쿄'];
+  let defaultCoord = CITY_ANCHOR_COORDS['도쿄'];
+  if (destinationHint) {
+    for (const [cityName, coord] of Object.entries(CITY_ANCHOR_COORDS)) {
+      if (destinationHint.includes(cityName)) {
+        defaultCoord = coord;
+        break;
+      }
+    }
+  }
 
   const latitude = geocodeResult?.latitude ?? defaultCoord.lat;
   const longitude = geocodeResult?.longitude ?? defaultCoord.lng;
   const address = geocodeResult?.address ?? `${defaultCoord.address} 부근`;
 
-  // 5) 이미지 URL 보정
-  const imageUrl =
-    meta.imageUrl && meta.imageUrl.startsWith('http')
-      ? meta.imageUrl
-      : CATEGORY_DEFAULT_IMAGES[category] || CATEGORY_DEFAULT_IMAGES.ATTRACTION;
+  // 5) 실제 이미지 URL 탐색
+  let imageUrl = meta.imageUrl && meta.imageUrl.startsWith('http') ? meta.imageUrl : '';
+  if (!imageUrl || imageUrl.includes('unsplash.com')) {
+    const realImg = await fetchRealPlaceImage(placeName, address, category, latitude, longitude);
+    if (realImg) {
+      imageUrl = realImg;
+    }
+  }
+  if (!imageUrl) {
+    imageUrl = CATEGORY_DEFAULT_IMAGES[category] || CATEGORY_DEFAULT_IMAGES.ATTRACTION;
+  }
 
   const parsedPlace: Place = {
     id: `place_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
@@ -497,7 +513,11 @@ const REGIONAL_HOTPLACE_POOLS: Record<string, ExtractedPlaceItem[]> = {
 };
 
 // 8. 신규 핵심 기능: 링크 내 여러 장소 다중 추출 엔진
-export async function parseLinkWithPlaces(url: string, tripId?: string): Promise<SavedLink> {
+export async function parseLinkWithPlaces(
+  url: string,
+  tripId?: string,
+  destinationHint?: string
+): Promise<SavedLink> {
   const platform = detectSnsPlatform(url);
 
   // 1) OpenGraph 메타데이터 추출
@@ -506,39 +526,86 @@ export async function parseLinkWithPlaces(url: string, tripId?: string): Promise
   // 2) 타이틀 정제
   const { placeName, memo } = cleanPlaceTitle(meta.title, meta.description, platform);
 
-  // 3) 키워드 매칭을 통해 지역 풀 선택
-  const combinedText = `${url} ${meta.title} ${meta.description}`.toLowerCase();
-  let selectedRegionKey = 'tokyo';
+  // 3) 실제 Google Gemini AI 추출 우선 시도
+  let extractedPlaces: ExtractedPlaceItem[] = [];
+  let aiTitle = '';
+  let aiSummary = '';
 
-  if (combinedText.includes('오사카') || combinedText.includes('osaka')) {
-    selectedRegionKey = 'osaka';
-  } else if (combinedText.includes('교토') || combinedText.includes('kyoto')) {
-    selectedRegionKey = 'kyoto';
-  } else if (combinedText.includes('후쿠오카') || combinedText.includes('fukuoka')) {
-    selectedRegionKey = 'fukuoka';
-  } else if (combinedText.includes('제주') || combinedText.includes('jeju')) {
-    selectedRegionKey = 'jeju';
+  try {
+    const aiResult = await extractPlacesWithGemini(
+      meta.title || placeName,
+      meta.description || memo,
+      url,
+      destinationHint
+    );
+    if (aiResult && aiResult.places.length > 0) {
+      extractedPlaces = await Promise.all(
+        aiResult.places.map(async (p, idx) => {
+          let realImg = p.imageUrl;
+          if (!realImg || !realImg.startsWith('http')) {
+            realImg = (await fetchRealPlaceImage(p.name, p.address, p.category, p.latitude, p.longitude)) || undefined;
+          }
+          if ((!realImg || realImg.includes('unsplash.com')) && idx === 0 && meta.imageUrl?.startsWith('http')) {
+            realImg = meta.imageUrl;
+          }
+          return {
+            ...p,
+            id: p.id || `extracted_${Date.now()}_${idx}`,
+            imageUrl: realImg || undefined,
+          };
+        })
+      );
+      aiTitle = aiResult.cleanTitle;
+      aiSummary = aiResult.cleanSummary;
+    }
+  } catch (aiErr) {
+    console.warn('[ParserService] Gemini AI extraction failed, using fallback:', aiErr);
   }
 
-  const basePlaces = REGIONAL_HOTPLACE_POOLS[selectedRegionKey] || REGIONAL_HOTPLACE_POOLS.tokyo;
+  // 4) Gemini 결과가 없을 때 키워드 매칭 기반 지역 풀 Fallback
+  if (extractedPlaces.length === 0) {
+    const combinedText = `${url} ${meta.title} ${meta.description} ${destinationHint || ''}`.toLowerCase();
+    let selectedRegionKey = 'tokyo';
 
-  // 장소 복제 및 고유 ID 부여
-  const extractedPlaces: ExtractedPlaceItem[] = basePlaces.map((bp, idx) => ({
-    ...bp,
-    id: `extracted_${Date.now()}_${idx}`,
-  }));
+    if (combinedText.includes('오사카') || combinedText.includes('osaka')) {
+      selectedRegionKey = 'osaka';
+    } else if (combinedText.includes('교토') || combinedText.includes('kyoto')) {
+      selectedRegionKey = 'kyoto';
+    } else if (combinedText.includes('후쿠오카') || combinedText.includes('fukuoka')) {
+      selectedRegionKey = 'fukuoka';
+    } else if (combinedText.includes('제주') || combinedText.includes('jeju')) {
+      selectedRegionKey = 'jeju';
+    }
+
+    const basePlaces = REGIONAL_HOTPLACE_POOLS[selectedRegionKey] || REGIONAL_HOTPLACE_POOLS.tokyo;
+    extractedPlaces = basePlaces.map((bp, idx) => ({
+      ...bp,
+      id: `extracted_${Date.now()}_${idx}`,
+    }));
+  }
+
+  const finalTitle =
+    aiTitle ||
+    (placeName && placeName.length >= 4 && !placeName.includes('Instagram')
+      ? placeName
+      : `${platform === 'instagram' ? '인스타그램 릴스' : '추천 여행'} 핫플 모음 ✈️`);
+
+  const finalSummary =
+    aiSummary ||
+    memo ||
+    `해당 ${platform.toUpperCase()} 링크에 포함된 추천 장소 ${extractedPlaces.length}곳`;
 
   const savedLink: SavedLink = {
     id: `link_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
     trip_id: tripId || 'trip-1',
-    title: placeName.length > 5 ? placeName : (meta.title || `${platform.toUpperCase()} 추천 핫플 모음`),
+    title: finalTitle,
     url,
     platform,
     thumbnailUrl:
       meta.imageUrl && meta.imageUrl.startsWith('http')
         ? meta.imageUrl
         : extractedPlaces[0]?.imageUrl || 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop',
-    summary: memo || `해당 ${platform.toUpperCase()} 링크에 포함된 추천 장소 ${extractedPlaces.length}곳`,
+    summary: finalSummary,
     createdAt: new Date().toISOString(),
     extractedPlaces,
   };

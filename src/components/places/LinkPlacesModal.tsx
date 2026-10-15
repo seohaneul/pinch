@@ -14,6 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, ExternalLink, Plus, Check, MapPin, Sparkles, Star } from 'lucide-react-native';
 import type { SavedLink, ExtractedPlaceItem, Place } from '../../types';
 import { usePlaceStore } from '../../store/usePlaceStore';
+import { useTripStore } from '../../store/useTripStore';
+import { PlaceDetailModal } from './PlaceDetailModal';
 
 interface LinkPlacesModalProps {
   visible: boolean;
@@ -30,12 +32,18 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const { places, addPlace } = usePlaceStore();
+  const [selectedPlaceForDetail, setSelectedPlaceForDetail] = React.useState<ExtractedPlaceItem | null>(null);
+  const [failedImages, setFailedImages] = React.useState<Record<string, boolean>>({});
 
   if (!savedLink) return null;
 
-  // 이미 장소보관함에 담겨있는지 확인하는 함수
+  // 이미 현재 여행의 장소보관함에 담겨있는지 확인하는 함수
   const isPlaceInPocket = (name: string) => {
-    return places.some((p) => p.name.trim().toLowerCase() === name.trim().toLowerCase());
+    const targetTripId = savedLink?.trip_id || useTripStore.getState().currentTrip?.id;
+    return places.some((p) => {
+      const matchTrip = !targetTripId || p.trip_id === targetTripId;
+      return matchTrip && p.name.trim().toLowerCase() === name.trim().toLowerCase();
+    });
   };
 
   // 원본 링크 웹 브라우저/앱 열기
@@ -60,9 +68,11 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
       return;
     }
 
+    const targetTripId = savedLink.trip_id || useTripStore.getState().currentTrip?.id || 't_tokyo';
+
     const newPlace: Place = {
       id: `place_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      trip_id: savedLink.trip_id,
+      trip_id: targetTripId,
       name: item.name,
       address: item.address,
       category: item.category,
@@ -78,7 +88,7 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
       sourcePlatform: savedLink.platform,
     };
 
-    const success = addPlace(newPlace, savedLink.trip_id);
+    const success = addPlace(newPlace, targetTripId);
     if (success) {
       if (onPlaceAdded) onPlaceAdded(item.name);
       Alert.alert('장소 핀치 완료! 📌', `"${item.name}" 장소가 장소 보관함에 담겼습니다.`);
@@ -87,12 +97,13 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
 
   // 전체 장소 한 번에 담기
   const handleAddAllPlaces = () => {
+    const targetTripId = savedLink.trip_id || useTripStore.getState().currentTrip?.id || 't_tokyo';
     let addedCount = 0;
     savedLink.extractedPlaces.forEach((item, idx) => {
       if (!isPlaceInPocket(item.name)) {
         const newPlace: Place = {
           id: `place_${Date.now()}_${idx}_${Math.floor(Math.random() * 1000)}`,
-          trip_id: savedLink.trip_id,
+          trip_id: targetTripId,
           name: item.name,
           address: item.address,
           category: item.category,
@@ -107,7 +118,7 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
           tags: item.tags || ['핫플'],
           sourcePlatform: savedLink.platform,
         };
-        addPlace(newPlace, savedLink.trip_id);
+        addPlace(newPlace, targetTripId);
         addedCount++;
       }
     });
@@ -153,7 +164,13 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        {/* Backdrop touchable to dismiss */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFillObject}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        <View style={[styles.sheetContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom : 16 }]}>
           {/* Header */}
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
@@ -198,16 +215,28 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
             {/* Extracted Places List */}
             {savedLink.extractedPlaces.map((item, index) => {
               const inPocket = isPlaceInPocket(item.name);
+              const imgKey = item.id || `ep_${index}`;
+              const isFailed = failedImages[imgKey];
+
               return (
-                <View key={item.id || index} style={styles.placeCard}>
+                <TouchableOpacity
+                  key={item.id || index}
+                  activeOpacity={0.88}
+                  onPress={() => setSelectedPlaceForDetail(item)}
+                  style={styles.placeCard}
+                >
                   <Image
                     source={{
                       uri:
-                        item.imageUrl ||
-                        'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop',
+                        (!isFailed && item.imageUrl)
+                          ? item.imageUrl
+                          : 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop',
                     }}
                     style={styles.placeThumb}
                     resizeMode="cover"
+                    onError={() =>
+                      setFailedImages((prev) => ({ ...prev, [imgKey]: true }))
+                    }
                   />
                   <View style={styles.placeInfo}>
                     <View style={styles.placeTitleRow}>
@@ -244,7 +273,10 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
                       ) : (
                         <TouchableOpacity
                           activeOpacity={0.8}
-                          onPress={() => handleAddSinglePlace(item)}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleAddSinglePlace(item);
+                          }}
                           style={styles.addSingleBtn}
                         >
                           <Plus size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
@@ -253,12 +285,23 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
                       )}
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </ScrollView>
         </View>
       </View>
+
+      {/* 장소 상세 설명 모달 (PlaceDetailModal) */}
+      <PlaceDetailModal
+        visible={Boolean(selectedPlaceForDetail)}
+        place={selectedPlaceForDetail}
+        onClose={() => setSelectedPlaceForDetail(null)}
+        isSavedInPocket={selectedPlaceForDetail ? isPlaceInPocket(selectedPlaceForDetail.name) : false}
+        onSaveToPocket={(targetItem) => {
+          handleAddSinglePlace(targetItem);
+        }}
+      />
     </Modal>
   );
 };

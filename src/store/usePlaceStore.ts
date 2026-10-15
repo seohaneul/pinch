@@ -21,6 +21,7 @@ interface PlaceState {
   addPlace: (place: Place, tripId?: string) => boolean;
   removePlace: (id: string) => void;
   togglePin: (id: string) => void;
+  updatePlaceImage: (id: string, imageUrl: string) => void;
   extractFromUrl: (url: string, tripId?: string) => Promise<Place | null>;
   checkIsDuplicate: (name: string, url?: string, tripId?: string) => Place | null;
   getPlacesByTrip: (tripId: string) => Place[];
@@ -38,7 +39,7 @@ const INITIAL_PLACES: Place[] = [
     longitude: 139.6917,
     memo: '인스타 릴스 핫플! 노르웨이 감성 로스팅 카페',
     snsUrl: 'https://instagram.com/p/fuglen_tokyo',
-    imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=1000&auto=format&fit=crop',
     rating: 4.8,
     isPinned: true,
     createdAt: '2026-10-01T10:00:00Z',
@@ -55,7 +56,7 @@ const INITIAL_PLACES: Place[] = [
     longitude: 135.7727,
     memo: '유튜브 숏츠 추천! 붉은 토리이 터널과 여우 신사 산책 코스',
     snsUrl: 'https://youtube.com/shorts/kyoto_temple',
-    imageUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=600&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=1000&auto=format&fit=crop',
     rating: 4.9,
     isPinned: true,
     createdAt: '2026-10-02T11:00:00Z',
@@ -72,7 +73,7 @@ const INITIAL_PLACES: Place[] = [
     longitude: 127.0581,
     memo: '폐공장 개조 베이커리 카페. 팡도르 필수!',
     snsUrl: 'https://blog.naver.com/onion_seongsu',
-    imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=1000&auto=format&fit=crop',
     rating: 4.7,
     isPinned: false,
     createdAt: '2026-10-03T14:30:00Z',
@@ -89,7 +90,7 @@ const INITIAL_PLACES: Place[] = [
     longitude: 130.4037,
     memo: '1인 독서실 스타일 돈코츠 라멘 본점',
     snsUrl: 'https://tiktok.com/@ramen_fukuoka',
-    imageUrl: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=1000&auto=format&fit=crop',
     rating: 4.6,
     isPinned: true,
     createdAt: '2026-10-04T18:00:00Z',
@@ -111,16 +112,21 @@ export const usePlaceStore = create<PlaceState>()(
       setSearchQuery: (query) => set({ searchQuery: query }),
 
       getPlacesByTrip: (tripId: string) => {
-        return get().places.filter((p) => !p.trip_id || p.trip_id === tripId);
+        return get().places.filter((p) => p.trip_id === tripId);
       },
 
       checkIsDuplicate: (name: string, url?: string, tripId?: string) => {
         const currentPlaces = get().places;
+        const targetTripId = tripId || useTripStore.getState().currentTrip?.id;
         const normalizedName = name.trim().toLowerCase();
         const normalizedUrl = url ? url.trim().toLowerCase() : '';
 
         return (
           currentPlaces.find((p) => {
+            // 여행별 중복 검사: 대상 여행이 지정된 경우, 해당 여행 내에서만 중복 여부 판정
+            if (targetTripId && p.trip_id && p.trip_id !== targetTripId) {
+              return false;
+            }
             const sameName = Boolean(normalizedName && p.name.trim().toLowerCase() === normalizedName);
             const sameUrl = Boolean(
               normalizedUrl && p.snsUrl && p.snsUrl.trim().toLowerCase() === normalizedUrl
@@ -163,10 +169,23 @@ export const usePlaceStore = create<PlaceState>()(
         }));
       },
 
+      updatePlaceImage: (id, imageUrl) => {
+        set((state) => ({
+          places: state.places.map((p) =>
+            p.id === id ? { ...p, imageUrl } : p
+          ),
+        }));
+      },
+
       extractFromUrl: async (url, tripId) => {
         set({ isParsing: true, isExtracting: true });
         try {
-          const activeTripId = tripId || useTripStore.getState().currentTrip?.id || 'trip-1';
+          const allTrips = useTripStore.getState().trips;
+          const currentTrip = useTripStore.getState().currentTrip;
+          const activeTripId = tripId || currentTrip?.id || 't_tokyo';
+          const targetTrip = allTrips.find((t) => t.id === activeTripId) || currentTrip;
+          const destinationHint = targetTrip?.destination || targetTrip?.title || '';
+
           const duplicate = get().checkIsDuplicate('', url, activeTripId);
           if (duplicate) {
             set({ isParsing: false, isExtracting: false });
@@ -174,7 +193,7 @@ export const usePlaceStore = create<PlaceState>()(
             return null;
           }
 
-          const newPlace = await parseSnsUrl(url);
+          const newPlace = await parseSnsUrl(url, destinationHint);
           newPlace.trip_id = activeTripId;
 
           // Check again with parsed name

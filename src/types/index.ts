@@ -32,6 +32,21 @@ export interface Place {
   sourcePlatform?: 'instagram' | 'youtube' | 'naver' | 'tiktok' | 'manual';
 }
 
+export interface LodgingInfo {
+  id?: string;
+  trip_id?: string;
+  day_number?: number;
+  name: string;
+  address?: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  memo?: string;
+  latitude?: number;
+  longitude?: number;
+  imageUrl?: string;
+  phoneNumber?: string;
+}
+
 export interface ScheduleItem {
   id: string;
   trip_id: string;
@@ -49,6 +64,8 @@ export interface ScheduleItem {
   memo?: string;
   imageUrl?: string;
   address?: string;
+  custom_transport_name?: string;
+  custom_travel_minutes?: number;
 }
 
 export interface DaySchedule {
@@ -56,6 +73,8 @@ export interface DaySchedule {
   date: string;
   placeIds: string[];
   notes?: string;
+  startTime?: string; // e.g. "10:00"
+  lodging?: LodgingInfo;
 }
 
 export interface Member {
@@ -78,6 +97,14 @@ export interface Trip {
   members: Member[];
   budget?: number;
   createdAt: string;
+  currency?: 'KRW' | 'JPY' | 'USD' | 'EUR';
+  lodging?: LodgingInfo;
+  categoryBudgets?: Record<string, number>;
+  flightArrival?: {
+    time: string;
+    bufferMinutes?: number;
+    flightNumber?: string;
+  };
 }
 
 export type ExpenseCategory = 'food' | 'transport' | 'stay' | 'activity' | 'shopping' | 'other';

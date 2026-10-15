@@ -51,11 +51,18 @@ export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, o
     );
   };
 
+  const [failedCoverIds, setFailedCoverIds] = useState<Record<string, boolean>>({});
+
   return (
     <>
       <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
-        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}>
-          <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.45)' }]}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={onClose}
+          />
+          <View style={[styles.modalSheet, { paddingBottom: insets.bottom > 0 ? insets.bottom : 20 }]}>
             {/* Header */}
             <View style={styles.header}>
               <View>
@@ -91,11 +98,15 @@ export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, o
                     <Image
                       source={{
                         uri:
-                          trip.coverImage ||
-                          'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=600&auto=format&fit=crop',
+                          (!failedCoverIds[trip.id] && trip.coverImage)
+                            ? trip.coverImage
+                            : 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=600&auto=format&fit=crop',
                       }}
                       style={styles.tripCover}
                       resizeMode="cover"
+                      onError={() =>
+                        setFailedCoverIds((prev) => ({ ...prev, [trip.id]: true }))
+                      }
                     />
 
                     <View style={styles.tripInfo}>
@@ -180,7 +191,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     maxHeight: '85%',
-    paddingBottom: 28,
+    paddingBottom: 0,
     paddingTop: 16,
     paddingHorizontal: 20,
   },

@@ -15,10 +15,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useTripStore } from '../../src/store/useTripStore';
 import { usePlaceStore } from '../../src/store/usePlaceStore';
+import { useSavedLinkStore } from '../../src/store/useSavedLinkStore';
 import { useAuthStore } from '../../src/store/useAuthStore';
 import { useClipboardListener } from '../../src/hooks/useClipboardListener';
 import { ClipboardToast } from '../../src/components/places/ClipboardToast';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
+import { LinkPlacesModal } from '../../src/components/places/LinkPlacesModal';
+import type { SavedLink } from '../../src/types';
 import {
   Sparkles,
   Link as LinkIcon,
@@ -38,16 +41,25 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [urlInput, setUrlInput] = useState('');
   const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
+  const [selectedLinkForPlaces, setSelectedLinkForPlaces] = useState<SavedLink | null>(null);
 
   const { user } = useAuthStore();
   const { currentTrip, scheduleItems } = useTripStore();
-  const { places, isExtracting, extractFromUrl } = usePlaceStore();
+  const { places } = usePlaceStore();
+  const { isExtractingLink, addLinkFromUrl } = useSavedLinkStore();
   const { detectedUrl, dismissDetectedUrl } = useClipboardListener();
 
-  // Active trip's schedule items
+  // Active trip's schedule items & places
+  const currentTripId = currentTrip?.id || 't_tokyo';
   const currentTripScheduleItems = scheduleItems.filter(
-    (s) => !s.trip_id || s.trip_id === currentTrip?.id
+    (s) => !s.trip_id || s.trip_id === currentTripId
   );
+  const tripPlaces = places.filter((p) => {
+    if (currentTripId === 't_tokyo') {
+      return !p.trip_id || p.trip_id === 't_tokyo';
+    }
+    return p.trip_id === currentTripId;
+  });
 
   // D-Day calculation
   const calculateDDay = (startDate?: string) => {
@@ -67,11 +79,18 @@ export default function HomeScreen() {
       return;
     }
 
-    const newPlace = await extractFromUrl(targetUrl.trim());
-    if (newPlace) {
-      Alert.alert('핀치 완료! 🎉', `"${newPlace.name}" 장소가 보관함에 추가되었습니다.`);
+    const activeTripId = currentTrip?.id || 't_tokyo';
+    const newSavedLink = await addLinkFromUrl(targetUrl.trim(), activeTripId);
+    if (newSavedLink) {
       setUrlInput('');
       dismissDetectedUrl();
+      setSelectedLinkForPlaces(newSavedLink);
+      Alert.alert(
+        '링크 핀치 성공! ✈️',
+        `"${newSavedLink.title}" 링크가 저장되었습니다.\n포함된 장소 ${newSavedLink.extractedPlaces.length}곳 중 원하는 장소를 담아보세요!`
+      );
+    } else {
+      Alert.alert('오류', '링크를 분석하지 못했습니다. 다시 시도해 주세요.');
     }
   };
 
@@ -176,11 +195,11 @@ export default function HomeScreen() {
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={() => handleExtract()}
-              disabled={isExtracting}
-              style={[styles.pinchActionBtn, isExtracting && styles.btnDisabled]}
+              disabled={isExtractingLink}
+              style={[styles.pinchActionBtn, isExtractingLink && styles.btnDisabled]}
             >
               <Text style={styles.pinchActionBtnText}>
-                {isExtracting ? '분석 중...' : '핀치 🤏'}
+                {isExtractingLink ? '분석 중...' : '핀치 🤏'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -241,7 +260,7 @@ export default function HomeScreen() {
                 <View style={styles.statsPillRow}>
                   <View style={styles.statsPill}>
                     <Bookmark size={11} color="#FF6B6B" />
-                    <Text style={styles.statsPillText}>저장 장소 {places.length}개</Text>
+                    <Text style={styles.statsPillText}>저장 장소 {tripPlaces.length}개</Text>
                   </View>
                   <View style={styles.statsPill}>
                     <Map size={11} color="#34D399" />
@@ -331,6 +350,13 @@ export default function HomeScreen() {
       <TripSwitcherModal
         visible={tripSwitcherVisible}
         onClose={() => setTripSwitcherVisible(false)}
+      />
+
+      {/* 링크 속 장소 확인 및 골라 담기 모달 */}
+      <LinkPlacesModal
+        visible={Boolean(selectedLinkForPlaces)}
+        savedLink={selectedLinkForPlaces}
+        onClose={() => setSelectedLinkForPlaces(null)}
       />
     </View>
   );

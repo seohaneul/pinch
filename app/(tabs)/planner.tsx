@@ -21,6 +21,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TripMapView, PlannerMapView } from '../../src/components/planner/PlannerMapView';
 import { OptimizeConfirmModal } from '../../src/components/planner/OptimizeConfirmModal';
 import { AddSpotModal } from '../../src/components/planner/AddSpotModal';
+import { LodgingModal } from '../../src/components/planner/LodgingModal';
+import { DayStartTimeModal } from '../../src/components/planner/DayStartTimeModal';
+import { CustomDurationModal } from '../../src/components/planner/CustomDurationModal';
+import { CustomTransportModal } from '../../src/components/planner/CustomTransportModal';
 import { TransportMode, calculateDistance, formatTravelSummary } from '../../src/utils/geoUtils';
 import {
   CurrencyCode,
@@ -28,9 +32,10 @@ import {
   CURRENCY_SYMBOLS,
   convertToKrw,
 } from '../../src/utils/settlementUtils';
-import type { ScheduleItem } from '../../src/types';
+import type { ScheduleItem, Place } from '../../src/types';
 import { openInGoogleMaps, openGoogleMapsDirections } from '../../src/utils/mapUtils';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
+import { PlaceDetailModal } from '../../src/components/places/PlaceDetailModal';
 import {
   MapPin,
   Calendar,
@@ -50,6 +55,9 @@ import {
   X,
   Check,
   ChevronDown,
+  Hotel,
+  Plane,
+  Edit3,
 } from 'lucide-react-native';
 
 export default function PlannerScreen() {
@@ -66,9 +74,15 @@ export default function PlannerScreen() {
     recalculateTimes,
     removeScheduleItem,
     addPlaceToSchedule,
+    setDayStartTime,
+    getDayStartTime,
+    setDayLodging,
+    getDayLodging,
+    applyFlightStartTime,
+    updateCustomTransport,
   } = useTripStore();
 
-  const { places } = usePlaceStore();
+  const { places, togglePin, removePlace } = usePlaceStore();
   const { addExpense, members, exchangeRates } = useWalletStore();
 
   // Active trip members fallback
@@ -97,6 +111,19 @@ export default function PlannerScreen() {
   const [activeStopIndex, setActiveStopIndex] = useState(0);
   const [optimizeModalVisible, setOptimizeModalVisible] = useState(false);
   const [addSpotModalVisible, setAddSpotModalVisible] = useState(false);
+  const [selectedPlaceForDetail, setSelectedPlaceForDetail] = useState<Place | null>(null);
+
+  // Modals for lodging, day start time & flight sync, custom duration & transport
+  const [lodgingModalVisible, setLodgingModalVisible] = useState(false);
+  const [startTimeModalVisible, setStartTimeModalVisible] = useState(false);
+  const [customDurationStop, setCustomDurationStop] = useState<ScheduleItem | null>(null);
+  const [customTransportPair, setCustomTransportPair] = useState<{
+    stop: ScheduleItem;
+    nextStop: ScheduleItem;
+  } | null>(null);
+
+  const dayStartTime = getDayStartTime(selectedDay);
+  const dayLodging = getDayLodging(selectedDay);
 
   // Get current day's sorted schedule items (filtered by active trip)
   const dayStops = scheduleItems
@@ -172,6 +199,27 @@ export default function PlannerScreen() {
     Alert.alert('최적 동선 적용 완료! ✨', '최단 이동 거리 순으로 동선이 자동 재배치되었습니다.');
   };
 
+  const handleOpenPlaceDetail = (stop: ScheduleItem) => {
+    const fullPlace = places.find((p) => p.name === stop.place_name || p.id === stop.place_id);
+    setSelectedPlaceForDetail(
+      fullPlace || {
+        id: stop.place_id || stop.id,
+        trip_id: stop.trip_id,
+        name: stop.place_name,
+        address: stop.address || '',
+        category: stop.category as any,
+        latitude: stop.latitude,
+        longitude: stop.longitude,
+        memo: stop.memo || `${stop.place_name} (DAY ${stop.day_number} 일정)`,
+        imageUrl: stop.imageUrl,
+        rating: 4.8,
+        isPinned: true,
+        createdAt: new Date().toISOString(),
+        tags: ['일정', stop.category],
+      }
+    );
+  };
+
   // Show a simple loading placeholder during Zustand hydration
   if (!currentTrip) {
     return (
@@ -227,6 +275,7 @@ export default function PlannerScreen() {
             onToggleExpand={() => setIsMapExpanded(!isMapExpanded)}
             activeStopIndex={activeStopIndex}
             onSelectStopIndex={setActiveStopIndex}
+            onPressStop={handleOpenPlaceDetail}
           />
         </View>
 
@@ -269,6 +318,95 @@ export default function PlannerScreen() {
             }}
             contentContainerStyle={{ paddingHorizontal: 0 }}
           />
+        </View>
+
+        {/* DAY START TIME & FLIGHT ARRIVAL BAR */}
+        <View className="px-4 mt-3">
+          <View className="bg-white rounded-2xl border border-borderLine p-3 shadow-xs flex-row items-center justify-between">
+            <View className="flex-row items-center flex-1 mr-2">
+              <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center mr-2">
+                <Clock size={16} color="#FF6B6B" />
+              </View>
+              <View>
+                <View className="flex-row items-center">
+                  <Text className="text-xs font-bold text-darkText mr-1.5">
+                    DAY {selectedDay} 일정 시작:
+                  </Text>
+                  <View className="bg-primary/15 px-2 py-0.5 rounded-md">
+                    <Text className="text-xs font-black text-primary">{dayStartTime}</Text>
+                  </View>
+                </View>
+                <Text className="text-[10px] text-mutedText mt-0.5">
+                  시작 시간에 맞춰 모든 스팟의 도착 시간이 자동 연동됩니다
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setStartTimeModalVisible(true)}
+              className="bg-primary/10 px-2.5 py-1.5 rounded-xl flex-row items-center"
+            >
+              <Plane size={12} color="#FF6B6B" style={{ marginRight: 3 }} />
+              <Text className="text-xs font-bold text-primary">시간/비행기</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* DAY LODGING CARD */}
+        <View className="px-4 mt-3">
+          <View className="bg-white rounded-2xl border border-borderLine p-3.5 shadow-xs">
+            <View className="flex-row items-center justify-between pb-2 border-b border-gray-100">
+              <View className="flex-row items-center">
+                <Hotel size={16} color="#A29BFE" style={{ marginRight: 6 }} />
+                <Text className="text-xs font-bold text-darkText">
+                  DAY {selectedDay} 숙소 🏨
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setLodgingModalVisible(true)}
+                className="bg-purple-50 px-2 py-1 rounded-lg"
+              >
+                <Text className="text-[11px] font-bold text-purple-700">
+                  {dayLodging ? '숙소 수정' : '+ 숙소 등록'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {dayLodging ? (
+              <View className="pt-2">
+                <Text className="text-sm font-extrabold text-darkText">{dayLodging.name}</Text>
+                {dayLodging.address && (
+                  <Text className="text-xs text-mutedText mt-0.5" numberOfLines={1}>
+                    📍 {dayLodging.address}
+                  </Text>
+                )}
+                <View className="flex-row items-center gap-3 mt-1.5">
+                  <View className="flex-row items-center">
+                    <Clock size={11} color="#64748B" style={{ marginRight: 3 }} />
+                    <Text className="text-[11px] font-semibold text-gray-500">
+                      체크인 {dayLodging.checkInTime || '15:00'} · 체크아웃 {dayLodging.checkOutTime || '11:00'}
+                    </Text>
+                  </View>
+                  {dayLodging.memo && (
+                    <Text className="text-[11px] text-primary font-semibold" numberOfLines={1}>
+                      📝 {dayLodging.memo}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setLodgingModalVisible(true)}
+                className="py-2.5 items-center justify-center"
+              >
+                <Text className="text-xs font-bold text-mutedText">
+                  아직 등록된 숙소가 없습니다. 탭하여 호텔/숙소를 입력하세요.
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Day Itinerary Timeline List */}
@@ -359,18 +497,23 @@ export default function PlannerScreen() {
                           </View>
                         </View>
 
-                        <Text className="text-base font-bold text-darkText mb-1">
-                          {stop.place_name}
-                        </Text>
-                        {stop.address && (
-                          <Text className="text-xs text-mutedText mb-2" numberOfLines={1}>
-                            {stop.address}
+                        <TouchableOpacity
+                          activeOpacity={0.75}
+                          onPress={() => handleOpenPlaceDetail(stop)}
+                        >
+                          <Text className="text-base font-bold text-darkText mb-1">
+                            {stop.place_name}
                           </Text>
-                        )}
+                          {stop.address && (
+                            <Text className="text-xs text-mutedText mb-2" numberOfLines={1}>
+                              {stop.address}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
 
                         {/* Stay Duration & Add Expense Quick Action */}
                         <View className="flex-row items-center justify-between pt-2 border-t border-gray-100 mt-1">
-                          <View className="flex-row items-center">
+                          <View className="flex-row items-center flex-wrap">
                             <Text className="text-[11px] text-mutedText mr-1.5 font-medium">체류:</Text>
                             {[30, 60, 90, 120].map((mins) => {
                               const isSelected = stop.stay_duration_minutes === mins;
@@ -392,6 +535,26 @@ export default function PlannerScreen() {
                                 </TouchableOpacity>
                               );
                             })}
+
+                            {/* Show custom stay duration if not one of presets */}
+                            {![30, 60, 90, 120].includes(stop.stay_duration_minutes) && (
+                              <View className="px-1.5 py-0.5 rounded-md mr-1 bg-darkText">
+                                <Text className="text-[10px] font-bold text-white">
+                                  {stop.stay_duration_minutes}분
+                                </Text>
+                              </View>
+                            )}
+
+                            {/* Direct stay duration edit button */}
+                            <TouchableOpacity
+                              onPress={() => setCustomDurationStop(stop)}
+                              className="px-1.5 py-0.5 rounded-md bg-primary/10 flex-row items-center"
+                            >
+                              <Edit3 size={9} color="#FF6B6B" />
+                              <Text className="text-[10px] font-bold text-primary ml-0.5">
+                                직접
+                              </Text>
+                            </TouchableOpacity>
                           </View>
 
                           <View className="flex-row items-center gap-1.5">
@@ -438,53 +601,84 @@ export default function PlannerScreen() {
                                 nextStop.transport_mode
                               )
                             }
-                            className="flex-row items-center"
+                            className="flex-row items-center flex-1 mr-2"
                           >
                             <Navigation size={13} color="#3BB3AA" className="mr-1.5" />
-                            <Text className="text-xs font-bold color-secondary-dark">
-                              {formatTravelSummary(nextDist, nextStop.transport_mode, nextStop.travel_duration_minutes)}
+                            <Text className="text-xs font-bold color-secondary-dark flex-shrink" numberOfLines={1}>
+                              {nextStop.custom_transport_name
+                                ? `${nextStop.custom_transport_name} · 약 ${nextStop.custom_travel_minutes || nextStop.travel_duration_minutes}분`
+                                : formatTravelSummary(nextDist, nextStop.transport_mode, nextStop.travel_duration_minutes)}
                             </Text>
                             <Text className="text-[10px] font-bold text-emerald-700 ml-1 bg-emerald-100/60 px-1.5 py-0.5 rounded">
                               길찾기 ↗
                             </Text>
                           </TouchableOpacity>
 
-                          {/* Transport Mode Toggle Pills */}
+                          {/* Transport Mode Toggle Pills & Custom Entry */}
                           <View className="flex-row items-center bg-surface p-1 rounded-xl border border-secondary/20">
                             <TouchableOpacity
-                              onPress={() => updateTransportMode(nextStop.id, 'WALK')}
+                              onPress={() => {
+                                updateTransportMode(nextStop.id, 'WALK');
+                                updateCustomTransport(nextStop.id, '', 0);
+                              }}
                               className={`p-1.5 rounded-lg mr-1 ${
-                                nextStop.transport_mode === 'WALK' ? 'bg-secondary' : ''
+                                nextStop.transport_mode === 'WALK' && !nextStop.custom_transport_name ? 'bg-secondary' : ''
                               }`}
                             >
                               <Footprints
                                 size={13}
-                                color={nextStop.transport_mode === 'WALK' ? '#FFF' : '#8D99AE'}
+                                color={nextStop.transport_mode === 'WALK' && !nextStop.custom_transport_name ? '#FFF' : '#8D99AE'}
                               />
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                              onPress={() => updateTransportMode(nextStop.id, 'TRANSIT')}
+                              onPress={() => {
+                                updateTransportMode(nextStop.id, 'TRANSIT');
+                                updateCustomTransport(nextStop.id, '', 0);
+                              }}
                               className={`p-1.5 rounded-lg mr-1 ${
-                                nextStop.transport_mode === 'TRANSIT' ? 'bg-secondary' : ''
+                                nextStop.transport_mode === 'TRANSIT' && !nextStop.custom_transport_name ? 'bg-secondary' : ''
                               }`}
                             >
                               <Bus
                                 size={13}
-                                color={nextStop.transport_mode === 'TRANSIT' ? '#FFF' : '#8D99AE'}
+                                color={nextStop.transport_mode === 'TRANSIT' && !nextStop.custom_transport_name ? '#FFF' : '#8D99AE'}
                               />
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                              onPress={() => updateTransportMode(nextStop.id, 'DRIVE')}
-                              className={`p-1.5 rounded-lg ${
-                                nextStop.transport_mode === 'DRIVE' ? 'bg-secondary' : ''
+                              onPress={() => {
+                                updateTransportMode(nextStop.id, 'DRIVE');
+                                updateCustomTransport(nextStop.id, '', 0);
+                              }}
+                              className={`p-1.5 rounded-lg mr-1 ${
+                                nextStop.transport_mode === 'DRIVE' && !nextStop.custom_transport_name ? 'bg-secondary' : ''
                               }`}
                             >
                               <Car
                                 size={13}
-                                color={nextStop.transport_mode === 'DRIVE' ? '#FFF' : '#8D99AE'}
+                                color={nextStop.transport_mode === 'DRIVE' && !nextStop.custom_transport_name ? '#FFF' : '#8D99AE'}
                               />
+                            </TouchableOpacity>
+
+                            {/* Custom Transport Direct Input */}
+                            <TouchableOpacity
+                              onPress={() => setCustomTransportPair({ stop, nextStop })}
+                              className={`px-1.5 py-1 rounded-lg flex-row items-center ${
+                                nextStop.custom_transport_name ? 'bg-secondary' : 'bg-gray-50'
+                              }`}
+                            >
+                              <Edit3
+                                size={11}
+                                color={nextStop.custom_transport_name ? '#FFF' : '#8D99AE'}
+                              />
+                              <Text
+                                className={`text-[10px] font-bold ml-0.5 ${
+                                  nextStop.custom_transport_name ? 'text-white' : 'text-gray-500'
+                                }`}
+                              >
+                                직접
+                              </Text>
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -530,9 +724,14 @@ export default function PlannerScreen() {
         onRequestClose={() => setExpenseModalVisible(false)}
       >
         <View className="flex-1 justify-end bg-black/40">
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => setExpenseModalVisible(false)}
+          />
           <View
             className="w-full bg-surface rounded-t-3xl p-5"
-            style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+            style={{ paddingBottom: insets.bottom > 0 ? insets.bottom : 16 }}
           >
             <View className="flex-row items-center justify-between pb-3 border-b border-gray-100">
               <View className="flex-row items-center">
@@ -686,6 +885,79 @@ export default function PlannerScreen() {
         dayNumber={selectedDay}
         existingPlaceIds={dayStops.map((s) => s.place_id)}
         onSelectPlace={(place) => addPlaceToSchedule(selectedDay, place)}
+      />
+
+      {/* 장소 상세 설명 모달 (PlaceDetailModal) */}
+      <PlaceDetailModal
+        visible={Boolean(selectedPlaceForDetail)}
+        place={selectedPlaceForDetail}
+        onClose={() => setSelectedPlaceForDetail(null)}
+        onTogglePin={(id) => togglePin(id)}
+        onRemove={(id) => removePlace(id)}
+        onAddToPlanner={(targetPlace, day) => {
+          addPlaceToSchedule(day, targetPlace);
+          setSelectedPlaceForDetail(null);
+          Alert.alert(
+            '일정에 핀치 완료! 🤏',
+            `"${targetPlace.name}" 장소를 Day ${day} 일정에 핀치했어요!\n동선 플래너에서 확인해보세요.`
+          );
+        }}
+      />
+
+      {/* 숙소 입력 및 확인 모달 (LodgingModal) */}
+      <LodgingModal
+        visible={lodgingModalVisible}
+        onClose={() => setLodgingModalVisible(false)}
+        dayNumber={selectedDay}
+        initialLodging={dayLodging}
+        onSave={(lodging) => setDayLodging(currentTrip?.id || '', selectedDay, lodging)}
+      />
+
+      {/* 일정 시작 시간 & 비행기 도착 동기화 모달 (DayStartTimeModal) */}
+      <DayStartTimeModal
+        visible={startTimeModalVisible}
+        onClose={() => setStartTimeModalVisible(false)}
+        dayNumber={selectedDay}
+        currentTime={dayStartTime}
+        tripFlightArrival={currentTrip?.flightArrival}
+        onSaveTime={(time) => setDayStartTime(currentTrip?.id || '', selectedDay, time)}
+        onApplyFlightSync={(flightTime, bufferMinutes) =>
+          applyFlightStartTime(currentTrip?.id || '', selectedDay, flightTime, bufferMinutes)
+        }
+      />
+
+      {/* 체류 시간 직접 입력 모달 (CustomDurationModal) */}
+      <CustomDurationModal
+        visible={Boolean(customDurationStop)}
+        onClose={() => setCustomDurationStop(null)}
+        stopName={customDurationStop?.place_name || ''}
+        currentMinutes={customDurationStop?.stay_duration_minutes || 60}
+        onSave={(mins) => {
+          if (customDurationStop) {
+            updateStayDuration(customDurationStop.id, mins);
+            setCustomDurationStop(null);
+          }
+        }}
+      />
+
+      {/* 이동수단 직접 입력 모달 (CustomTransportModal) */}
+      <CustomTransportModal
+        visible={Boolean(customTransportPair)}
+        onClose={() => setCustomTransportPair(null)}
+        fromName={customTransportPair?.stop.place_name || ''}
+        toName={customTransportPair?.nextStop.place_name || ''}
+        initialModeName={customTransportPair?.nextStop.custom_transport_name || ''}
+        initialMinutes={
+          customTransportPair?.nextStop.custom_travel_minutes ||
+          customTransportPair?.nextStop.travel_duration_minutes ||
+          15
+        }
+        onSave={(modeName, minutes) => {
+          if (customTransportPair) {
+            updateCustomTransport(customTransportPair.nextStop.id, modeName, minutes);
+            setCustomTransportPair(null);
+          }
+        }}
       />
     </View>
   );
