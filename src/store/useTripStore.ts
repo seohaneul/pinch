@@ -22,6 +22,17 @@ interface TripState {
   getActiveTrip: () => Trip;
   setSelectedDay: (day: number) => void;
   setActiveTrip: (id: string) => void;
+  createTrip: (tripData: {
+    title: string;
+    destination: string;
+    startDate: string;
+    endDate: string;
+    budget?: number;
+    coverImage?: string;
+    memberNames?: string[];
+  }) => Trip;
+  deleteTrip: (tripId: string) => void;
+  updateTrip: (tripId: string, updates: Partial<Trip>) => void;
   reorderSchedule: (dayNumber: number, fromIndex: number, toIndex: number) => void;
   updateTransportMode: (scheduleId: string, mode: TransportMode) => void;
   updateStayDuration: (scheduleId: string, minutes: number) => void;
@@ -208,7 +219,91 @@ export const useTripStore = create<TripState>()(
 
   setActiveTrip: (id) => {
     const trip = get().trips.find((t) => t.id === id) || DEFAULT_TRIP;
-    set({ activeTripId: id, currentTrip: trip });
+    set({ activeTripId: id, currentTrip: trip, selectedDay: 1 });
+  },
+
+  createTrip: (tripData) => {
+    const tripId = `t_${Date.now()}`;
+    const start = new Date(tripData.startDate);
+    const end = new Date(tripData.endDate);
+    const diffTime = Math.max(0, end.getTime() - start.getTime());
+    const dayCount = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+
+    const schedules: DaySchedule[] = [];
+    for (let i = 1; i <= dayCount; i++) {
+      const dayDate = new Date(start);
+      dayDate.setDate(dayDate.getDate() + (i - 1));
+      schedules.push({
+        dayNumber: i,
+        date: dayDate.toISOString().slice(0, 10),
+        placeIds: [],
+      });
+    }
+
+    const members: Member[] = (tripData.memberNames && tripData.memberNames.length > 0)
+      ? tripData.memberNames.map((name, idx) => ({
+          id: `m_${Date.now()}_${idx}`,
+          name,
+          color: ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A06CD5', '#20BF55'][idx % 5],
+        }))
+      : MOCK_MEMBERS;
+
+    const newTrip: Trip = {
+      id: tripId,
+      title: tripData.title,
+      destination: tripData.destination,
+      startDate: tripData.startDate,
+      endDate: tripData.endDate,
+      coverImage: tripData.coverImage || 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&auto=format&fit=crop',
+      status: 'planning',
+      budget: tripData.budget || 1000000,
+      createdAt: new Date().toISOString(),
+      members,
+      places: [],
+      schedules,
+    };
+
+    set((state) => ({
+      trips: [newTrip, ...state.trips],
+      currentTrip: newTrip,
+      activeTripId: newTrip.id,
+      selectedDay: 1,
+    }));
+
+    return newTrip;
+  },
+
+  deleteTrip: (tripId: string) => {
+    const { trips, activeTripId } = get();
+    const remaining = trips.filter((t) => t.id !== tripId);
+    if (remaining.length === 0) {
+      set({
+        trips: [DEFAULT_TRIP],
+        currentTrip: DEFAULT_TRIP,
+        activeTripId: DEFAULT_TRIP.id,
+        selectedDay: 1,
+      });
+      return;
+    }
+
+    if (activeTripId === tripId) {
+      set({
+        trips: remaining,
+        currentTrip: remaining[0],
+        activeTripId: remaining[0].id,
+        selectedDay: 1,
+      });
+    } else {
+      set({ trips: remaining });
+    }
+  },
+
+  updateTrip: (tripId: string, updates: Partial<Trip>) => {
+    set((state) => {
+      const updatedTrips = state.trips.map((t) => (t.id === tripId ? { ...t, ...updates } : t));
+      const current = state.currentTrip?.id === tripId ? { ...state.currentTrip, ...updates } : state.currentTrip;
+      return { trips: updatedTrips, currentTrip: current };
+    });
   },
 
   reorderSchedule: (dayNumber, fromIndex, toIndex) => {

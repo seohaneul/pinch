@@ -47,6 +47,7 @@ import {
   MapPin,
   Calendar,
   Layers,
+  RefreshCw,
 } from 'lucide-react-native';
 
 const CATEGORIES: { key: WalletCategory; label: string; icon: any; color: string; bg: string }[] = [
@@ -64,15 +65,22 @@ export default function WalletScreen() {
     members,
     activeTab,
     exchangeRates,
+    lastExchangeRateUpdate,
+    isUpdatingRates,
     setActiveTab,
     addExpense,
     deleteExpense,
     toggleTransactionSettled,
+    refreshLiveExchangeRates,
     getMemberBalances,
     getTransactions,
     getTotalKrw,
     generateShareText,
   } = useWalletStore();
+
+  useEffect(() => {
+    refreshLiveExchangeRates();
+  }, []);
 
   const { currentTrip, scheduleItems } = useTripStore();
 
@@ -308,9 +316,20 @@ export default function WalletScreen() {
                 </Text>
               </View>
             )}
-            <View className="ml-auto flex-row items-center">
-              <Text className="text-[10px] text-mutedText">환율: 100엔 = 915원</Text>
-            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => refreshLiveExchangeRates()}
+              className="ml-auto flex-row items-center bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg"
+            >
+              <RefreshCw
+                size={11}
+                color="#059669"
+                style={{ marginRight: 4 }}
+              />
+              <Text className="text-[10px] font-bold text-emerald-700">
+                100엔={Math.round(exchangeRates.JPY * 100)}원 ({lastExchangeRateUpdate || '실시간'})
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Budget Progress Bar */}

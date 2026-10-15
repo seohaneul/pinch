@@ -27,6 +27,7 @@ import {
 } from '../../src/utils/settlementUtils';
 import type { ScheduleItem } from '../../src/types';
 import { openInGoogleMaps, openGoogleMapsDirections } from '../../src/utils/mapUtils';
+import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import {
   MapPin,
   Calendar,
@@ -45,6 +46,7 @@ import {
   Receipt,
   X,
   Check,
+  ChevronDown,
 } from 'lucide-react-native';
 
 export default function PlannerScreen() {
@@ -73,11 +75,11 @@ export default function PlannerScreen() {
   const [expenseCurrency, setExpenseCurrency] = useState<CurrencyCode>('JPY');
   const [expenseCategory, setExpenseCategory] = useState<WalletCategory>('FOOD');
   const [expensePaidBy, setExpensePaidBy] = useState<string>(members[0]?.id || 'm1');
-  const [expenseSplitMembers, setExpenseSplitMembers] = useState<string[]>(members.map((m) => m.id));
+  const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
 
-  // Get current day's sorted schedule items
+  // Get current day's sorted schedule items (filtered by active trip)
   const dayStops = scheduleItems
-    .filter((s) => s.day_number === selectedDay)
+    .filter((s) => s.day_number === selectedDay && (!s.trip_id || s.trip_id === currentTrip?.id))
     .sort((a, b) => a.order_index - b.order_index);
 
   // Safe schedules list — guards against currentTrip being null during hydration
@@ -85,7 +87,7 @@ export default function PlannerScreen() {
 
   useEffect(() => {
     recalculateTimes(selectedDay);
-  }, [selectedDay]);
+  }, [selectedDay, currentTrip?.id]);
 
   const handleOpenExpenseModal = (stop: ScheduleItem) => {
     setSelectedStopForExpense(stop);
@@ -174,6 +176,26 @@ export default function PlannerScreen() {
           </TouchableOpacity>
         }
       />
+
+      {/* Active Trip Selector Bar */}
+      <View className="px-4 pt-3 pb-1">
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setTripSwitcherVisible(true)}
+          className="flex-row items-center justify-between bg-white px-3.5 py-2.5 rounded-2xl border border-gray-200 shadow-xs"
+        >
+          <View className="flex-row items-center flex-1 mr-2">
+            <MapPin size={14} color="#FF6B6B" className="mr-1.5" />
+            <Text className="text-xs font-bold text-darkText flex-1" numberOfLines={1}>
+              {currentTrip.title}
+            </Text>
+          </View>
+          <View className="flex-row items-center bg-primary/10 px-2 py-1 rounded-lg">
+            <Text className="text-[10px] font-bold text-primary mr-1">여행 변경</Text>
+            <ChevronDown size={11} color="#FF6B6B" />
+          </View>
+        </TouchableOpacity>
+      </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 36 }}>
         {/* Top Interactive Map Section */}
@@ -599,6 +621,12 @@ export default function PlannerScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Trip Switcher Modal */}
+      <TripSwitcherModal
+        visible={tripSwitcherVisible}
+        onClose={() => setTripSwitcherVisible(false)}
+      />
     </View>
   );
 }

@@ -17,6 +17,7 @@ import { usePlaceStore } from '../../src/store/usePlaceStore';
 import { useWalletStore } from '../../src/store/useWalletStore';
 import { useClipboardListener } from '../../src/hooks/useClipboardListener';
 import { ClipboardToast } from '../../src/components/places/ClipboardToast';
+import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import {
   Link as LinkIcon,
   Sparkles,
@@ -38,6 +39,7 @@ import {
 export default function HomeScreen() {
   const router = useRouter();
   const [urlInput, setUrlInput] = useState('');
+  const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
   const { currentTrip, scheduleItems } = useTripStore();
   const { places, isExtracting, extractFromUrl } = usePlaceStore();
   const { getTotalKrw } = useWalletStore();
@@ -160,11 +162,11 @@ export default function HomeScreen() {
           <View className="flex-row items-center justify-between mb-2.5">
             <Text className="text-base font-extrabold text-darkText">진행 중인 여행 ✈️</Text>
             <TouchableOpacity
-              onPress={() => router.push('/(tabs)/planner')}
-              className="flex-row items-center"
+              onPress={() => setTripSwitcherVisible(true)}
+              className="flex-row items-center bg-primary/10 px-2.5 py-1 rounded-full border border-primary/20"
             >
-              <Text className="text-xs font-bold text-primary">플래너 보기</Text>
-              <ChevronRight size={14} color="#FF6B6B" />
+              <Text className="text-xs font-bold text-primary mr-1">여행 변경 / 추가</Text>
+              <ChevronRight size={13} color="#FF6B6B" />
             </TouchableOpacity>
           </View>
 
@@ -422,6 +424,12 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
       </ScrollView>
+
+      {/* Trip Switcher & Create Modal */}
+      <TripSwitcherModal
+        visible={tripSwitcherVisible}
+        onClose={() => setTripSwitcherVisible(false)}
+      />
     </View>
   );
 }

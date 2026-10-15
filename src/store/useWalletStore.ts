@@ -15,12 +15,15 @@ import {
   formatSettlementShareText,
   convertToKrw,
 } from '../utils/settlementUtils';
+import { fetchLiveExchangeRates } from '../services/exchangeRateService';
 
 export interface WalletState {
   expenses: ExpenseItem[];
   members: WalletMember[];
   activeTab: 'expenses' | 'settlement';
   exchangeRates: Record<CurrencyCode, number>;
+  lastExchangeRateUpdate: string;
+  isUpdatingRates: boolean;
   settledTransactionIds: string[];
 
   // Actions
@@ -28,6 +31,7 @@ export interface WalletState {
   addExpense: (expense: Omit<ExpenseItem, 'id' | 'created_at' | 'krw_amount'>) => void;
   deleteExpense: (id: string) => void;
   updateExchangeRate: (currency: CurrencyCode, rate: number) => void;
+  refreshLiveExchangeRates: () => Promise<void>;
   toggleTransactionSettled: (id: string) => void;
   getMemberBalances: () => MemberBalance[];
   getTransactions: () => SettlementTransaction[];
@@ -135,9 +139,36 @@ export const useWalletStore = create<WalletState>()(
   members: MOCK_MEMBERS,
   activeTab: 'expenses',
   exchangeRates: { ...DEFAULT_EXCHANGE_RATES },
+  lastExchangeRateUpdate: '실시간 환율 연동',
+  isUpdatingRates: false,
   settledTransactionIds: [],
 
   setActiveTab: (tab) => set({ activeTab: tab }),
+
+  refreshLiveExchangeRates: async () => {
+    set({ isUpdatingRates: true });
+    try {
+      const { rates, lastUpdated } = await fetchLiveExchangeRates();
+      // Recalculate KRW amount for all expenses based on new rates
+      const updatedExpenses = get().expenses.map((item) => {
+        const newRate = rates[item.currency] || item.exchange_rate;
+        return {
+          ...item,
+          exchange_rate: newRate,
+          krw_amount: convertToKrw(item.amount, item.currency, newRate),
+        };
+      });
+
+      set({
+        exchangeRates: rates,
+        expenses: updatedExpenses,
+        lastExchangeRateUpdate: lastUpdated,
+        isUpdatingRates: false,
+      });
+    } catch (e) {
+      set({ isUpdatingRates: false });
+    }
+  },
 
   addExpense: (expenseData) => {
     const rate = expenseData.exchange_rate || get().exchangeRates[expenseData.currency] || 1;
