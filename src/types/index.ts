@@ -92,3 +92,28 @@ export interface Expense {
   date: string;
   splitMemberIds: string[];
 }
+
+export interface ExtractedPlaceItem {
+  id: string;
+  name: string;
+  address: string;
+  category: PlaceCategory;
+  latitude: number;
+  longitude: number;
+  memo: string;
+  imageUrl?: string;
+  rating?: number;
+  tags?: string[];
+}
+
+export interface SavedLink {
+  id: string;
+  trip_id: string;
+  title: string;
+  url: string;
+  platform: 'instagram' | 'youtube' | 'naver' | 'tiktok' | 'manual';
+  thumbnailUrl: string;
+  summary: string;
+  createdAt: string;
+  extractedPlaces: ExtractedPlaceItem[];
+}
