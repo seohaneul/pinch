@@ -1,119 +1,277 @@
 import type { Place, PlaceCategory } from '../types';
 
-interface MockPlaceTemplate {
-  name: string;
-  address: string;
-  category: PlaceCategory;
-  latitude: number;
-  longitude: number;
-  memo: string;
+export interface ExtractedMeta {
+  title: string;
+  description: string;
   imageUrl: string;
-  rating: number;
-  tags: string[];
+  canonicalUrl?: string;
 }
 
-const SAMPLE_PLACES: MockPlaceTemplate[] = [
-  {
-    name: '푸글렌 도쿄 (Fuglen Tokyo)',
-    address: '1 Chome-16-11 Tomigaya, Shibuya City, Tokyo',
-    category: 'CAFE',
-    latitude: 35.6664,
-    longitude: 139.6917,
-    memo: '인스타 릴스 핫플! 노르웨이 감성 로스팅 카페 & 싱글오리진 브루잉',
-    imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600&auto=format&fit=crop',
-    rating: 4.8,
-    tags: ['도쿄카페', '푸글렌', '핸드드립'],
-  },
-  {
-    name: '후시미 이나리 신사 (伏見稲荷大社)',
-    address: '68 Fukakusa Yabunouchicho, Fushimi Ward, Kyoto',
-    category: 'ATTRACTION',
-    latitude: 34.9671,
-    longitude: 135.7727,
-    memo: '유튜브 숏츠 추천! 붉은 토리이 터널과 여우 신사 산책 코스',
-    imageUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=600&auto=format&fit=crop',
-    rating: 4.9,
-    tags: ['교토여행', '토리이', '인생샷'],
-  },
-  {
-    name: '어니언 성수 (Cafe Onion)',
-    address: '서울 성동구 아차산로9길 8',
-    category: 'CAFE',
-    latitude: 37.5458,
-    longitude: 127.0581,
-    memo: '폐공장 개조 베이커리 카페. 팡도르와 아메리카노 조합 강추!',
-    imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&auto=format&fit=crop',
-    rating: 4.7,
-    tags: ['성수동', '팡도르', '베이커리'],
-  },
-  {
-    name: '이치란 라멘 하카타 본점',
-    address: '5 Chome-3-2 Nakasu, Hakata Ward, Fukuoka',
-    category: 'RESTAURANT',
-    latitude: 33.5932,
-    longitude: 130.4037,
-    memo: '네이버 블로그 후기 1위! 1인 독서실 독서대에서 즐기는 돈코츠 라멘',
-    imageUrl: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600&auto=format&fit=crop',
-    rating: 4.6,
-    tags: ['후쿠오카', '돈코츠라멘', '웨이팅'],
-  },
-  {
-    name: '파크 하얏트 도쿄',
-    address: '3-7-1-2 Nishi-Shinjuku, Shinjuku-ku, Tokyo',
-    category: 'LODGING',
-    latitude: 35.6858,
-    longitude: 139.6908,
-    memo: '신주쿠 야경 한눈에 보이는 럭셔리 호텔 뷰버',
-    imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop',
-    rating: 4.9,
-    tags: ['도쿄호텔', '시티뷰', '호캉스'],
-  },
-  {
-    name: '도쿄 빔즈 (BEAMS Harajuku)',
-    address: '3 Chome-24-7 Jingumae, Shibuya City, Tokyo',
-    category: 'SHOPPING',
-    latitude: 35.6708,
-    longitude: 139.7067,
-    memo: '하늘 아래 같은 옷은 없다! 스트릿 셀렉트샵 빔즈 본점',
-    imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&auto=format&fit=crop',
-    rating: 4.7,
-    tags: ['하라도쿄', '빔즈', '편집샵'],
-  },
-];
+// 주요 도시/지역 기본 좌표 및 대표 핫플 앵커 좌표
+const CITY_ANCHOR_COORDS: Record<string, { lat: number; lng: number; address: string }> = {
+  도쿄: { lat: 35.6895, lng: 139.6917, address: '일본 도쿄도 시부야구' },
+  오사카: { lat: 34.6937, lng: 135.5023, address: '일본 오사카부 오사카시' },
+  교토: { lat: 35.0116, lng: 135.7681, address: '일본 교토부 교토시' },
+  후쿠오카: { lat: 33.5904, lng: 130.4017, address: '일본 후쿠오카현 후쿠오카시 하카타구' },
+  삿포로: { lat: 43.0618, lng: 141.3545, address: '일본 홋카이도 삿포로시 중앙구' },
+  오키나와: { lat: 26.2124, lng: 127.6809, address: '일본 오키나와현 나하시' },
+  제주: { lat: 33.4996, lng: 126.5312, address: '대한민국 제주특별자치도 제주시' },
+  서울: { lat: 37.5665, lng: 126.978, address: '대한민국 서울특별시 중구' },
+  부산: { lat: 35.1796, lng: 129.0756, address: '대한민국 부산광역시 해운대구' },
+  강릉: { lat: 37.7519, lng: 128.8761, address: '대한민국 강원도 강릉시' },
+  다낭: { lat: 16.0544, lng: 108.2022, address: '베트남 다낭 하이쩌우' },
+  방콕: { lat: 13.7563, lng: 100.5018, address: '태국 방콕 프라나콘' },
+  파리: { lat: 48.8566, lng: 2.3522, address: '프랑스 일드프랑스 파리' },
+  런던: { lat: 51.5074, lng: -0.1278, address: '영국 런던 웨스트민스터' },
+  뉴욕: { lat: 40.7128, lng: -74.006, address: '미국 뉴욕주 뉴욕 맨해튼' },
+};
 
+// 카테고리별 고해상도 백업 썸네일
+const CATEGORY_DEFAULT_IMAGES: Record<string, string> = {
+  CAFE: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&auto=format&fit=crop',
+  RESTAURANT: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop',
+  ATTRACTION: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&auto=format&fit=crop',
+  LODGING: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop',
+  SHOPPING: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&auto=format&fit=crop',
+};
+
+// 1. 플랫폼 감지
 export function detectSnsPlatform(url: string): 'instagram' | 'youtube' | 'naver' | 'tiktok' | 'manual' {
   const lower = url.toLowerCase();
   if (lower.includes('instagram.com') || lower.includes('instagr.am')) return 'instagram';
   if (lower.includes('youtube.com') || lower.includes('youtu.be')) return 'youtube';
-  if (lower.includes('naver.com') || lower.includes('naver.me')) return 'naver';
+  if (lower.includes('blog.naver.com') || lower.includes('map.naver.com') || lower.includes('naver.me')) return 'naver';
   if (lower.includes('tiktok.com')) return 'tiktok';
   return 'manual';
 }
 
-export async function parseSnsUrl(url: string): Promise<Place> {
-  // Simulate Gemini AI + Geocoding latency (1.2s)
-  await new Promise((resolve) => setTimeout(resolve, 1200));
+// 2. HTML 태그 및 엔티티 디코딩
+function decodeHtmlEntities(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\\n/g, ' ')
+    .trim();
+}
 
+// 3. 실제 OpenGraph 메타 태그 스크래퍼
+export async function fetchOpenGraphMetadata(targetUrl: string): Promise<ExtractedMeta> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5초 타임아웃
+
+  try {
+    const res = await fetch(targetUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const html = await res.text();
+
+    // og:title, og:description, og:image 정규식 추출
+    const ogTitleMatch =
+      html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']*)["']/i) ||
+      html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:title["']/i) ||
+      html.match(/<title>([^<]*)<\/title>/i);
+
+    const ogDescMatch =
+      html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i) ||
+      html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:description["']/i) ||
+      html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
+
+    const ogImageMatch =
+      html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i) ||
+      html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:image["']/i);
+
+    const title = decodeHtmlEntities(ogTitleMatch ? ogTitleMatch[1] : '');
+    const description = decodeHtmlEntities(ogDescMatch ? ogDescMatch[1] : '');
+    let imageUrl = ogImageMatch ? ogImageMatch[1].trim() : '';
+
+    if (imageUrl.startsWith('//')) {
+      imageUrl = `https:${imageUrl}`;
+    }
+
+    return { title, description, imageUrl, canonicalUrl: targetUrl };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    return { title: '', description: '', imageUrl: '', canonicalUrl: targetUrl };
+  }
+}
+
+// 4. 텍스트에서 장소명 및 키워드 정제
+export function cleanPlaceTitle(rawTitle: string, rawDesc: string, platform: string): { placeName: string; memo: string; tags: string[] } {
+  let cleaned = rawTitle || rawDesc || '';
+  const tags: string[] = [];
+
+  // 해시태그 추출 (#도쿄카페 등)
+  const hashtagMatches = (rawTitle + ' ' + rawDesc).match(/#([a-zA-Z0-9가-힣_-]+)/g);
+  if (hashtagMatches) {
+    hashtagMatches.slice(0, 4).forEach((h) => {
+      const cleanTag = h.replace('#', '').trim();
+      if (cleanTag && !tags.includes(cleanTag) && cleanTag.length <= 10) {
+        tags.push(cleanTag);
+      }
+    });
+  }
+
+  // 인스타그램 특유의 타이틀 접두사 제거
+  // 예: "Instagram의 홍길동님: '푸글렌 도쿄 꿀팁...'"
+  cleaned = cleaned.replace(/^Instagram의\s*[^:]+님:\s*["']?/i, '');
+  cleaned = cleaned.replace(/^Instagram\s*photo\s*by\s*[^:]+:\s*["']?/i, '');
+
+  // 유튜브 특유의 접미사 제거
+  // 예: "... - YouTube", "#shorts"
+  cleaned = cleaned.replace(/\s*-\s*YouTube$/i, '');
+  cleaned = cleaned.replace(/#shorts/gi, '');
+
+  // 지도 플랫폼 접미사 제거
+  // 예: "푸글렌 도쿄 : 네이버 지도", "블루보틀 성수점 | 카카오맵"
+  cleaned = cleaned.replace(/\s*[:|]\s*(네이버\s*지도|카카오맵|Google\s*Maps).*$/i, '');
+
+  // 따옴표 및 불필요한 기호 정리
+  cleaned = cleaned.replace(/["'“”]/g, '').trim();
+
+  // 문장이 너무 길 경우 첫 번째 문장이나 구문 분리 (최대 30자)
+  let placeName = cleaned.split(/[\n|·–—:]/)[0].trim();
+  if (placeName.length > 28) {
+    placeName = placeName.substring(0, 28) + '...';
+  }
+
+  if (!placeName || placeName.length < 2) {
+    placeName = platform === 'instagram' ? '인스타그램 핫플' : '새로운 추천 여행지';
+  }
+
+  const memo = rawDesc ? rawDesc.substring(0, 80) : `${placeName} (출처: ${platform.toUpperCase()})`;
+
+  return { placeName, memo, tags };
+}
+
+// 5. 텍스트 기반 카테고리 자동 추론
+export function inferCategory(text: string): PlaceCategory {
+  const lower = text.toLowerCase();
+  if (/(카페|커피|베이커리|디저트|빵집|로스터리|티하우스|cafe|coffee|bakery|dessert)/i.test(lower)) {
+    return 'CAFE';
+  }
+  if (/(맛집|식당|라멘|스시|초밥|고기|삼겹살|파스타|이자카야|우동|피자|바베큐|레스토랑|야시장|덮밥|restaurant|food|ramen)/i.test(lower)) {
+    return 'RESTAURANT';
+  }
+  if (/(호텔|료칸|리조트|펜션|게스트하우스|에어비앤비|숙소|민박|hotel|resort|stay|hostel)/i.test(lower)) {
+    return 'LODGING';
+  }
+  if (/(쇼핑|백화점|아울렛|편집샵|빈티지|소품샵|플래그십|마켓|shopping|mall|store)/i.test(lower)) {
+    return 'SHOPPING';
+  }
+  return 'ATTRACTION';
+}
+
+// 6. 위치 좌표(Geocoding) 검색 (Nominatim OpenStreetMap)
+export async function geocodePlace(query: string): Promise<{ latitude: number; longitude: number; address: string } | null> {
+  if (!query || query.trim().length < 2) return null;
+
+  // 1차: 미리 정의된 주요 도시/지역 키워드 매칭
+  for (const [cityName, coord] of Object.entries(CITY_ANCHOR_COORDS)) {
+    if (query.includes(cityName)) {
+      return {
+        latitude: coord.lat,
+        longitude: coord.lng,
+        address: `${coord.address} (${query.trim()})`,
+      };
+    }
+  }
+
+  // 2차: Nominatim OpenStreetMap 무료 지오코딩 API 시도 (최대 2.5초)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+  try {
+    const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      query
+    )}&limit=1`;
+    const res = await fetch(searchUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'PinchiTravelPlanner/1.0 (contact@pinchi.app)',
+      },
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const item = data[0];
+        const lat = parseFloat(item.lat);
+        const lon = parseFloat(item.lon);
+        if (!isNaN(lat) && !isNaN(lon) && lat !== 0) {
+          return {
+            latitude: lat,
+            longitude: lon,
+            address: item.display_name?.split(',').slice(0, 3).join(', ') || query,
+          };
+        }
+      }
+    }
+  } catch (e) {
+    clearTimeout(timeoutId);
+  }
+
+  return null;
+}
+
+// 7. 메인 함수: 링크 분석 및 Place 객체 생성
+export async function parseSnsUrl(url: string): Promise<Place> {
   const platform = detectSnsPlatform(url);
 
-  // Pick template based on URL length hash or random
-  const index = Math.abs(url.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)) % SAMPLE_PLACES.length;
-  const template = SAMPLE_PLACES[index];
+  // 1) OpenGraph 메타데이터 추출
+  const meta = await fetchOpenGraphMetadata(url);
+
+  // 2) 장소명 및 설명 정제
+  const { placeName, memo, tags } = cleanPlaceTitle(meta.title, meta.description, platform);
+
+  // 3) 카테고리 자동 추론
+  const category = inferCategory(`${placeName} ${meta.title} ${meta.description}`);
+
+  // 4) 위치 좌표 및 주소 획득 (지오코딩 또는 스마트 기본값)
+  const geocodeResult = await geocodePlace(placeName);
+  const defaultCoord = CITY_ANCHOR_COORDS['도쿄'];
+
+  const latitude = geocodeResult?.latitude ?? defaultCoord.lat;
+  const longitude = geocodeResult?.longitude ?? defaultCoord.lng;
+  const address = geocodeResult?.address ?? `${defaultCoord.address} 부근`;
+
+  // 5) 이미지 URL 보정
+  const imageUrl =
+    meta.imageUrl && meta.imageUrl.startsWith('http')
+      ? meta.imageUrl
+      : CATEGORY_DEFAULT_IMAGES[category] || CATEGORY_DEFAULT_IMAGES.ATTRACTION;
 
   const parsedPlace: Place = {
     id: `place_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-    name: template.name,
-    address: template.address,
-    category: template.category,
-    latitude: template.latitude,
-    longitude: template.longitude,
-    memo: `${template.memo} (출처: ${platform.toUpperCase()})`,
+    name: placeName,
+    address,
+    category,
+    latitude,
+    longitude,
+    memo,
     snsUrl: url,
-    imageUrl: template.imageUrl,
-    rating: template.rating,
+    imageUrl,
+    rating: 4.8,
     isPinned: true,
     createdAt: new Date().toISOString(),
-    tags: template.tags,
+    tags: tags.length > 0 ? tags : ['핫플', category],
     sourcePlatform: platform,
   };
 
