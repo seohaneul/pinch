@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,9 +16,11 @@ import { Card, Badge, EmptyState } from '../../src/components/common/Card';
 import { Button } from '../../src/components/common/Button';
 import { useWalletStore } from '../../src/store/useWalletStore';
 import { useTripStore } from '../../src/store/useTripStore';
+import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import {
   CurrencyCode,
   WalletCategory,
+  WalletMember,
   formatCurrency,
   CURRENCY_SYMBOLS,
   convertToKrw,
@@ -48,6 +50,7 @@ import {
   Calendar,
   Layers,
   RefreshCw,
+  ChevronDown,
 } from 'lucide-react-native';
 
 const CATEGORIES: { key: WalletCategory; label: string; icon: any; color: string; bg: string }[] = [
@@ -83,6 +86,17 @@ export default function WalletScreen() {
   }, []);
 
   const { currentTrip, scheduleItems } = useTripStore();
+  const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
+
+  // Active trip members fallback
+  const tripMembers: WalletMember[] = (currentTrip?.members && currentTrip.members.length > 0)
+    ? currentTrip.members.map((m, idx) => ({
+        id: m.id,
+        name: m.name,
+        avatarUrl: m.avatarUrl,
+        color: m.color || ['#FF6B6B', '#4ECDC4', '#FFE66D', '#1A535C', '#4D96FF'][idx % 5],
+      }))
+    : members;
 
   // Modal State for Adding Expense
   const [modalVisible, setModalVisible] = useState(false);
@@ -90,32 +104,50 @@ export default function WalletScreen() {
   const [amountStr, setAmountStr] = useState('');
   const [currency, setCurrency] = useState<CurrencyCode>('JPY');
   const [category, setCategory] = useState<WalletCategory>('FOOD');
-  const [paidBy, setPaidBy] = useState<string>(members[0]?.id || 'm1');
-  const [splitMembers, setSplitMembers] = useState<string[]>(members.map((m) => m.id));
+  const [paidBy, setPaidBy] = useState<string>(tripMembers[0]?.id || 'm1');
+  const [splitMembers, setSplitMembers] = useState<string[]>(tripMembers.map((m) => m.id));
   const [selectedPlaceName, setSelectedPlaceName] = useState<string>('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL');
 
+  // Sync members when switching trip
+  useEffect(() => {
+    if (tripMembers.length > 0) {
+      setPaidBy(tripMembers[0].id);
+      setSplitMembers(tripMembers.map((m) => m.id));
+    }
+  }, [currentTrip?.id]);
+
+  // Filter expenses strictly by active trip
+  const tripExpenses = expenses.filter(
+    (e) => !e.trip_id || e.trip_id === currentTrip?.id
+  );
+
   // Stats
-  const totalKrw = getTotalKrw();
+  const totalKrw = getTotalKrw(currentTrip?.id);
   const budget = currentTrip?.budget || 1200000;
   const budgetUsagePercent = Math.min(Math.round((totalKrw / budget) * 100), 100);
 
-  const memberBalances = getMemberBalances();
-  const transactions = getTransactions();
+  const memberBalances = getMemberBalances(currentTrip?.id, tripMembers);
+  const transactions = getTransactions(currentTrip?.id, tripMembers);
 
   // Filtered Expenses
-  const filteredExpenses = expenses.filter((e) => {
+  const filteredExpenses = tripExpenses.filter((e) => {
     if (selectedCategoryFilter === 'ALL') return true;
     return e.category === selectedCategoryFilter;
   });
 
-  // Calculate Currency totals
-  const jpyTotal = expenses
+  // Calculate Currency totals for active trip
+  const jpyTotal = tripExpenses
     .filter((e) => e.currency === 'JPY')
     .reduce((sum, e) => sum + e.amount, 0);
-  const krwDirectTotal = expenses
+  const krwDirectTotal = tripExpenses
     .filter((e) => e.currency === 'KRW')
     .reduce((sum, e) => sum + e.amount, 0);
+
+  // Active trip schedule items for linking
+  const activeScheduleItems = scheduleItems.filter(
+    (s) => !s.trip_id || s.trip_id === currentTrip?.id
+  );
 
   // Toggle Split Member in modal
   const handleToggleSplitMember = (memberId: string) => {
@@ -132,10 +164,10 @@ export default function WalletScreen() {
 
   // Toggle All Members
   const handleToggleAllMembers = () => {
-    if (splitMembers.length === members.length) {
+    if (splitMembers.length === tripMembers.length) {
       setSplitMembers([paidBy]);
     } else {
-      setSplitMembers(members.map((m) => m.id));
+      setSplitMembers(tripMembers.map((m) => m.id));
     }
   };
 
@@ -180,7 +212,7 @@ export default function WalletScreen() {
 
   // Copy Settlement to Clipboard
   const handleCopyShareText = async () => {
-    const text = generateShareText(currentTrip?.title || '핀치 도쿄 여행');
+    const text = generateShareText(currentTrip?.title || '핀치 여행 정산서', currentTrip?.id, tripMembers);
     await Clipboard.setStringAsync(text);
     Alert.alert(
       '정산서 복사 완료! 📋',
@@ -224,6 +256,28 @@ export default function WalletScreen() {
         }
       />
 
+      {/* Active Trip Selector Bar */}
+      {currentTrip && (
+        <View className="px-4 pt-3 pb-1">
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setTripSwitcherVisible(true)}
+            className="flex-row items-center justify-between bg-white px-3.5 py-2.5 rounded-2xl border border-gray-200 shadow-xs"
+          >
+            <View className="flex-row items-center flex-1 mr-2">
+              <MapPin size={14} color="#FF6B6B" className="mr-1.5" />
+              <Text className="text-xs font-bold text-darkText flex-1" numberOfLines={1}>
+                {currentTrip.title}
+              </Text>
+            </View>
+            <View className="flex-row items-center bg-primary/10 px-2 py-1 rounded-lg">
+              <Text className="text-[10px] font-bold text-primary mr-1">여행 변경</Text>
+              <ChevronDown size={11} color="#FF6B6B" />
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Segmented Control Tabs */}
       <View style={tabStyles.container}>
         <View style={tabStyles.track}>
@@ -246,7 +300,7 @@ export default function WalletScreen() {
                 activeTab === 'expenses' ? tabStyles.activeTabText : tabStyles.inactiveTabText,
               ]}
             >
-              지출 내역 ({expenses.length})
+              지출 내역 ({tripExpenses.length})
             </Text>
           </TouchableOpacity>
 
@@ -373,12 +427,12 @@ export default function WalletScreen() {
                     selectedCategoryFilter === 'ALL' ? 'text-white' : 'text-mutedText'
                   }`}
                 >
-                  전체 ({expenses.length})
+                  전체 ({tripExpenses.length})
                 </Text>
               </TouchableOpacity>
 
               {CATEGORIES.map((cat) => {
-                const count = expenses.filter((e) => e.category === cat.key).length;
+                const count = tripExpenses.filter((e) => e.category === cat.key).length;
                 const isSelected = selectedCategoryFilter === cat.key;
                 return (
                   <TouchableOpacity
@@ -405,7 +459,7 @@ export default function WalletScreen() {
             {/* Expense Cards */}
             {filteredExpenses.length > 0 ? (
               filteredExpenses.map((expense) => {
-                const payer = members.find((m) => m.id === expense.paid_by);
+                const payer = tripMembers.find((m) => m.id === expense.paid_by);
                 const categoryObj = CATEGORIES.find((c) => c.key === expense.category);
 
                 return (
@@ -645,7 +699,7 @@ export default function WalletScreen() {
             <View>
               <View className="flex-row items-center justify-between mb-3">
                 <Text className="text-base font-bold text-darkText">개인별 지출 및 정산 현황</Text>
-                <Text className="text-xs text-mutedText">총 {members.length}명</Text>
+                <Text className="text-xs text-mutedText">총 {tripMembers.length}명</Text>
               </View>
 
               <Card className="p-3">
@@ -801,7 +855,7 @@ export default function WalletScreen() {
               />
 
               {/* Optional Itinerary Place Link */}
-              {scheduleItems.length > 0 && (
+              {activeScheduleItems.length > 0 && (
                 <View className="mb-4">
                   <Text className="text-xs font-bold text-mutedText mb-1.5">
                     일정 장소 연결 (선택)
@@ -828,7 +882,7 @@ export default function WalletScreen() {
                       </Text>
                     </TouchableOpacity>
 
-                    {scheduleItems.map((item) => (
+                    {activeScheduleItems.map((item) => (
                       <TouchableOpacity
                         key={item.id}
                         onPress={() => setSelectedPlaceName(item.place_name)}
@@ -892,7 +946,7 @@ export default function WalletScreen() {
               {/* Paid By (Payer) */}
               <Text className="text-xs font-bold text-mutedText mb-1.5">결제한 사람</Text>
               <View className="flex-row gap-2 mb-4">
-                {members.map((m) => {
+                {tripMembers.map((m) => {
                   const isSelected = paidBy === m.id;
                   return (
                     <TouchableOpacity
@@ -929,13 +983,13 @@ export default function WalletScreen() {
                 </Text>
                 <TouchableOpacity onPress={handleToggleAllMembers}>
                   <Text className="text-xs font-bold text-primary">
-                    {splitMembers.length === members.length ? '전체 해제' : '전체 선택'}
+                    {splitMembers.length === tripMembers.length ? '전체 해제' : '전체 선택'}
                   </Text>
                 </TouchableOpacity>
               </View>
 
               <View className="flex-row gap-2 mb-6">
-                {members.map((m) => {
+                {tripMembers.map((m) => {
                   const isChecked = splitMembers.includes(m.id);
                   return (
                     <TouchableOpacity
@@ -988,6 +1042,12 @@ export default function WalletScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Trip Switcher Modal */}
+      <TripSwitcherModal
+        visible={tripSwitcherVisible}
+        onClose={() => setTripSwitcherVisible(false)}
+      />
     </View>
   );
 }

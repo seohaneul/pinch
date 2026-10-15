@@ -33,10 +33,10 @@ export interface WalletState {
   updateExchangeRate: (currency: CurrencyCode, rate: number) => void;
   refreshLiveExchangeRates: () => Promise<void>;
   toggleTransactionSettled: (id: string) => void;
-  getMemberBalances: () => MemberBalance[];
-  getTransactions: () => SettlementTransaction[];
-  getTotalKrw: () => number;
-  generateShareText: (tripTitle?: string) => string;
+  getMemberBalances: (tripId?: string, customMembers?: WalletMember[]) => MemberBalance[];
+  getTransactions: (tripId?: string, customMembers?: WalletMember[]) => SettlementTransaction[];
+  getTotalKrw: (tripId?: string) => number;
+  generateShareText: (tripTitle?: string, tripId?: string, customMembers?: WalletMember[]) => string;
   resetToDefaults: () => void;
 }
 
@@ -222,29 +222,49 @@ export const useWalletStore = create<WalletState>()(
     }
   },
 
-  getMemberBalances: () => {
+  getMemberBalances: (tripId?: string, customMembers?: WalletMember[]) => {
     const { members, expenses } = get();
-    return calculateMemberBalances(members, expenses);
+    const activeMembers = customMembers || members;
+    const targetExpenses = tripId
+      ? expenses.filter((e) => !e.trip_id || e.trip_id === tripId)
+      : expenses;
+    return calculateMemberBalances(activeMembers, targetExpenses);
   },
 
-  getTransactions: () => {
+  getTransactions: (tripId?: string, customMembers?: WalletMember[]) => {
     const { members, expenses, settledTransactionIds } = get();
-    const txns = calculateMinCashFlowSettlement(members, expenses);
+    const activeMembers = customMembers || members;
+    const targetExpenses = tripId
+      ? expenses.filter((e) => !e.trip_id || e.trip_id === tripId)
+      : expenses;
+    const txns = calculateMinCashFlowSettlement(activeMembers, targetExpenses);
     return txns.map((t) => ({
       ...t,
       is_settled: settledTransactionIds.includes(t.id),
     }));
   },
 
-  getTotalKrw: () => {
-    return get().expenses.reduce((acc, curr) => acc + curr.krw_amount, 0);
+  getTotalKrw: (tripId?: string) => {
+    const { expenses } = get();
+    const targetExpenses = tripId
+      ? expenses.filter((e) => !e.trip_id || e.trip_id === tripId)
+      : expenses;
+    return targetExpenses.reduce((acc, curr) => acc + curr.krw_amount, 0);
   },
 
-  generateShareText: (tripTitle = '도쿄 3박 4일 감성 여행') => {
+  generateShareText: (
+    tripTitle = '여행 정산서',
+    tripId?: string,
+    customMembers?: WalletMember[]
+  ) => {
     const { members, expenses, settledTransactionIds } = get();
-    const totalKrw = get().getTotalKrw();
-    const memberBalances = calculateMemberBalances(members, expenses);
-    const txns = calculateMinCashFlowSettlement(members, expenses).map((t) => ({
+    const activeMembers = customMembers || members;
+    const targetExpenses = tripId
+      ? expenses.filter((e) => !e.trip_id || e.trip_id === tripId)
+      : expenses;
+    const totalKrw = targetExpenses.reduce((acc, curr) => acc + curr.krw_amount, 0);
+    const memberBalances = calculateMemberBalances(activeMembers, targetExpenses);
+    const txns = calculateMinCashFlowSettlement(activeMembers, targetExpenses).map((t) => ({
       ...t,
       is_settled: settledTransactionIds.includes(t.id),
     }));

@@ -45,12 +45,17 @@ export default function HomeScreen() {
   const { getTotalKrw } = useWalletStore();
   const { detectedUrl, dismissDetectedUrl } = useClipboardListener();
 
-  const totalSpentKrw = getTotalKrw();
+  const totalSpentKrw = getTotalKrw(currentTrip?.id);
   const budget = currentTrip?.budget || 1200000;
   const budgetUsagePercent = Math.min(Math.round((totalSpentKrw / budget) * 100), 100);
 
-  // Day 1 scheduled stops
-  const day1Stops = scheduleItems
+  // Active trip's schedule items
+  const currentTripScheduleItems = scheduleItems.filter(
+    (s) => !s.trip_id || s.trip_id === currentTrip?.id
+  );
+
+  // Day 1 scheduled stops for active trip
+  const day1Stops = currentTripScheduleItems
     .filter((s) => s.day_number === 1)
     .sort((a, b) => a.order_index - b.order_index);
 
@@ -214,7 +219,7 @@ export default function HomeScreen() {
                     <View className="flex-row items-center">
                       <MapPin size={13} color="#4ECDC4" />
                       <Text className="text-xs font-bold text-darkText ml-1">
-                        계획 일정 {scheduleItems.length}개
+                        계획 일정 {currentTripScheduleItems.length}개
                       </Text>
                     </View>
                     <View className="flex-row items-center">

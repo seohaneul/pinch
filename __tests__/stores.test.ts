@@ -261,5 +261,73 @@ describe('Store Actions & Cross-Store Integration (FN-PLC, FN-PLN, FN-WAL)', () 
       const newTotalKrw = useWalletStore.getState().getTotalKrw();
       assert.strictEqual(newTotalKrw, initialTotalKrw + Math.round(4500 * 9.15));
     });
+
+    it('strictly isolates schedules, expenses, and member balances across multiple trips', () => {
+      const tripStore = useTripStore.getState();
+      const walletStore = useWalletStore.getState();
+
+      const tripA = tripStore.currentTrip!;
+      const tripAInitialItems = tripStore.scheduleItems.filter(
+        (s) => !s.trip_id || s.trip_id === tripA.id
+      ).length;
+
+      // 1. Create a second trip (Trip B)
+      const tripB = tripStore.createTrip({
+        title: '오사카 2박 3일 미식 여행',
+        destination: '일본 오사카',
+        startDate: '2026-12-01',
+        endDate: '2026-12-03',
+        budget: 800000,
+        memberNames: ['지수', '태현'],
+      });
+
+      assert.strictEqual(useTripStore.getState().activeTripId, tripB.id);
+      assert.strictEqual(useTripStore.getState().currentTrip?.id, tripB.id);
+
+      // 2. Add places to Trip B Day 1
+      const samplePlace = usePlaceStore.getState().places[0];
+      tripStore.addPlaceToSchedule(1, samplePlace);
+      tripStore.addPlaceToSchedule(1, {
+        ...samplePlace,
+        id: 'p_osaka_food',
+        name: '도톤보리 타코야키',
+      });
+
+      const tripBItems = useTripStore
+        .getState()
+        .scheduleItems.filter((s) => s.trip_id === tripB.id);
+      assert.strictEqual(tripBItems.length, 2);
+
+      // Reorder Trip B Day 1
+      useTripStore.getState().reorderSchedule(1, 0, 1);
+
+      // Verify Trip A's items are completely unharmed
+      const tripAAfterItems = useTripStore
+        .getState()
+        .scheduleItems.filter((s) => !s.trip_id || s.trip_id === tripA.id);
+      assert.strictEqual(tripAAfterItems.length, tripAInitialItems);
+
+      // 3. Add expense to Trip B
+      walletStore.addExpense({
+        trip_id: tripB.id,
+        title: '도톤보리 글리코상 앞 타코야키',
+        paid_by: tripB.members[0].id,
+        currency: 'JPY',
+        amount: 1800,
+        exchange_rate: 9.15,
+        split_members: tripB.members.map((m) => m.id),
+        category: 'FOOD',
+      });
+
+      const tripATotalKrw = useWalletStore.getState().getTotalKrw(tripA.id);
+      const tripBTotalKrw = useWalletStore.getState().getTotalKrw(tripB.id);
+
+      assert.strictEqual(tripBTotalKrw, Math.round(1800 * 9.15));
+      assert.ok(tripATotalKrw !== tripBTotalKrw);
+
+      // Switch back to Trip A
+      useTripStore.getState().setActiveTrip(tripA.id);
+      assert.strictEqual(useTripStore.getState().activeTripId, tripA.id);
+    });
   });
 });

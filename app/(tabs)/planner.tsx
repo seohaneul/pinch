@@ -67,6 +67,16 @@ export default function PlannerScreen() {
   const { places } = usePlaceStore();
   const { addExpense, members, exchangeRates } = useWalletStore();
 
+  // Active trip members fallback
+  const tripMembers = (currentTrip?.members && currentTrip.members.length > 0)
+    ? currentTrip.members.map((m, idx) => ({
+        id: m.id,
+        name: m.name,
+        avatarUrl: m.avatarUrl,
+        color: m.color || ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A06CD5', '#20BF55'][idx % 5],
+      }))
+    : members;
+
   // Expense modal for stop
   const [expenseModalVisible, setExpenseModalVisible] = useState(false);
   const [selectedStopForExpense, setSelectedStopForExpense] = useState<ScheduleItem | null>(null);
@@ -74,7 +84,8 @@ export default function PlannerScreen() {
   const [expenseAmountStr, setExpenseAmountStr] = useState('');
   const [expenseCurrency, setExpenseCurrency] = useState<CurrencyCode>('JPY');
   const [expenseCategory, setExpenseCategory] = useState<WalletCategory>('FOOD');
-  const [expensePaidBy, setExpensePaidBy] = useState<string>(members[0]?.id || 'm1');
+  const [expensePaidBy, setExpensePaidBy] = useState<string>(tripMembers[0]?.id || 'm1');
+  const [expenseSplitMembers, setExpenseSplitMembers] = useState<string[]>(tripMembers.map((m) => m.id));
   const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
 
   // Get current day's sorted schedule items (filtered by active trip)
@@ -103,8 +114,8 @@ export default function PlannerScreen() {
         ? 'LODGING'
         : 'ACTIVITY';
     setExpenseCategory(defaultCat);
-    setExpensePaidBy(members[0]?.id || 'm1');
-    setExpenseSplitMembers(members.map((m) => m.id));
+    setExpensePaidBy(tripMembers[0]?.id || 'm1');
+    setExpenseSplitMembers(tripMembers.map((m) => m.id));
     setExpenseModalVisible(true);
   };
 
@@ -212,7 +223,9 @@ export default function PlannerScreen() {
             keyExtractor={(item) => String(item.dayNumber)}
             renderItem={({ item: schedule }) => {
               const isSelected = selectedDay === schedule.dayNumber;
-              const count = scheduleItems.filter((s) => s.day_number === schedule.dayNumber).length;
+              const count = scheduleItems.filter(
+                (s) => s.day_number === schedule.dayNumber && (!s.trip_id || s.trip_id === currentTrip?.id)
+              ).length;
               return (
                 <TouchableOpacity
                   onPress={() => setSelectedDay(schedule.dayNumber)}
@@ -585,7 +598,7 @@ export default function PlannerScreen() {
                 {/* Paid By */}
                 <Text className="text-xs font-bold text-mutedText mb-1.5">결제한 사람</Text>
                 <View className="flex-row gap-2 mb-4">
-                  {members.map((m) => {
+                  {tripMembers.map((m) => {
                     const isSelected = expensePaidBy === m.id;
                     return (
                       <TouchableOpacity

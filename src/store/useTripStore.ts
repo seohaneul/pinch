@@ -20,6 +20,7 @@ interface TripState {
 
   // Actions
   getActiveTrip: () => Trip;
+  getActiveScheduleItems: () => ScheduleItem[];
   setSelectedDay: (day: number) => void;
   setActiveTrip: (id: string) => void;
   createTrip: (tripData: {
@@ -215,6 +216,11 @@ export const useTripStore = create<TripState>()(
     return trips.find((t) => t.id === activeTripId) || DEFAULT_TRIP;
   },
 
+  getActiveScheduleItems: () => {
+    const { scheduleItems, activeTripId } = get();
+    return scheduleItems.filter((s) => !s.trip_id || s.trip_id === activeTripId);
+  },
+
   setSelectedDay: (day) => set({ selectedDay: day }),
 
   setActiveTrip: (id) => {
@@ -307,9 +313,10 @@ export const useTripStore = create<TripState>()(
   },
 
   reorderSchedule: (dayNumber, fromIndex, toIndex) => {
-    const { scheduleItems, recalculateTimes } = get();
+    const { scheduleItems, recalculateTimes, activeTripId } = get();
+    const isTripMatch = (s: ScheduleItem) => (!s.trip_id || s.trip_id === activeTripId);
     const dayItems = scheduleItems
-      .filter((s) => s.day_number === dayNumber)
+      .filter((s) => s.day_number === dayNumber && isTripMatch(s))
       .sort((a, b) => a.order_index - b.order_index);
 
     if (fromIndex < 0 || fromIndex >= dayItems.length || toIndex < 0 || toIndex >= dayItems.length) {
@@ -326,8 +333,8 @@ export const useTripStore = create<TripState>()(
       order_index: idx + 1,
     }));
 
-    // Merge back into scheduleItems
-    const otherItems = scheduleItems.filter((s) => s.day_number !== dayNumber);
+    // Merge back into scheduleItems (preserving items of other trips and other days)
+    const otherItems = scheduleItems.filter((s) => s.day_number !== dayNumber || !isTripMatch(s));
     set({ scheduleItems: [...otherItems, ...updatedDayItems] });
 
     // Recalculate arrival times
@@ -363,9 +370,10 @@ export const useTripStore = create<TripState>()(
   },
 
   optimizeDayRoute: (dayNumber) => {
-    const { scheduleItems, recalculateTimes } = get();
+    const { scheduleItems, recalculateTimes, activeTripId } = get();
+    const isTripMatch = (s: ScheduleItem) => (!s.trip_id || s.trip_id === activeTripId);
     const dayItems = scheduleItems
-      .filter((s) => s.day_number === dayNumber)
+      .filter((s) => s.day_number === dayNumber && isTripMatch(s))
       .sort((a, b) => a.order_index - b.order_index);
 
     if (dayItems.length <= 2) return;
@@ -376,16 +384,17 @@ export const useTripStore = create<TripState>()(
       order_index: idx + 1,
     }));
 
-    const otherItems = scheduleItems.filter((s) => s.day_number !== dayNumber);
+    const otherItems = scheduleItems.filter((s) => s.day_number !== dayNumber || !isTripMatch(s));
     set({ scheduleItems: [...otherItems, ...updatedDayItems] });
 
     recalculateTimes(dayNumber);
   },
 
   recalculateTimes: (dayNumber) => {
-    const { scheduleItems } = get();
+    const { scheduleItems, activeTripId } = get();
+    const isTripMatch = (s: ScheduleItem) => (!s.trip_id || s.trip_id === activeTripId);
     const dayItems = scheduleItems
-      .filter((s) => s.day_number === dayNumber)
+      .filter((s) => s.day_number === dayNumber && isTripMatch(s))
       .sort((a, b) => a.order_index - b.order_index);
 
     if (dayItems.length === 0) return;
@@ -419,17 +428,18 @@ export const useTripStore = create<TripState>()(
       };
     });
 
-    const otherItems = scheduleItems.filter((s) => s.day_number !== dayNumber);
+    const otherItems = scheduleItems.filter((s) => s.day_number !== dayNumber || !isTripMatch(s));
     set({ scheduleItems: [...otherItems, ...updatedDayItems] });
   },
 
   addPlaceToSchedule: (dayNumber, place) => {
-    const { scheduleItems, recalculateTimes } = get();
-    const dayItems = scheduleItems.filter((s) => s.day_number === dayNumber);
+    const { scheduleItems, recalculateTimes, activeTripId } = get();
+    const isTripMatch = (s: ScheduleItem) => (!s.trip_id || s.trip_id === activeTripId);
+    const dayItems = scheduleItems.filter((s) => s.day_number === dayNumber && isTripMatch(s));
 
     const newItem: ScheduleItem = {
       id: `sched_${Date.now()}`,
-      trip_id: get().activeTripId,
+      trip_id: activeTripId,
       place_id: place.id,
       place_name: place.name,
       category: place.category as string,
@@ -456,10 +466,16 @@ export const useTripStore = create<TripState>()(
     if (!target) return;
 
     const remaining = scheduleItems.filter((s) => s.id !== scheduleId);
+    const targetTripId = target.trip_id || 't_tokyo';
 
-    // Re-index order_index for that day
+    // Re-index order_index for that day AND that trip only
     const updated = remaining.map((item) => {
-      if (item.day_number === target.day_number && item.order_index > target.order_index) {
+      const itemTripId = item.trip_id || 't_tokyo';
+      if (
+        itemTripId === targetTripId &&
+        item.day_number === target.day_number &&
+        item.order_index > target.order_index
+      ) {
         return { ...item, order_index: item.order_index - 1 };
       }
       return item;
