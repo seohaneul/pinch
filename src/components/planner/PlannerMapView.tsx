@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Platform,
   TouchableOpacity,
-  Linking,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import type { ScheduleItem } from '../../types';
@@ -17,7 +16,6 @@ import {
   ChevronLeft,
   ChevronRight,
   MapPin,
-  Compass,
 } from 'lucide-react-native';
 import { openInGoogleMaps, openMultiStopRouteInGoogleMaps } from '../../utils/mapUtils';
 import { useTripStore } from '../../store/useTripStore';
@@ -187,19 +185,19 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
     );
   }
 
-  // Native (iOS/Android): High reliability WebView with Leaflet + OSM Tiles fallback
+  // Native (iOS/Android): High reliability WebView with Leaflet + Google Maps Tiles
   const mapHtml = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #F1F5F9; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #E2E8F0; }
     .custom-pin {
       display: flex;
       align-items: center;
@@ -253,6 +251,10 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
       text-decoration: none;
       cursor: pointer;
     }
+    .leaflet-control-attribution {
+      font-size: 8px !important;
+      opacity: 0.6;
+    }
   </style>
 </head>
 <body>
@@ -263,75 +265,92 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
     var defaultLng = ${initialRegion.longitude};
     var activeIdx = ${activeStopIndex};
 
-    var map = L.map('map', {
-      center: [defaultLat, defaultLng],
-      zoom: 14,
-      zoomControl: true,
-      attributionControl: false
-    });
+    function initMap() {
+      if (typeof L === 'undefined') {
+        setTimeout(initMap, 100);
+        return;
+      }
 
-    // Primary High Reliability Tiles: CartoDB Voyager with OpenStreetMap Tile Fallback
-    var primaryTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      subdomains: 'abcd'
-    }).addTo(map);
-
-    primaryTiles.on('tileerror', function() {
-      // Fallback to OSM
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
-      }).addTo(map);
-    });
-
-    var markers = [];
-    var latlngs = [];
-
-    stops.forEach(function(stop, idx) {
-      latlngs.push([stop.latitude, stop.longitude]);
-
-      var isActive = idx === activeIdx;
-      var pinHtml = '<div class="custom-pin' + (isActive ? ' active' : '') + '">' + stop.order_index + '</div>';
-
-      var customIcon = L.divIcon({
-        className: 'leaflet-custom-div',
-        html: pinHtml,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
-        popupAnchor: [0, -18]
+      var map = L.map('map', {
+        center: [defaultLat, defaultLng],
+        zoom: 14,
+        zoomControl: true,
+        attributionControl: true
       });
 
-      var marker = L.marker([stop.latitude, stop.longitude], { icon: customIcon }).addTo(map);
+      // Authentic Google Maps Standard Road Tiles (supports Korean & English labels)
+      var googleTiles = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ko', {
+        subdomains: '0123',
+        maxZoom: 20,
+        attribution: '&copy; Google Maps'
+      }).addTo(map);
 
-      var popupHtml =
-        '<div class="popup-box">' +
-          '<div class="popup-title">#' + stop.order_index + ' ' + stop.place_name + '</div>' +
-          '<div class="popup-time">' + (stop.arrival_time ? '도착 ' + stop.arrival_time : '') + '</div>' +
-          '<a href="javascript:void(0)" class="popup-btn" onclick="sendNavMessage(' + stop.latitude + ',' + stop.longitude + ',\\'' + encodeURIComponent(stop.place_name) + '\\')">길찾기 ↗</a>' +
-        '</div>';
-
-      marker.bindPopup(popupHtml);
-      marker.on('click', function() {
-        if (window.ReactNativeWebView) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SELECT_STOP', index: idx }));
+      // Backup tile layer in case of connectivity issues
+      googleTiles.on('tileerror', function() {
+        if (!window.osmFallbackAdded) {
+          window.osmFallbackAdded = true;
+          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+          }).addTo(map);
         }
       });
-      markers.push(marker);
-    });
 
-    if (latlngs.length > 1) {
-      var polyline = L.polyline(latlngs, {
-        color: '#FF6B6B',
-        weight: 4,
-        opacity: 0.85,
-        dashArray: '8, 8',
-        lineCap: 'round',
-        lineJoin: 'round'
-      }).addTo(map);
+      var markers = [];
+      var latlngs = [];
 
-      var bounds = L.latLngBounds(latlngs);
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
-    } else if (latlngs.length === 1) {
-      map.setView(latlngs[0], 15);
+      stops.forEach(function(stop, idx) {
+        latlngs.push([stop.latitude, stop.longitude]);
+
+        var isActive = idx === activeIdx;
+        var pinHtml = '<div class="custom-pin' + (isActive ? ' active' : '') + '">' + stop.order_index + '</div>';
+
+        var customIcon = L.divIcon({
+          className: 'leaflet-custom-div',
+          html: pinHtml,
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+          popupAnchor: [0, -18]
+        });
+
+        var marker = L.marker([stop.latitude, stop.longitude], { icon: customIcon }).addTo(map);
+
+        var popupHtml =
+          '<div class="popup-box">' +
+            '<div class="popup-title">#' + stop.order_index + ' ' + stop.place_name + '</div>' +
+            '<div class="popup-time">' + (stop.arrival_time ? '도착 ' + stop.arrival_time : '') + '</div>' +
+            '<a href="javascript:void(0)" class="popup-btn" onclick="sendNavMessage(' + stop.latitude + ',' + stop.longitude + ',\\'' + encodeURIComponent(stop.place_name) + '\\')">길찾기 ↗</a>' +
+          '</div>';
+
+        marker.bindPopup(popupHtml);
+        marker.on('click', function() {
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SELECT_STOP', index: idx }));
+          }
+        });
+        markers.push(marker);
+      });
+
+      if (latlngs.length > 1) {
+        var polyline = L.polyline(latlngs, {
+          color: '#FF6B6B',
+          weight: 4,
+          opacity: 0.9,
+          dashArray: '8, 8',
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(map);
+
+        var bounds = L.latLngBounds(latlngs);
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+      } else if (latlngs.length === 1) {
+        map.setView(latlngs[0], 15);
+      }
+
+      // Invalidate map size after render passes to ensure tiles render immediately
+      setTimeout(function() { map.invalidateSize(); }, 200);
+      setTimeout(function() { map.invalidateSize(); }, 600);
+      setTimeout(function() { map.invalidateSize(); }, 1200);
     }
 
     function sendNavMessage(lat, lng, name) {
@@ -343,6 +362,15 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
           placeName: decodeURIComponent(name)
         }));
       }
+    }
+
+    // Ensure Leaflet is loaded before initializing
+    if (typeof L !== 'undefined') {
+      initMap();
+    } else {
+      window.addEventListener('DOMContentLoaded', initMap);
+      window.addEventListener('load', initMap);
+      setTimeout(initMap, 300);
     }
   </script>
 </body>
@@ -375,15 +403,20 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
     >
       <WebView
         originWhitelist={['*']}
-        source={{ html: mapHtml, baseUrl: 'https://www.google.com' }}
+        source={{ html: mapHtml }}
         style={styles.webview}
         javaScriptEnabled={true}
         domStorageEnabled={true}
-        cacheEnabled={true}
+        allowFileAccess={true}
+        allowUniversalAccessFromFileURLs={true}
         mixedContentMode="always"
+        androidLayerType="hardware"
+        androidHardwareAccelerationDisabled={false}
         onMessage={handleWebViewMessage}
         scrollEnabled={isExpanded}
-        overScrollMode="never"
+        nestedScrollEnabled={true}
+        showsHorizontalScrollIndicator={false}
+        showsVerticalScrollIndicator={false}
       />
 
       {/* Top Floating Badge & Expand Button */}
@@ -480,7 +513,7 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     borderRadius: 24,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#E2E8F0',
     position: 'relative',
     overflow: 'hidden',
     ...Platform.select({
@@ -497,7 +530,10 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#E2E8F0',
+    opacity: 0.99, // Triggers Android GPU compositing inside ScrollView
   },
   overlayHeader: {
     position: 'absolute',
