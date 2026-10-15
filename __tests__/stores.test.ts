@@ -127,6 +127,34 @@ describe('Store Actions & Cross-Store Integration (FN-PLC, FN-PLN, FN-WAL)', () 
       const updated = usePlaceStore.getState().places.find((p) => p.id === 'p3')!;
       assert.strictEqual(updated.isPinned, !initialPinned);
     });
+
+    it('[Req 5] rejects duplicates with identical name or URL', () => {
+      const placesBefore = usePlaceStore.getState().places.length;
+      const existing = usePlaceStore.getState().places[0];
+
+      // Try adding duplicate by same name
+      const addedSameName = usePlaceStore.getState().addPlace({
+        ...existing,
+        id: 'dup_test_1',
+      });
+      assert.strictEqual(addedSameName, false);
+      assert.strictEqual(usePlaceStore.getState().places.length, placesBefore);
+
+      // Try adding duplicate with same snsUrl
+      const addedSameUrl = usePlaceStore.getState().addPlace({
+        id: 'dup_test_2',
+        name: '다른 이름이지만 동일 링크',
+        address: '주소',
+        category: 'CAFE',
+        latitude: 35.6,
+        longitude: 139.7,
+        isPinned: false,
+        createdAt: '2026-10-15',
+        snsUrl: existing.snsUrl,
+      });
+      assert.strictEqual(addedSameUrl, false);
+      assert.strictEqual(usePlaceStore.getState().places.length, placesBefore);
+    });
   });
 
   describe('[FN-PLN-002, 003, 004] useTripStore Scheduling Engine', () => {

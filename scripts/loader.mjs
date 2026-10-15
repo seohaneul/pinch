@@ -11,6 +11,15 @@ export async function resolve(specifier, context, nextResolve) {
     };
   }
 
+  // Mock React Native for node testing
+  if (specifier === 'react-native') {
+    return {
+      format: 'module',
+      shortCircuit: true,
+      url: pathToFileURL('./scripts/reactNativeMock.mjs').href,
+    };
+  }
+
   try {
     return await nextResolve(specifier, context);
   } catch (err) {

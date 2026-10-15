@@ -7,57 +7,47 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Share,
+  StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Header } from '../../src/components/common/Header';
-import { Card, Badge } from '../../src/components/common/Card';
-import { Button } from '../../src/components/common/Button';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
 import { useTripStore } from '../../src/store/useTripStore';
 import { usePlaceStore } from '../../src/store/usePlaceStore';
-import { useWalletStore } from '../../src/store/useWalletStore';
+import { useAuthStore } from '../../src/store/useAuthStore';
 import { useClipboardListener } from '../../src/hooks/useClipboardListener';
 import { ClipboardToast } from '../../src/components/places/ClipboardToast';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import {
-  Link as LinkIcon,
   Sparkles,
+  Link as LinkIcon,
   MapPin,
   Calendar,
-  Plus,
-  ArrowRight,
-  TrendingUp,
   Bookmark,
-  Users,
+  Map,
   Wallet,
-  Clock,
-  Navigation,
+  Users,
   ChevronRight,
-  Receipt,
-  Coins,
+  ClipboardPaste,
+  ArrowRight,
 } from 'lucide-react-native';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [urlInput, setUrlInput] = useState('');
   const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
+
+  const { user } = useAuthStore();
   const { currentTrip, scheduleItems } = useTripStore();
   const { places, isExtracting, extractFromUrl } = usePlaceStore();
-  const { getTotalKrw } = useWalletStore();
   const { detectedUrl, dismissDetectedUrl } = useClipboardListener();
-
-  const totalSpentKrw = getTotalKrw(currentTrip?.id);
-  const budget = currentTrip?.budget || 1200000;
-  const budgetUsagePercent = Math.min(Math.round((totalSpentKrw / budget) * 100), 100);
 
   // Active trip's schedule items
   const currentTripScheduleItems = scheduleItems.filter(
     (s) => !s.trip_id || s.trip_id === currentTrip?.id
   );
-
-  // Day 1 scheduled stops for active trip
-  const day1Stops = currentTripScheduleItems
-    .filter((s) => s.day_number === 1)
-    .sort((a, b) => a.order_index - b.order_index);
 
   // D-Day calculation
   const calculateDDay = (startDate?: string) => {
@@ -77,40 +67,71 @@ export default function HomeScreen() {
       return;
     }
 
-    const newPlace = await extractFromUrl(targetUrl);
+    const newPlace = await extractFromUrl(targetUrl.trim());
     if (newPlace) {
       Alert.alert('핀치 완료! 🎉', `"${newPlace.name}" 장소가 보관함에 추가되었습니다.`);
       setUrlInput('');
       dismissDetectedUrl();
-    } else {
-      Alert.alert('파싱 오류', '링크에서 장소를 추출하지 못했습니다. URL을 확인해 주세요.');
     }
   };
 
-  return (
-    <View className="flex-1 bg-background">
-      <Header
-        title="Pinch"
-        subtitle="링크만 던지면 핫플만 핀치! 🤏"
-        rightAction={
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/places')}
-            className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center"
-            accessibilityLabel="핫플 보관함"
-          >
-            <Sparkles size={20} color="#FF6B6B" />
-          </TouchableOpacity>
-        }
-      />
+  const handlePasteClipboard = async () => {
+    try {
+      const text = await Clipboard.getStringAsync();
+      if (text && text.trim()) {
+        setUrlInput(text.trim());
+        handleExtract(text.trim());
+      } else {
+        Alert.alert('클립보드 확인', '클립보드에 복사된 링크가 없습니다.');
+      }
+    } catch (e) {
+      // Ignore
+    }
+  };
 
+  const handleInviteCompanion = async () => {
+    try {
+      await Share.share({
+        title: '핀치 (Pinch) 동행자 초대',
+        message: `✈️ ${currentTrip?.title || '여행'} 계획에 함께 참여해보세요!\n인스타그램/유튜브 링크만 넣으면 동선이 자동으로 짜여요.\nhttps://pinch-travel.app/trip/${currentTrip?.id || 'tokyo'}`,
+      });
+    } catch (error) {
+      // Ignore
+    }
+  };
+
+  const greetingName = user?.nickname || '민지';
+  const dayScheduleCount = currentTrip?.schedules?.length || 3;
+
+  return (
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 14) + 6 }]}>
       <ScrollView
-        className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* Clipboard Auto-Detection Toast */}
+        {/* 1. Top Cute Pinch Logo + Welcome Greeting */}
+        <View style={styles.topHeader}>
+          <View style={styles.logoRow}>
+            <View style={styles.pinchLogoBadge}>
+              <MapPin size={18} color="#FF6B6B" fill="#FF6B6B" />
+            </View>
+            <View style={styles.brandBadge}>
+              <Sparkles size={11} color="#FF6B6B" />
+              <Text style={styles.brandBadgeText}>Pinch</Text>
+            </View>
+          </View>
+
+          <Text style={styles.welcomeTitle}>
+            {greetingName}님, 다음 여행을{'\n'}계획해 볼까요? ✈️
+          </Text>
+          <Text style={styles.welcomeSubtitle}>
+            SNS에서 본 핫플 링크를 핀치하면 최단 동선이 완성돼요!
+          </Text>
+        </View>
+
+        {/* Clipboard Toast Banner */}
         {detectedUrl && (
-          <View className="px-4 pt-3">
+          <View style={styles.clipboardBannerWrap}>
             <ClipboardToast
               url={detectedUrl}
               onPinch={() => handleExtract(detectedUrl)}
@@ -119,314 +140,190 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* 1. Quick Link Extractor Hero Card */}
-        <View className="p-4 mx-4 mt-3 bg-surface rounded-3xl border border-primary/20 shadow-sm">
-          <View className="flex-row items-center mb-2">
-            <View className="w-8 h-8 rounded-full bg-primary/15 items-center justify-center mr-2">
-              <LinkIcon size={16} color="#FF6B6B" />
+        {/* 2. Primary Action: Prominent "Quick Pinch" Link Input Bar */}
+        <View style={styles.quickPinchCard}>
+          <View style={styles.quickPinchHeader}>
+            <View style={styles.linkIconWrap}>
+              <LinkIcon size={15} color="#FF6B6B" />
             </View>
-            <Text className="text-base font-bold text-darkText">SNS 링크에서 핫플 핀치</Text>
-            <View className="ml-auto bg-secondary/20 px-2 py-0.5 rounded-md">
-              <Text className="text-[10px] font-bold text-teal-700">AI 스마트 파싱</Text>
+            <Text style={styles.quickPinchTitle}>Quick Pinch (링크로 장소 추가)</Text>
+            <View style={styles.aiBadge}>
+              <Text style={styles.aiBadgeText}>스마트 파싱</Text>
             </View>
           </View>
 
-          <Text className="text-xs text-mutedText mb-3 leading-4">
-            릴스, 유튜브 쇼츠, 블로그 링크를 넣으면 장소명과 위치를 자동 추출해요!
-          </Text>
-
-          <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-2xl p-2 mb-3">
+          <View style={styles.inputContainer}>
             <TextInput
               value={urlInput}
               onChangeText={setUrlInput}
-              placeholder="https://www.instagram.com/p/..."
-              placeholderTextColor="#A0AEC0"
-              className="flex-1 px-2 py-1 text-sm text-darkText"
+              placeholder="릴스/쇼츠/블로그 링크 붙여넣기"
+              placeholderTextColor="#9CA3AF"
+              style={styles.textInput}
               autoCapitalize="none"
               autoCorrect={false}
             />
-            {urlInput.length > 0 && (
-              <TouchableOpacity onPress={() => setUrlInput('')} className="px-2">
-                <Text className="text-xs text-gray-400 font-bold">✕</Text>
-              </TouchableOpacity>
-            )}
-          </View>
 
-          <Button
-            title={isExtracting ? 'AI 핫플 분석 중...' : '핫플 핀치하기'}
-            onPress={() => handleExtract()}
-            loading={isExtracting}
-            icon={<Sparkles size={16} color="#FFFFFF" />}
-            size="md"
-            className="w-full"
-          />
-        </View>
-
-        {/* 2. Active Trip Banner */}
-        <View className="px-4 mt-5">
-          <View className="flex-row items-center justify-between mb-2.5">
-            <Text className="text-base font-extrabold text-darkText">진행 중인 여행 ✈️</Text>
             <TouchableOpacity
-              onPress={() => setTripSwitcherVisible(true)}
-              className="flex-row items-center bg-primary/10 px-2.5 py-1 rounded-full border border-primary/20"
+              activeOpacity={0.8}
+              onPress={handlePasteClipboard}
+              style={styles.pasteBtn}
+              accessibilityLabel="클립보드 붙여넣기"
             >
-              <Text className="text-xs font-bold text-primary mr-1">여행 변경 / 추가</Text>
-              <ChevronRight size={13} color="#FF6B6B" />
+              <ClipboardPaste size={14} color="#6B7280" />
+              <Text style={styles.pasteBtnText}>붙여넣기</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => handleExtract()}
+              disabled={isExtracting}
+              style={[styles.pinchActionBtn, isExtracting && styles.btnDisabled]}
+            >
+              <Text style={styles.pinchActionBtnText}>
+                {isExtracting ? '분석 중...' : '핀치 🤏'}
+              </Text>
             </TouchableOpacity>
           </View>
-
-          {currentTrip && (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => router.push('/(tabs)/planner')}
-            >
-              <Card className="p-0 overflow-hidden">
-                {currentTrip.coverImage && (
-                  <View className="relative">
-                    <Image
-                      source={{ uri: currentTrip.coverImage }}
-                      className="w-full h-36"
-                      resizeMode="cover"
-                    />
-                    <View className="absolute top-3 left-3 bg-primary/95 px-2.5 py-1 rounded-full shadow-sm">
-                      <Text className="text-xs font-extrabold text-white">
-                        {calculateDDay(currentTrip.startDate)}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-
-                <View className="p-4">
-                  <View className="flex-row items-center justify-between mb-1">
-                    <Badge label={currentTrip.destination} variant="secondary" />
-                    <Text className="text-xs font-semibold text-mutedText">
-                      {currentTrip.startDate} ~ {currentTrip.endDate}
-                    </Text>
-                  </View>
-
-                  <Text className="text-lg font-extrabold text-darkText mb-1">
-                    {currentTrip.title}
-                  </Text>
-
-                  {/* Trip Progress readout */}
-                  <View className="flex-row items-center justify-between pt-3 border-t border-borderLine mt-2">
-                    <View className="flex-row items-center">
-                      <Bookmark size={13} color="#FF6B6B" />
-                      <Text className="text-xs font-bold text-darkText ml-1">
-                        저장 장소 {places.length}개
-                      </Text>
-                    </View>
-                    <View className="flex-row items-center">
-                      <MapPin size={13} color="#4ECDC4" />
-                      <Text className="text-xs font-bold text-darkText ml-1">
-                        계획 일정 {currentTripScheduleItems.length}개
-                      </Text>
-                    </View>
-                    <View className="flex-row items-center">
-                      <Users size={13} color="#8D99AE" />
-                      <Text className="text-xs font-bold text-mutedText ml-1">
-                        멤버 {currentTrip.members?.length || 3}명
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </Card>
-            </TouchableOpacity>
-          )}
         </View>
 
-        {/* 3. Today's Itinerary Quick Preview (Day 1) */}
-        {day1Stops.length > 0 && (
-          <View className="px-4 mt-5">
-            <View className="flex-row items-center justify-between mb-2.5">
-              <View className="flex-row items-center">
-                <Clock size={16} color="#FF6B6B" />
-                <Text className="text-base font-extrabold text-darkText ml-1.5">
-                  오늘의 추천 동선 (DAY 1)
-                </Text>
-              </View>
+        {/* 3. Active Trip Card */}
+        {currentTrip && (
+          <View style={styles.activeTripSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>진행 중인 여행 계획 🗺️</Text>
               <TouchableOpacity
-                onPress={() => router.push('/(tabs)/planner')}
-                className="flex-row items-center"
+                onPress={() => setTripSwitcherVisible(true)}
+                style={styles.tripSwitchPill}
               >
-                <Text className="text-xs font-bold text-primary">전체 동선</Text>
-                <ChevronRight size={14} color="#FF6B6B" />
+                <Text style={styles.tripSwitchPillText}>여행 변경</Text>
+                <ChevronRight size={12} color="#FF6B6B" />
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity
-              activeOpacity={0.85}
+              activeOpacity={0.9}
               onPress={() => router.push('/(tabs)/planner')}
+              style={styles.tripCard}
             >
-              <Card className="p-3.5 bg-surface">
-                <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-xs font-bold text-mutedText">
-                    DAY 1 일정 · 총 {day1Stops.length}개 스팟
+              <Image
+                source={{
+                  uri:
+                    currentTrip.coverImage ||
+                    'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&auto=format&fit=crop',
+                }}
+                style={styles.tripCoverImage}
+                resizeMode="cover"
+              />
+              <View style={styles.imageOverlay} />
+
+              {/* Floating D-Day Badge */}
+              <View style={styles.ddayBadge}>
+                <Text style={styles.ddayText}>{calculateDDay(currentTrip.startDate)}</Text>
+              </View>
+
+              {/* Card Bottom Details */}
+              <View style={styles.tripCardContent}>
+                <View style={styles.destinationRow}>
+                  <MapPin size={12} color="#FFFFFF" />
+                  <Text style={styles.destinationText}>{currentTrip.destination}</Text>
+                  <Calendar size={12} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                  <Text style={styles.dateText}>
+                    {currentTrip.startDate.slice(5).replace('-', '.')} ~{' '}
+                    {currentTrip.endDate.slice(5).replace('-', '.')}
                   </Text>
-                  <View className="bg-primary/10 px-2 py-0.5 rounded-md">
-                    <Text className="text-[10px] font-bold text-primary">동선 최적화됨</Text>
-                  </View>
                 </View>
 
-                {/* Horizontal Sequence Flow */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ alignItems: 'center', paddingVertical: 4 }}
-                >
-                  {day1Stops.map((stop, idx) => (
-                    <React.Fragment key={stop.id}>
-                      <View className="items-center bg-gray-50 p-2.5 rounded-2xl border border-gray-100 min-w-[100px]">
-                        <View className="w-5 h-5 rounded-full bg-primary items-center justify-center mb-1">
-                          <Text className="text-[10px] font-bold text-white">{stop.order_index}</Text>
-                        </View>
-                        <Text
-                          className="text-xs font-bold text-darkText text-center mb-0.5"
-                          numberOfLines={1}
-                        >
-                          {stop.place_name}
-                        </Text>
-                        <Text className="text-[10px] text-mutedText font-medium">
-                          {stop.arrival_time}
-                        </Text>
-                      </View>
+                <Text style={styles.tripTitleText} numberOfLines={1}>
+                  {currentTrip.title}
+                </Text>
 
-                      {idx < day1Stops.length - 1 && (
-                        <View className="px-2 items-center">
-                          <ArrowRight size={14} color="#FF6B6B" />
-                          <Text className="text-[9px] text-mutedText mt-0.5">이동</Text>
-                        </View>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </ScrollView>
-              </Card>
+                {/* Quick Stats Pill */}
+                <View style={styles.statsPillRow}>
+                  <View style={styles.statsPill}>
+                    <Bookmark size={11} color="#FF6B6B" />
+                    <Text style={styles.statsPillText}>저장 장소 {places.length}개</Text>
+                  </View>
+                  <View style={styles.statsPill}>
+                    <Map size={11} color="#34D399" />
+                    <Text style={styles.statsPillText}>
+                      Day 1~{dayScheduleCount} 동선 ({currentTripScheduleItems.length}스팟)
+                    </Text>
+                  </View>
+                </View>
+              </View>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* 4. Wallet Quick Glance */}
-        <View className="px-4 mt-5">
-          <View className="flex-row items-center justify-between mb-2.5">
-            <View className="flex-row items-center">
-              <Wallet size={16} color="#FF6B6B" />
-              <Text className="text-base font-extrabold text-darkText ml-1.5">
-                여행 가계부 현황 💳
-              </Text>
-            </View>
+        {/* 4. Action Shortcuts (2x2 Grid) */}
+        <View style={styles.shortcutsSection}>
+          <Text style={styles.sectionTitle}>빠른 메뉴</Text>
+
+          <View style={styles.gridContainer}>
+            {/* Shortcut 1: Places */}
             <TouchableOpacity
-              onPress={() => router.push('/(tabs)/wallet')}
-              className="flex-row items-center"
-            >
-              <Text className="text-xs font-bold text-primary">1/N 정산 보기</Text>
-              <ChevronRight size={14} color="#FF6B6B" />
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => router.push('/(tabs)/wallet')}
-          >
-            <Card className="p-4 bg-surface">
-              <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-xs font-bold text-mutedText">총 사용 금액</Text>
-                <Badge label={`예산의 ${budgetUsagePercent}% 소진`} variant="secondary" />
-              </View>
-
-              <View className="flex-row items-baseline mb-2.5">
-                <Text className="text-2xl font-extrabold text-darkText">
-                  {totalSpentKrw.toLocaleString()}
-                </Text>
-                <Text className="text-sm font-bold text-darkText ml-1">원</Text>
-                <Text className="text-xs text-mutedText ml-auto">
-                  목표 예산: {budget.toLocaleString()}원
-                </Text>
-              </View>
-
-              {/* Progress bar */}
-              <View className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mb-2">
-                <View
-                  className="h-full bg-primary rounded-full"
-                  style={{ width: `${budgetUsagePercent}%` }}
-                />
-              </View>
-
-              <View className="flex-row items-center justify-between pt-1">
-                <Text className="text-xs text-mutedText">
-                  남은 예산: {Math.max(budget - totalSpentKrw, 0).toLocaleString()}원
-                </Text>
-                <View className="flex-row items-center">
-                  <Coins size={12} color="#FF6B6B" />
-                  <Text className="text-xs font-bold text-primary ml-1">이중 통화 지원</Text>
-                </View>
-              </View>
-            </Card>
-          </TouchableOpacity>
-        </View>
-
-        {/* 5. Pinned Pocket Preview */}
-        <View className="px-4 mt-5">
-          <View className="flex-row items-center justify-between mb-2.5">
-            <View className="flex-row items-center">
-              <Bookmark size={16} color="#FF6B6B" fill="#FF6B6B" />
-              <Text className="text-base font-extrabold text-darkText ml-1.5">
-                내 보관함 핫플 🔥
-              </Text>
-            </View>
-            <TouchableOpacity
+              activeOpacity={0.8}
               onPress={() => router.push('/(tabs)/places')}
-              className="flex-row items-center"
+              style={styles.gridItem}
             >
-              <Text className="text-xs font-bold text-primary">전체 {places.length}개</Text>
-              <ChevronRight size={14} color="#FF6B6B" />
+              <View style={[styles.gridIconWrap, { backgroundColor: 'rgba(255, 107, 107, 0.12)' }]}>
+                <Bookmark size={20} color="#FF6B6B" fill="#FF6B6B" />
+              </View>
+              <Text style={styles.gridTitle}>장소 보관함</Text>
+              <Text style={styles.gridSubtitle}>인스타/블로그에서 핀치한 곳</Text>
+              <View style={styles.gridArrow}>
+                <ArrowRight size={13} color="#9CA3AF" />
+              </View>
+            </TouchableOpacity>
+
+            {/* Shortcut 2: Planner */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/(tabs)/planner')}
+              style={styles.gridItem}
+            >
+              <View style={[styles.gridIconWrap, { backgroundColor: 'rgba(78, 205, 196, 0.15)' }]}>
+                <Map size={20} color="#2A9D8F" />
+              </View>
+              <Text style={styles.gridTitle}>동선 플래너</Text>
+              <Text style={styles.gridSubtitle}>날짜별 지도 & 시간표 짜기</Text>
+              <View style={styles.gridArrow}>
+                <ArrowRight size={13} color="#9CA3AF" />
+              </View>
+            </TouchableOpacity>
+
+            {/* Shortcut 3: Budget / Wallet */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/(tabs)/wallet')}
+              style={styles.gridItem}
+            >
+              <View style={[styles.gridIconWrap, { backgroundColor: 'rgba(255, 159, 28, 0.15)' }]}>
+                <Wallet size={20} color="#F77F00" />
+              </View>
+              <Text style={styles.gridTitle}>여행 예산서</Text>
+              <Text style={styles.gridSubtitle}>예상 경비 & 1/N 정산 보기</Text>
+              <View style={styles.gridArrow}>
+                <ArrowRight size={13} color="#9CA3AF" />
+              </View>
+            </TouchableOpacity>
+
+            {/* Shortcut 4: Invite Companion */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleInviteCompanion}
+              style={styles.gridItem}
+            >
+              <View style={[styles.gridIconWrap, { backgroundColor: 'rgba(162, 155, 254, 0.18)' }]}>
+                <Users size={20} color="#6C5CE7" />
+              </View>
+              <Text style={styles.gridTitle}>동행자 초대</Text>
+              <Text style={styles.gridSubtitle}>친구와 함께 링크 모으기</Text>
+              <View style={styles.gridArrow}>
+                <ArrowRight size={13} color="#9CA3AF" />
+              </View>
             </TouchableOpacity>
           </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="-mx-4 px-4"
-          >
-            {places.slice(0, 5).map((place) => (
-              <TouchableOpacity
-                key={place.id}
-                activeOpacity={0.8}
-                onPress={() => router.push('/(tabs)/places')}
-                className="w-44 mr-3 bg-surface rounded-2xl border border-borderLine p-2.5 shadow-sm"
-              >
-                {place.imageUrl && (
-                  <Image
-                    source={{ uri: place.imageUrl }}
-                    className="w-full h-24 rounded-xl mb-2"
-                    resizeMode="cover"
-                  />
-                )}
-                <View className="flex-row items-center mb-1">
-                  <Badge
-                    label={
-                      place.category === 'CAFE' || place.category === 'cafe'
-                        ? '☕ 카페'
-                        : place.category === 'RESTAURANT' || place.category === 'restaurant'
-                        ? '🍴 맛집'
-                        : '📸 명소'
-                    }
-                    variant="primary"
-                  />
-                  {place.rating && (
-                    <Text className="text-[10px] font-bold text-amber-500 ml-auto">
-                      ★ {place.rating}
-                    </Text>
-                  )}
-                </View>
-                <Text className="text-xs font-bold text-darkText mb-0.5" numberOfLines={1}>
-                  {place.name}
-                </Text>
-                <Text className="text-[10px] text-mutedText" numberOfLines={1}>
-                  {place.address}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
         </View>
       </ScrollView>
 
@@ -438,3 +335,313 @@ export default function HomeScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 48,
+  },
+  topHeader: {
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  pinchLogoBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 107, 107, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.25)',
+  },
+  brandBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  brandBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FF6B6B',
+    marginLeft: 3,
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#0F172A',
+    lineHeight: 32,
+    letterSpacing: -0.5,
+    marginBottom: 6,
+  },
+  welcomeSubtitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+    lineHeight: 18,
+  },
+  clipboardBannerWrap: {
+    marginBottom: 16,
+  },
+  quickPinchCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 107, 107, 0.3)',
+    elevation: 3,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+  },
+  quickPinchHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  linkIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 107, 107, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  quickPinchTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1E293B',
+    flex: 1,
+  },
+  aiBadge: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  aiBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
+    paddingVertical: 4,
+  },
+  pasteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
+    marginRight: 6,
+  },
+  pasteBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+    marginLeft: 3,
+  },
+  pinchActionBtn: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+  },
+  btnDisabled: {
+    opacity: 0.6,
+  },
+  pinchActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  activeTripSection: {
+    marginBottom: 24,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  tripSwitchPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 107, 107, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  tripSwitchPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF6B6B',
+    marginRight: 2,
+  },
+  tripCard: {
+    height: 170,
+    borderRadius: 24,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#1E293B',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+  },
+  tripCoverImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+  },
+  ddayBadge: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  ddayText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  tripCardContent: {
+    position: 'absolute',
+    bottom: 14,
+    left: 14,
+    right: 14,
+  },
+  destinationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  destinationText: {
+    color: '#E2E8F0',
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 3,
+  },
+  dateText: {
+    color: '#CBD5E1',
+    fontSize: 11,
+    fontWeight: '600',
+    marginLeft: 3,
+  },
+  tripTitleText: {
+    color: '#FFFFFF',
+    fontSize: 19,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  statsPillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 10,
+  },
+  statsPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#1E293B',
+    marginLeft: 4,
+  },
+  shortcutsSection: {
+    marginBottom: 10,
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 12,
+  },
+  gridItem: {
+    width: '48%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    position: 'relative',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+  },
+  gridIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  gridTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  gridSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+    lineHeight: 15,
+  },
+  gridArrow: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+  },
+});

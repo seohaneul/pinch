@@ -18,7 +18,9 @@ import { useTripStore } from '../../src/store/useTripStore';
 import { usePlaceStore } from '../../src/store/usePlaceStore';
 import { useWalletStore } from '../../src/store/useWalletStore';
 import { TripMapView } from '../../src/components/planner/TripMapView';
-import { TransportMode, calculateDistance } from '../../src/utils/routeUtils';
+import { OptimizeConfirmModal } from '../../src/components/planner/OptimizeConfirmModal';
+import { AddSpotModal } from '../../src/components/planner/AddSpotModal';
+import { TransportMode, calculateDistance, formatTravelSummary } from '../../src/utils/geoUtils';
 import {
   CurrencyCode,
   WalletCategory,
@@ -88,6 +90,12 @@ export default function PlannerScreen() {
   const [expenseSplitMembers, setExpenseSplitMembers] = useState<string[]>(tripMembers.map((m) => m.id));
   const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
 
+  // Map & Optimization & Spot Picker States
+  const [isMapExpanded, setIsMapExpanded] = useState(false);
+  const [activeStopIndex, setActiveStopIndex] = useState(0);
+  const [optimizeModalVisible, setOptimizeModalVisible] = useState(false);
+  const [addSpotModalVisible, setAddSpotModalVisible] = useState(false);
+
   // Get current day's sorted schedule items (filtered by active trip)
   const dayStops = scheduleItems
     .filter((s) => s.day_number === selectedDay && (!s.trip_id || s.trip_id === currentTrip?.id))
@@ -153,14 +161,13 @@ export default function PlannerScreen() {
       Alert.alert('알림', '최적화를 위해 최소 2개 이상의 장소가 필요합니다.');
       return;
     }
-    optimizeDayRoute(selectedDay);
-    Alert.alert('최적화 완료! ✨', '최단 이동 거리 순으로 동선이 자동 배치되었습니다.');
+    setOptimizeModalVisible(true);
   };
 
-  const handleAddRandomPlace = () => {
-    if (places.length === 0) return;
-    const randomPlace = places[Math.floor(Math.random() * places.length)];
-    addPlaceToSchedule(selectedDay, randomPlace);
+  const handleConfirmOptimization = () => {
+    optimizeDayRoute(selectedDay);
+    setOptimizeModalVisible(false);
+    Alert.alert('최적 동선 적용 완료! ✨', '최단 이동 거리 순으로 동선이 자동 재배치되었습니다.');
   };
 
   // Show a simple loading placeholder during Zustand hydration
@@ -211,7 +218,14 @@ export default function PlannerScreen() {
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 36 }}>
         {/* Top Interactive Map Section */}
         <View className="p-4">
-          <TripMapView stops={dayStops} selectedDay={selectedDay} />
+          <TripMapView
+            stops={dayStops}
+            selectedDay={selectedDay}
+            isExpanded={isMapExpanded}
+            onToggleExpand={() => setIsMapExpanded(!isMapExpanded)}
+            activeStopIndex={activeStopIndex}
+            onSelectStopIndex={setActiveStopIndex}
+          />
         </View>
 
         {/* Day Selector Tabs — using style props (not className) to avoid NativeWind + gesture handler conflict in nested ScrollViews */}
@@ -426,7 +440,7 @@ export default function PlannerScreen() {
                           >
                             <Navigation size={13} color="#3BB3AA" className="mr-1.5" />
                             <Text className="text-xs font-bold color-secondary-dark">
-                              이동 {nextStop.travel_duration_minutes}분 · {nextDist}km
+                              {formatTravelSummary(nextDist, nextStop.transport_mode, nextStop.travel_duration_minutes)}
                             </Text>
                             <Text className="text-[10px] font-bold text-emerald-700 ml-1 bg-emerald-100/60 px-1.5 py-0.5 rounded">
                               길찾기 ↗
@@ -477,16 +491,26 @@ export default function PlannerScreen() {
                   </React.Fragment>
                 );
               })}
+
+              {/* Direct Add Spot Button (Req [6]) */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setAddSpotModalVisible(true)}
+                className="mt-3 flex-row items-center justify-center bg-primary/10 border border-primary/25 rounded-2xl py-3.5"
+              >
+                <Plus size={16} color="#FF6B6B" className="mr-1.5" />
+                <Text className="text-sm font-extrabold text-primary">+ 스팟 추가하기</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <EmptyState
               icon={<MapPin size={28} color="#FF6B6B" />}
               title={`DAY ${selectedDay} 동선이 비어있습니다`}
-              description="보관함에서 핫플을 추가하거나 스팟 추가 버튼을 눌러 일정을 채워보세요."
+              description="보관함에서 핫플을 추가하거나 새 장소를 직접 등록해보세요."
               actionButton={
                 <Button
-                  title="스팟 추가하기"
-                  onPress={handleAddRandomPlace}
+                  title="+ 스팟 추가하기"
+                  onPress={() => setAddSpotModalVisible(true)}
                   size="sm"
                   icon={<Plus size={14} color="#FFF" />}
                 />
@@ -639,6 +663,24 @@ export default function PlannerScreen() {
       <TripSwitcherModal
         visible={tripSwitcherVisible}
         onClose={() => setTripSwitcherVisible(false)}
+      />
+
+      {/* Optimize Route Confirmation Modal (Req [3]) */}
+      <OptimizeConfirmModal
+        visible={optimizeModalVisible}
+        onClose={() => setOptimizeModalVisible(false)}
+        onConfirm={handleConfirmOptimization}
+        dayStops={dayStops}
+        dayNumber={selectedDay}
+      />
+
+      {/* Direct Add Spot Modal (Req [6]) */}
+      <AddSpotModal
+        visible={addSpotModalVisible}
+        onClose={() => setAddSpotModalVisible(false)}
+        dayNumber={selectedDay}
+        existingPlaceIds={dayStops.map((s) => s.place_id)}
+        onSelectPlace={(place) => addPlaceToSchedule(selectedDay, place)}
       />
     </View>
   );

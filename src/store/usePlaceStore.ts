@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,10 +17,11 @@ interface PlaceState {
   // Actions
   setCategory: (category: CategoryFilter) => void;
   setSearchQuery: (query: string) => void;
-  addPlace: (place: Place) => void;
+  addPlace: (place: Place) => boolean;
   removePlace: (id: string) => void;
   togglePin: (id: string) => void;
   extractFromUrl: (url: string) => Promise<Place | null>;
+  checkIsDuplicate: (name: string, url?: string) => Place | null;
   resetToDefaults: () => void;
 }
 
@@ -102,10 +104,33 @@ export const usePlaceStore = create<PlaceState>()(
       setCategory: (category) => set({ selectedCategory: category }),
       setSearchQuery: (query) => set({ searchQuery: query }),
 
+      checkIsDuplicate: (name: string, url?: string) => {
+        const currentPlaces = get().places;
+        const normalizedName = name.trim().toLowerCase();
+        const normalizedUrl = url ? url.trim().toLowerCase() : '';
+
+        return (
+          currentPlaces.find((p) => {
+            const sameName = p.name.trim().toLowerCase() === normalizedName;
+            const sameUrl = Boolean(
+              normalizedUrl && p.snsUrl && p.snsUrl.trim().toLowerCase() === normalizedUrl
+            );
+            return sameName || sameUrl;
+          }) || null
+        );
+      },
+
       addPlace: (place) => {
+        const duplicate = get().checkIsDuplicate(place.name, place.snsUrl);
+        if (duplicate) {
+          Alert.alert('이미 보관된 장소 📌', '이미 보관함에 핀치된 장소예요!');
+          return false;
+        }
+
         set((state) => ({
           places: [place, ...state.places],
         }));
+        return true;
       },
 
       removePlace: (id) => {
@@ -125,7 +150,23 @@ export const usePlaceStore = create<PlaceState>()(
       extractFromUrl: async (url) => {
         set({ isParsing: true, isExtracting: true });
         try {
+          const duplicate = get().checkIsDuplicate('', url);
+          if (duplicate) {
+            set({ isParsing: false, isExtracting: false });
+            Alert.alert('이미 보관된 장소 📌', '이미 보관함에 핀치된 장소예요!');
+            return null;
+          }
+
           const newPlace = await parseSnsUrl(url);
+
+          // Check again with parsed name
+          const duplicateByName = get().checkIsDuplicate(newPlace.name, newPlace.snsUrl);
+          if (duplicateByName) {
+            set({ isParsing: false, isExtracting: false });
+            Alert.alert('이미 보관된 장소 📌', '이미 보관함에 핀치된 장소예요!');
+            return null;
+          }
+
           set((state) => ({
             places: [newPlace, ...state.places],
             isParsing: false,

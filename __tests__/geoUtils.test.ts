@@ -5,6 +5,7 @@ import {
   estimateTravelTime,
   formatMinutesToTime,
   solveTSPNearestNeighbor,
+  formatTravelSummary,
 } from '../src/utils/routeUtils';
 
 describe('Geo & Routing Utils (FN-PLN)', () => {
@@ -29,33 +30,41 @@ describe('Geo & Routing Utils (FN-PLN)', () => {
     });
   });
 
-  describe('estimateTravelTime', () => {
+  describe('estimateTravelTime & formatTravelSummary (Req [7] Calibrated Travel Model)', () => {
     it('returns 0 if distance is 0 or negative', () => {
       assert.strictEqual(estimateTravelTime(0, 'WALK'), 0);
       assert.strictEqual(estimateTravelTime(-5, 'DRIVE'), 0);
     });
 
-    it('calculates walking time with ~4.5 km/h speed and buffer', () => {
-      // 1.5 km walk: ceil(1.5 / 4.5 * 60) = ceil(20) = 20 + 2 = 22 mins
-      const time = estimateTravelTime(1.5, 'WALK');
+    it('calculates walking time with calibrated 4.2 km/h speed and 2 min intersection buffer', () => {
+      // 1.4 km walk: ceil(1.4 / 4.2 * 60) = 20 + 2 = 22 mins
+      const time = estimateTravelTime(1.4, 'WALK');
       assert.strictEqual(time, 22);
     });
 
-    it('calculates transit time with ~22 km/h speed and waiting buffer', () => {
-      // 5.5 km transit: ceil(5.5 / 22 * 60) = ceil(15) = 15 + 7 = 22 mins
+    it('calculates transit time with calibrated 22 km/h speed and 6 min transfer overhead', () => {
+      // 5.5 km transit: ceil(5.5 / 22 * 60) = 15 + 6 = 21 mins
       const time = estimateTravelTime(5.5, 'TRANSIT');
-      assert.strictEqual(time, 22);
+      assert.strictEqual(time, 21);
     });
 
-    it('calculates driving time with ~35 km/h speed and traffic buffer', () => {
-      // 7.0 km drive: ceil(7.0 / 35 * 60) = ceil(12) = 12 + 4 = 16 mins
-      const time = estimateTravelTime(7.0, 'DRIVE');
-      assert.strictEqual(time, 16);
+    it('calculates driving time with calibrated 25 km/h speed and 3 min boarding buffer', () => {
+      // 5.0 km drive: ceil(5.0 / 25 * 60) = 12 + 3 = 15 mins
+      const time = estimateTravelTime(5.0, 'DRIVE');
+      assert.strictEqual(time, 15);
     });
 
-    it('enforces a minimum travel time of 3 minutes for very short distances', () => {
+    it('enforces a minimum travel time of at least 2 minutes', () => {
       const time = estimateTravelTime(0.01, 'WALK');
-      assert.ok(time >= 3, `Expected >= 3 min, got ${time}`);
+      assert.ok(time >= 2, `Expected >= 2 min, got ${time}`);
+    });
+
+    it('formatTravelSummary returns accurate formatted summary string', () => {
+      const walkSummary = formatTravelSummary(0.75, 'WALK', 12);
+      assert.strictEqual(walkSummary, '도보 12분 (750m)');
+
+      const transitSummary = formatTravelSummary(4.2, 'TRANSIT', 24);
+      assert.strictEqual(transitSummary, '대중교통 24분 (4.2km)');
     });
   });
 

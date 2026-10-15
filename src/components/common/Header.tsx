@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin, Sparkles } from 'lucide-react-native';
 
 interface HeaderProps {
@@ -15,8 +16,14 @@ export const Header: React.FC<HeaderProps> = ({
   rightAction,
   showLogo = true,
 }) => {
+  const insets = useSafeAreaInsets();
+  const topPadding = Math.max(insets.top, 12) + 6;
+
   return (
-    <View className="px-5 pt-3 pb-4 bg-surface border-b border-borderLine flex-row items-center justify-between">
+    <View
+      style={{ paddingTop: topPadding }}
+      className="px-5 pb-4 bg-surface border-b border-borderLine flex-row items-center justify-between"
+    >
       <View className="flex-row items-center flex-1">
         {showLogo && (
           <View className="w-10 h-10 rounded-2xl bg-primary/10 items-center justify-center mr-3 border border-primary/20">

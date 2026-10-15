@@ -2,15 +2,34 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { WebView } from 'react-native-webview';
 import type { ScheduleItem } from '../../types';
-import { Sparkles, Navigation } from 'lucide-react-native';
+import {
+  Sparkles,
+  Navigation,
+  Maximize2,
+  Minimize2,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+} from 'lucide-react-native';
 import { openInGoogleMaps, openMultiStopRouteInGoogleMaps } from '../../utils/mapUtils';
 
 interface TripMapViewProps {
   stops: ScheduleItem[];
   selectedDay: number;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
+  activeStopIndex?: number;
+  onSelectStopIndex?: (index: number) => void;
 }
 
-export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) => {
+export const TripMapView: React.FC<TripMapViewProps> = ({
+  stops,
+  selectedDay,
+  isExpanded = false,
+  onToggleExpand,
+  activeStopIndex = 0,
+  onSelectStopIndex,
+}) => {
   // Center coordinates calculation
   const { defaultLat, defaultLng } = useMemo(() => {
     if (stops.length > 0) {
@@ -24,8 +43,9 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
 
   // Clean data for Leaflet injection
   const stopsData = useMemo(() => {
-    return stops.map((s) => ({
+    return stops.map((s, idx) => ({
       id: s.id,
+      index: idx,
       order_index: s.order_index,
       place_name: s.place_name,
       arrival_time: s.arrival_time,
@@ -41,7 +61,7 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
 <html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
@@ -62,6 +82,11 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
       border: 2.5px solid #FFFFFF;
       box-shadow: 0 4px 10px rgba(0,0,0,0.35);
       cursor: pointer;
+    }
+    .custom-pin.active {
+      background-color: #059669;
+      transform: scale(1.15);
+      z-index: 9999 !important;
     }
     .leaflet-popup-content-wrapper {
       border-radius: 14px;
@@ -98,7 +123,7 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
     }
     .leaflet-control-attribution {
       font-size: 8px !important;
-      background: rgba(255,255,255,0.7) !important;
+      opacity: 0.7;
     }
   </style>
 </head>
@@ -106,96 +131,120 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
   <div id="map"></div>
   <script>
     var stops = ${JSON.stringify(stopsData)};
-    var defaultCenter = [${defaultLat}, ${defaultLng}];
-    
+    var defaultLat = ${defaultLat};
+    var defaultLng = ${defaultLng};
+    var activeIdx = ${activeStopIndex};
+
     var map = L.map('map', {
-      zoomControl: false,
+      center: [defaultLat, defaultLng],
+      zoom: 14,
+      zoomControl: true,
       attributionControl: true
-    }).setView(defaultCenter, 14);
-
-    // Official Google Maps Tile Stream (Loads directly with crisp roads, buildings and subway lines)
-    var googleTiles = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-      maxZoom: 20,
-      subdomains: ['0', '1', '2', '3'],
-      attribution: '© Google Maps'
-    }).addTo(map);
-
-    // Fallback to CartoDB Voyager if Google fails
-    googleTiles.on('tileerror', function() {
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        subdomains: 'abcd',
-        attribution: '© OpenStreetMap, © CARTO'
-      }).addTo(map);
     });
 
-    if (stops && stops.length > 0) {
-      var latlngs = [];
-      stops.forEach(function(s) {
-        var pos = [Number(s.latitude), Number(s.longitude)];
-        latlngs.push(pos);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      subdomains: 'abcd',
+      attribution: '&copy; CartoDB &copy; OpenStreetMap'
+    }).addTo(map);
 
-        var customIcon = L.divIcon({
-          className: '',
-          html: '<div class="custom-pin">' + s.order_index + '</div>',
-          iconSize: [32, 32],
-          iconAnchor: [16, 16],
-          popupAnchor: [0, -18]
-        });
+    var markers = [];
+    var latlngs = [];
 
-        var escapedName = (s.place_name || '').replace(/'/g, "\\\\'");
-        var popupHtml = '<div class="popup-box">' +
-          '<div class="popup-title">' + s.order_index + '. ' + s.place_name + '</div>' +
-          '<div class="popup-time">도착: ' + s.arrival_time + '</div>' +
-          '<div class="popup-btn" onclick="window.ReactNativeWebView.postMessage(JSON.stringify({type:\\'NAVIGATE\\', placeName:\\'' + escapedName + '\\', lat:' + s.latitude + ', lng:' + s.longitude + '}))">구글 지도 길찾기 ↗</div>' +
-          '</div>';
+    stops.forEach(function(stop, idx) {
+      latlngs.push([stop.latitude, stop.longitude]);
 
-        L.marker(pos, { icon: customIcon }).addTo(map).bindPopup(popupHtml);
+      var isActive = idx === activeIdx;
+      var pinHtml = '<div class="custom-pin' + (isActive ? ' active' : '') + '">' + stop.order_index + '</div>';
+
+      var customIcon = L.divIcon({
+        className: 'leaflet-custom-div',
+        html: pinHtml,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -18]
       });
 
-      // Draw polyline connecting all day stops directly ON the map
-      if (latlngs.length > 1) {
-        L.polyline(latlngs, {
-          color: '#FF6B6B',
-          weight: 4,
-          opacity: 0.9,
-          lineJoin: 'round'
-        }).addTo(map);
-      }
+      var marker = L.marker([stop.latitude, stop.longitude], { icon: customIcon }).addTo(map);
 
-      // Auto-fit bounds with comfortable padding so all markers are visible
-      if (latlngs.length === 1) {
-        map.setView(latlngs[0], 15);
-      } else {
-        map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 16 });
-      }
+      var popupHtml =
+        '<div class="popup-box">' +
+          '<div class="popup-title">#' + stop.order_index + ' ' + stop.place_name + '</div>' +
+          '<div class="popup-time">' + (stop.arrival_time ? '도착 ' + stop.arrival_time : '') + '</div>' +
+          '<a href="javascript:void(0)" class="popup-btn" onclick="sendNavMessage(' + stop.latitude + ',' + stop.longitude + ',\\'' + encodeURIComponent(stop.place_name) + '\\')">길찾기 ↗</a>' +
+        '</div>';
+
+      marker.bindPopup(popupHtml);
+      marker.on('click', function() {
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SELECT_STOP', index: idx }));
+        }
+      });
+      markers.push(marker);
+    });
+
+    if (latlngs.length > 1) {
+      var polyline = L.polyline(latlngs, {
+        color: '#FF6B6B',
+        weight: 4,
+        opacity: 0.85,
+        dashArray: '8, 8',
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(map);
+
+      var bounds = L.latLngBounds(latlngs);
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+    } else if (latlngs.length === 1) {
+      map.setView(latlngs[0], 15);
     }
 
-    // Invalidate size on layout render to ensure tiles always calculate and download
-    setTimeout(function() { map.invalidateSize(true); }, 150);
-    setTimeout(function() { map.invalidateSize(true); }, 450);
-    window.addEventListener('load', function() { map.invalidateSize(true); });
-    window.addEventListener('resize', function() { map.invalidateSize(true); });
+    function sendNavMessage(lat, lng, name) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'NAVIGATE',
+          lat: lat,
+          lng: lng,
+          placeName: decodeURIComponent(name)
+        }));
+      }
+    }
   </script>
 </body>
 </html>
     `;
-  }, [stopsData, defaultLat, defaultLng]);
+  }, [stopsData, defaultLat, defaultLng, activeStopIndex]);
 
-  // Handle messages sent from inside the WebView (e.g. clicking popup button)
+  // Handle messages sent from inside WebView
   const handleWebViewMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'NAVIGATE') {
         openInGoogleMaps(data.placeName, data.lat, data.lng);
+      } else if (data.type === 'SELECT_STOP' && onSelectStopIndex) {
+        onSelectStopIndex(data.index);
       }
     } catch (e) {
       // Ignore
     }
   };
 
+  const currentActiveStop = stops[activeStopIndex] || stops[0];
+
+  const handlePrevStop = () => {
+    if (activeStopIndex > 0 && onSelectStopIndex) {
+      onSelectStopIndex(activeStopIndex - 1);
+    }
+  };
+
+  const handleNextStop = () => {
+    if (activeStopIndex < stops.length - 1 && onSelectStopIndex) {
+      onSelectStopIndex(activeStopIndex + 1);
+    }
+  };
+
   return (
-    <View style={styles.mapContainer}>
+    <View style={[styles.mapContainer, isExpanded ? styles.mapExpanded : styles.mapNormal]}>
       <WebView
         originWhitelist={['*']}
         source={{ html: mapHtml, baseUrl: 'https://www.google.com' }}
@@ -205,23 +254,84 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
         cacheEnabled={true}
         mixedContentMode="always"
         onMessage={handleWebViewMessage}
-        scrollEnabled={false}
+        scrollEnabled={isExpanded}
         overScrollMode="never"
-        androidHardwareAccelerationDisabled={false}
       />
 
-      {/* Top Floating Badge */}
+      {/* Top Floating Badge & Expand Button */}
       <View style={styles.overlayHeader} pointerEvents="box-none">
         <View style={styles.overlayBadge}>
           <Sparkles size={13} color="#FF6B6B" />
           <Text style={styles.overlayText}>
-            DAY {selectedDay} 실시간 동선 지도 ({stops.length}개 스팟)
+            DAY {selectedDay} 실시간 동선 ({stops.length}스팟)
           </Text>
         </View>
+
+        {onToggleExpand && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={onToggleExpand}
+            style={styles.expandButton}
+            accessibilityLabel={isExpanded ? '지도 축소' : '지도 전체화면 확대'}
+          >
+            {isExpanded ? (
+              <Minimize2 size={16} color="#1E293B" />
+            ) : (
+              <Maximize2 size={16} color="#1E293B" />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
+      {/* Expanded View: Floating Stop Navigation Pills */}
+      {isExpanded && stops.length > 0 && currentActiveStop && (
+        <View style={styles.floatingNavPillContainer} pointerEvents="box-none">
+          <View style={styles.floatingNavPill}>
+            <TouchableOpacity
+              onPress={handlePrevStop}
+              disabled={activeStopIndex <= 0}
+              style={[styles.navArrowBtn, activeStopIndex <= 0 && styles.navBtnDisabled]}
+            >
+              <ChevronLeft size={16} color={activeStopIndex <= 0 ? '#CBD5E1' : '#1E293B'} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.navStopInfo}
+              onPress={() =>
+                openInGoogleMaps(
+                  currentActiveStop.place_name,
+                  currentActiveStop.latitude,
+                  currentActiveStop.longitude
+                )
+              }
+            >
+              <View style={styles.navIndexCircle}>
+                <Text style={styles.navIndexText}>{currentActiveStop.order_index}</Text>
+              </View>
+              <Text style={styles.navPlaceName} numberOfLines={1}>
+                {currentActiveStop.place_name}
+              </Text>
+              <Text style={styles.navTimeText}>
+                {currentActiveStop.arrival_time ? ` · ${currentActiveStop.arrival_time}` : ''}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleNextStop}
+              disabled={activeStopIndex >= stops.length - 1}
+              style={[styles.navArrowBtn, activeStopIndex >= stops.length - 1 && styles.navBtnDisabled]}
+            >
+              <ChevronRight
+                size={16}
+                color={activeStopIndex >= stops.length - 1 ? '#CBD5E1' : '#1E293B'}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Quick Google Maps App Launcher */}
-      {stops.length > 0 && (
+      {stops.length > 0 && !isExpanded && (
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => openMultiStopRouteInGoogleMaps(stops)}
@@ -238,23 +348,28 @@ export const TripMapView: React.FC<TripMapViewProps> = ({ stops, selectedDay }) 
 
 const styles = StyleSheet.create({
   mapContainer: {
-    height: 240,
     width: '100%',
-    borderRadius: 22,
+    borderRadius: 24,
     backgroundColor: '#E2E8F0',
     position: 'relative',
     overflow: 'hidden',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 10,
       },
       android: {
-        elevation: 3,
+        elevation: 4,
       },
     }),
+  },
+  mapNormal: {
+    height: 250,
+  },
+  mapExpanded: {
+    height: 520,
   },
   webview: {
     flex: 1,
@@ -262,13 +377,13 @@ const styles = StyleSheet.create({
   },
   overlayHeader: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
+    top: 12,
+    left: 12,
+    right: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    zIndex: 20,
+    zIndex: 30,
   },
   overlayBadge: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -277,17 +392,96 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    elevation: 2,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 3,
   },
   overlayText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#2B2D42',
+    fontWeight: '800',
+    color: '#1E293B',
     marginLeft: 6,
+  },
+  expandButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  floatingNavPillContainer: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+    alignItems: 'center',
+    zIndex: 30,
+  },
+  floatingNavPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.97)',
+    borderRadius: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    maxWidth: '96%',
+  },
+  navArrowBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navBtnDisabled: {
+    opacity: 0.4,
+  },
+  navStopInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    flexShrink: 1,
+  },
+  navIndexCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FF6B6B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  navIndexText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  navPlaceName: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1E293B',
+    maxWidth: 140,
+  },
+  navTimeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#059669',
   },
   googleMapsButton: {
     position: 'absolute',
