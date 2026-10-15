@@ -9,6 +9,7 @@ import {
   Keyboard,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Sparkles, X, Mail, Lock, User as UserIcon, ArrowRight } from 'lucide-react-native';
 
@@ -18,6 +19,7 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,8 +54,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
   return (
     <Modal visible={visible} transparent animationType="slide">
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.overlay}>
-          <View style={styles.sheet}>
+        <View style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}>
+          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerLeft}>

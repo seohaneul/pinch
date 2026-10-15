@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   TouchableWithoutFeedback,
   Keyboard,
-} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { Button } from '../common/Button';
 import { Sparkles, Link as LinkIcon, X, Clipboard as ClipboardIcon } from 'lucide-react-native';
@@ -26,6 +26,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
   onExtract,
   loading,
 }) => {
+  const insets = useSafeAreaInsets();
   const [urlInput, setUrlInput] = useState('');
 
   const handlePasteClipboard = async () => {
@@ -47,8 +48,11 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
   return (
     <Modal visible={visible} transparent animationType="slide">
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View className="flex-1 bg-black/60 justify-end">
-          <View className="bg-surface rounded-t-3xl p-5 border-t border-borderLine">
+        <View className="flex-1 bg-black/40 justify-end">
+          <View
+            className="w-full bg-surface rounded-t-3xl p-5 border-t border-borderLine"
+            style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+          >
             <View className="flex-row items-center justify-between mb-4">
               <View className="flex-row items-center">
                 <View className="w-9 h-9 rounded-2xl bg-primary/10 items-center justify-center mr-2 border border-primary/20">

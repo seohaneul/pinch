@@ -19,6 +19,8 @@ import { AddPlaceModal } from '../../src/components/places/AddPlaceModal';
 import { useTripStore } from '../../src/store/useTripStore';
 import type { Place } from '../../src/types';
 import { openInGoogleMaps } from '../../src/utils/mapUtils';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import {
   Search,
   Bookmark,
@@ -32,6 +34,7 @@ import {
   X,
   Check,
   Navigation,
+  ChevronDown,
 } from 'lucide-react-native';
 
 const CATEGORIES: { label: string; value: CategoryFilter }[] = [
@@ -44,6 +47,7 @@ const CATEGORIES: { label: string; value: CategoryFilter }[] = [
 ];
 
 export default function PlacesScreen() {
+  const insets = useSafeAreaInsets();
   const {
     places,
     selectedCategory,
@@ -60,6 +64,7 @@ export default function PlacesScreen() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [plannerModalVisible, setPlannerModalVisible] = useState(false);
+  const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
   const [selectedPlaceForPlanner, setSelectedPlaceForPlanner] = useState<Place | null>(null);
   const [targetDay, setTargetDay] = useState<number>(1);
   const { detectedUrl, dismissDetectedUrl } = useClipboardListener();
@@ -82,7 +87,7 @@ export default function PlacesScreen() {
   };
 
   const handleExtractUrl = async (url: string) => {
-    const newPlace = await extractFromUrl(url);
+    const newPlace = await extractFromUrl(url, currentTrip?.id);
     if (newPlace) {
       Alert.alert('핀치 성공! 🎉', `"${newPlace.name}" 장소가 보관함에 추가되었습니다.`);
       dismissDetectedUrl();
@@ -91,7 +96,12 @@ export default function PlacesScreen() {
     }
   };
 
-  const filteredPlaces = places.filter((place) => {
+  // Trip-scoped places: only show places belonging to current trip (or unassigned for backwards compatibility)
+  const tripPlaces = places.filter(
+    (place) => !place.trip_id || place.trip_id === currentTrip?.id
+  );
+
+  const filteredPlaces = tripPlaces.filter((place) => {
     const matchesCategory =
       selectedCategory === 'ALL' ||
       place.category === selectedCategory ||
@@ -132,7 +142,7 @@ export default function PlacesScreen() {
     <View className="flex-1 bg-background">
       <Header
         title="장소 보관함 📌"
-        subtitle={`수집한 핫플 총 ${places.length}개`}
+        subtitle={`수집한 핫플 총 ${tripPlaces.length}개`}
         rightAction={
           <TouchableOpacity
             onPress={() => setModalVisible(true)}
@@ -142,6 +152,24 @@ export default function PlacesScreen() {
           </TouchableOpacity>
         }
       />
+
+      {/* Subtle Top Trip Badge Dropdown (Req [3]) */}
+      <View className="px-4 py-2 bg-white border-b border-gray-100 flex-row items-center justify-between">
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setTripSwitcherVisible(true)}
+          className="flex-row items-center bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-full"
+        >
+          <Text className="text-xs font-bold text-darkText mr-1">
+            📍 현재 여행: <Text className="text-primary font-extrabold">{currentTrip?.title || '도쿄 3박 4일 감성 여행'}</Text>
+          </Text>
+          <ChevronDown size={14} color="#6B7280" />
+        </TouchableOpacity>
+
+        <Text className="text-[11px] font-bold text-mutedText">
+          {tripPlaces.length}개 보관 중
+        </Text>
+      </View>
 
       {/* Search & Category Filter Pills */}
       <View className="p-4 bg-surface border-b border-borderLine">
@@ -347,8 +375,11 @@ export default function PlacesScreen() {
         visible={plannerModalVisible}
         onRequestClose={() => setPlannerModalVisible(false)}
       >
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-surface rounded-t-3xl p-5">
+        <View className="flex-1 justify-end bg-black/40">
+          <View
+            className="w-full bg-surface rounded-t-3xl p-5"
+            style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+          >
             <View className="flex-row items-center justify-between pb-3 border-b border-gray-100">
               <View className="flex-row items-center">
                 <Calendar size={18} color="#FF6B6B" />
@@ -430,6 +461,12 @@ export default function PlacesScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Trip Switcher Modal */}
+      <TripSwitcherModal
+        visible={tripSwitcherVisible}
+        onClose={() => setTripSwitcherVisible(false)}
+      />
     </View>
   );
 }

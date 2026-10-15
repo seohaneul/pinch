@@ -100,7 +100,7 @@ export default function HomeScreen() {
     }
   };
 
-  const greetingName = user?.nickname || '민지';
+  const nickname = user?.nickname || '여행자';
   const dayScheduleCount = currentTrip?.schedules?.length || 3;
 
   return (
@@ -122,7 +122,7 @@ export default function HomeScreen() {
           </View>
 
           <Text style={styles.welcomeTitle}>
-            {greetingName}님, 다음 여행을{'\n'}계획해 볼까요? ✈️
+            {nickname}님, 다음 여행을{'\n'}계획해 볼까요? ✈️
           </Text>
           <Text style={styles.welcomeSubtitle}>
             SNS에서 본 핫플 링크를 핀치하면 최단 동선이 완성돼요!

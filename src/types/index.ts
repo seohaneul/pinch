@@ -16,6 +16,7 @@ export type PlaceCategory =
 
 export interface Place {
   id: string;
+  trip_id?: string; // Trip-scoped pocket identifier
   name: string;
   address: string;
   category: PlaceCategory;

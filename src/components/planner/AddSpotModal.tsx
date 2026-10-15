@@ -10,7 +10,9 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlaceStore } from '../../store/usePlaceStore';
+import { useTripStore } from '../../store/useTripStore';
 import type { Place, PlaceCategory } from '../../types';
 import {
   Bookmark,
@@ -38,6 +40,8 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
   existingPlaceIds,
   onSelectPlace,
 }) => {
+  const insets = useSafeAreaInsets();
+  const { currentTrip } = useTripStore();
   const [tab, setTab] = useState<'pocket' | 'manual'>('pocket');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -48,9 +52,12 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
 
   const { places, addPlace } = usePlaceStore();
 
-  // Filter pocket places: only those not already in this day's schedule
+  // Filter pocket places: only those belonging to current trip and not already in this day's schedule
   const availablePocketPlaces = useMemo(() => {
     return places.filter((p) => {
+      const isCurrentTrip = !p.trip_id || p.trip_id === currentTrip?.id;
+      if (!isCurrentTrip) return false;
+
       const alreadyInDay = existingPlaceIds.includes(p.id);
       if (alreadyInDay) return false;
 
@@ -61,7 +68,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
         (p.address && p.address.toLowerCase().includes(q))
       );
     });
-  }, [places, existingPlaceIds, searchQuery]);
+  }, [places, existingPlaceIds, searchQuery, currentTrip]);
 
   const handleSelectPocketPlace = (place: Place) => {
     onSelectPlace(place);
@@ -108,8 +115,8 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.overlay}>
-        <View style={styles.sheet}>
+      <View style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}>
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>

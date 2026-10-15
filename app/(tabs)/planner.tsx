@@ -17,7 +17,8 @@ import { Button } from '../../src/components/common/Button';
 import { useTripStore } from '../../src/store/useTripStore';
 import { usePlaceStore } from '../../src/store/usePlaceStore';
 import { useWalletStore } from '../../src/store/useWalletStore';
-import { TripMapView } from '../../src/components/planner/TripMapView';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TripMapView, PlannerMapView } from '../../src/components/planner/PlannerMapView';
 import { OptimizeConfirmModal } from '../../src/components/planner/OptimizeConfirmModal';
 import { AddSpotModal } from '../../src/components/planner/AddSpotModal';
 import { TransportMode, calculateDistance, formatTravelSummary } from '../../src/utils/geoUtils';
@@ -52,6 +53,7 @@ import {
 } from 'lucide-react-native';
 
 export default function PlannerScreen() {
+  const insets = useSafeAreaInsets();
   const {
     currentTrip,
     selectedDay,
@@ -527,8 +529,11 @@ export default function PlannerScreen() {
         visible={expenseModalVisible}
         onRequestClose={() => setExpenseModalVisible(false)}
       >
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-surface rounded-t-3xl p-5">
+        <View className="flex-1 justify-end bg-black/40">
+          <View
+            className="w-full bg-surface rounded-t-3xl p-5"
+            style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+          >
             <View className="flex-row items-center justify-between pb-3 border-b border-gray-100">
               <View className="flex-row items-center">
                 <Receipt size={18} color="#FF6B6B" />

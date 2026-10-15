@@ -8,7 +8,7 @@ import {
   Image,
   Alert,
   StyleSheet,
-} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Check, Plus, Trash2, Calendar, MapPin } from 'lucide-react-native';
 import { useTripStore } from '../../store/useTripStore';
 import { CreateTripModal } from './CreateTripModal';
@@ -19,6 +19,7 @@ interface TripSwitcherModalProps {
 }
 
 export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, onClose }) => {
+  const insets = useSafeAreaInsets();
   const { trips, activeTripId, setActiveTrip, deleteTrip } = useTripStore();
   const [createModalVisible, setCreateModalVisible] = useState(false);
 
@@ -52,8 +53,8 @@ export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, o
   return (
     <>
       <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}>
+          <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             {/* Header */}
             <View style={styles.header}>
               <View>

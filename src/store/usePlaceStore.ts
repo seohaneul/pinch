@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Place, PlaceCategory } from '../types';
 import { parseSnsUrl } from '../services/parserService';
+import { useTripStore } from './useTripStore';
 
 export type CategoryFilter = 'ALL' | 'CAFE' | 'RESTAURANT' | 'ATTRACTION' | 'LODGING' | 'SHOPPING';
 
@@ -17,17 +18,19 @@ interface PlaceState {
   // Actions
   setCategory: (category: CategoryFilter) => void;
   setSearchQuery: (query: string) => void;
-  addPlace: (place: Place) => boolean;
+  addPlace: (place: Place, tripId?: string) => boolean;
   removePlace: (id: string) => void;
   togglePin: (id: string) => void;
-  extractFromUrl: (url: string) => Promise<Place | null>;
-  checkIsDuplicate: (name: string, url?: string) => Place | null;
+  extractFromUrl: (url: string, tripId?: string) => Promise<Place | null>;
+  checkIsDuplicate: (name: string, url?: string, tripId?: string) => Place | null;
+  getPlacesByTrip: (tripId: string) => Place[];
   resetToDefaults: () => void;
 }
 
 const INITIAL_PLACES: Place[] = [
   {
     id: 'p1',
+    trip_id: 't_tokyo',
     name: '푸글렌 도쿄 (Fuglen Tokyo)',
     address: '1 Chome-16-11 Tomigaya, Shibuya City, Tokyo',
     category: 'CAFE',
@@ -43,8 +46,9 @@ const INITIAL_PLACES: Place[] = [
     sourcePlatform: 'instagram',
   },
   {
-    name: '후시미 이나리 신사 (伏見稲荷大社)',
     id: 'p2',
+    trip_id: 't_tokyo',
+    name: '후시미 이나리 신사 (伏見稲荷大社)',
     address: '68 Fukakusa Yabunouchicho, Fushimi Ward, Kyoto',
     category: 'ATTRACTION',
     latitude: 34.9671,
@@ -60,6 +64,7 @@ const INITIAL_PLACES: Place[] = [
   },
   {
     id: 'p3',
+    trip_id: 't_jeju',
     name: '어니언 성수 (Cafe Onion)',
     address: '서울 성동구 아차산로9길 8',
     category: 'CAFE',
@@ -76,6 +81,7 @@ const INITIAL_PLACES: Place[] = [
   },
   {
     id: 'p4',
+    trip_id: 't_tokyo',
     name: '이치란 라멘 하카타 본점',
     address: '5 Chome-3-2 Nakasu, Hakata Ward, Fukuoka',
     category: 'RESTAURANT',
@@ -104,14 +110,18 @@ export const usePlaceStore = create<PlaceState>()(
       setCategory: (category) => set({ selectedCategory: category }),
       setSearchQuery: (query) => set({ searchQuery: query }),
 
-      checkIsDuplicate: (name: string, url?: string) => {
+      getPlacesByTrip: (tripId: string) => {
+        return get().places.filter((p) => !p.trip_id || p.trip_id === tripId);
+      },
+
+      checkIsDuplicate: (name: string, url?: string, tripId?: string) => {
         const currentPlaces = get().places;
         const normalizedName = name.trim().toLowerCase();
         const normalizedUrl = url ? url.trim().toLowerCase() : '';
 
         return (
           currentPlaces.find((p) => {
-            const sameName = p.name.trim().toLowerCase() === normalizedName;
+            const sameName = Boolean(normalizedName && p.name.trim().toLowerCase() === normalizedName);
             const sameUrl = Boolean(
               normalizedUrl && p.snsUrl && p.snsUrl.trim().toLowerCase() === normalizedUrl
             );
@@ -120,15 +130,21 @@ export const usePlaceStore = create<PlaceState>()(
         );
       },
 
-      addPlace: (place) => {
-        const duplicate = get().checkIsDuplicate(place.name, place.snsUrl);
+      addPlace: (place, tripId) => {
+        const activeTripId = tripId || place.trip_id || useTripStore.getState().currentTrip?.id || 't_tokyo';
+        const duplicate = get().checkIsDuplicate(place.name, place.snsUrl, activeTripId);
         if (duplicate) {
           Alert.alert('이미 보관된 장소 📌', '이미 보관함에 핀치된 장소예요!');
           return false;
         }
 
+        const placeWithTrip: Place = {
+          ...place,
+          trip_id: activeTripId,
+        };
+
         set((state) => ({
-          places: [place, ...state.places],
+          places: [placeWithTrip, ...state.places],
         }));
         return true;
       },
@@ -147,10 +163,11 @@ export const usePlaceStore = create<PlaceState>()(
         }));
       },
 
-      extractFromUrl: async (url) => {
+      extractFromUrl: async (url, tripId) => {
         set({ isParsing: true, isExtracting: true });
         try {
-          const duplicate = get().checkIsDuplicate('', url);
+          const activeTripId = tripId || useTripStore.getState().currentTrip?.id || 'trip-1';
+          const duplicate = get().checkIsDuplicate('', url, activeTripId);
           if (duplicate) {
             set({ isParsing: false, isExtracting: false });
             Alert.alert('이미 보관된 장소 📌', '이미 보관함에 핀치된 장소예요!');
@@ -158,9 +175,10 @@ export const usePlaceStore = create<PlaceState>()(
           }
 
           const newPlace = await parseSnsUrl(url);
+          newPlace.trip_id = activeTripId;
 
           // Check again with parsed name
-          const duplicateByName = get().checkIsDuplicate(newPlace.name, newPlace.snsUrl);
+          const duplicateByName = get().checkIsDuplicate(newPlace.name, newPlace.snsUrl, activeTripId);
           if (duplicateByName) {
             set({ isParsing: false, isExtracting: false });
             Alert.alert('이미 보관된 장소 📌', '이미 보관함에 핀치된 장소예요!');

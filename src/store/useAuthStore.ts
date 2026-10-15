@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 
 export interface AuthUser {
+  id: string;
   email: string;
   nickname: string;
   avatarUrl?: string;
@@ -21,6 +22,8 @@ interface AuthState {
   signup: (nickname: string, email: string, password?: string) => Promise<boolean>;
   logout: () => void;
   continueAsGuest: () => void;
+  updateNickname: (newNickname: string) => boolean;
+  changePassword: (currentPassword: string, newPassword: string) => { success: boolean; message: string };
   updatePreferences: (prefs: {
     defaultBaseCurrency?: 'KRW' | 'JPY' | 'USD';
     defaultTransportMode?: 'TRANSIT' | 'WALK';
@@ -44,6 +47,7 @@ export const useAuthStore = create<AuthState>()(
 
         const nickname = cleanEmail.split('@')[0] || '여행자';
         const user: AuthUser = {
+          id: `user_${Date.now()}`,
           email: cleanEmail,
           nickname,
           createdAt: new Date().toISOString(),
@@ -64,6 +68,7 @@ export const useAuthStore = create<AuthState>()(
         }
 
         const user: AuthUser = {
+          id: `user_${Date.now()}`,
           email: cleanEmail,
           nickname: cleanNickname,
           createdAt: new Date().toISOString(),
@@ -81,6 +86,51 @@ export const useAuthStore = create<AuthState>()(
 
       continueAsGuest: () => {
         set({ isLoggedIn: false, user: null });
+      },
+
+      updateNickname: (newNickname: string) => {
+        const clean = newNickname.trim();
+        if (!clean) {
+          Alert.alert('알림', '변경할 닉네임을 입력해 주세요.');
+          return false;
+        }
+
+        const currentUser = get().user;
+        if (currentUser) {
+          set({
+            user: {
+              ...currentUser,
+              nickname: clean,
+            },
+          });
+        } else {
+          // If guest, create guest user object with custom nickname
+          set({
+            user: {
+              id: 'guest_user',
+              email: 'guest@pinch-travel.app',
+              nickname: clean,
+              createdAt: new Date().toISOString(),
+            },
+          });
+        }
+
+        Alert.alert('알림', '닉네임이 변경되었습니다! ✨');
+        return true;
+      },
+
+      changePassword: (currentPassword: string, newPassword: string) => {
+        if (!currentPassword || !newPassword) {
+          return { success: false, message: '모든 비밀번호 항목을 입력해주세요.' };
+        }
+
+        if (newPassword.length < 6) {
+          return { success: false, message: '새 비밀번호는 최소 6자 이상이어야 합니다.' };
+        }
+
+        // Auth simulation: successfully update password
+        Alert.alert('비밀번호 변경 완료 🔒', '비밀번호가 안전하게 변경되었습니다.');
+        return { success: true, message: '비밀번호가 안전하게 변경되었습니다.' };
       },
 
       updatePreferences: (prefs) => {

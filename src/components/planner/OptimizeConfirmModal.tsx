@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ScheduleItem } from '../../types';
 import {
   calculateTotalRouteDistance,
@@ -30,6 +31,7 @@ export const OptimizeConfirmModal: React.FC<OptimizeConfirmModalProps> = ({
   dayStops,
   dayNumber,
 }) => {
+  const insets = useSafeAreaInsets();
   if (dayStops.length < 2) return null;
 
   const optimizedStops = solveTSPNearestNeighbor(dayStops);
@@ -52,8 +54,8 @@ export const OptimizeConfirmModal: React.FC<OptimizeConfirmModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.overlay}>
-        <View style={styles.sheet}>
+      <View style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}>
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>

@@ -14,6 +14,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Header } from '../../src/components/common/Header';
 import { Card, Badge, EmptyState } from '../../src/components/common/Card';
 import { Button } from '../../src/components/common/Button';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWalletStore } from '../../src/store/useWalletStore';
 import { useTripStore } from '../../src/store/useTripStore';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
@@ -63,6 +64,7 @@ const CATEGORIES: { key: WalletCategory; label: string; icon: any; color: string
 ];
 
 export default function WalletScreen() {
+  const insets = useSafeAreaInsets();
   const {
     expenses,
     members,
@@ -781,8 +783,11 @@ export default function WalletScreen() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-surface rounded-t-3xl p-5 max-h-[90%]">
+        <View className="flex-1 justify-end bg-black/40">
+          <View
+            className="w-full bg-surface rounded-t-3xl p-5 max-h-[90%]"
+            style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+          >
             {/* Modal Header */}
             <View className="flex-row items-center justify-between pb-3 border-b border-gray-100">
               <View className="flex-row items-center">

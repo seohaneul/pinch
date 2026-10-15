@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Calendar, MapPin, Sparkles, DollarSign, Users, Check } from 'lucide-react-native';
 import { useTripStore } from '../../store/useTripStore';
 
@@ -86,6 +86,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
   onClose,
   onCreated,
 }) => {
+  const insets = useSafeAreaInsets();
   const { createTrip } = useTripStore();
 
   const [selectedPreset, setSelectedPreset] = useState<DestinationPreset>(DESTINATION_PRESETS[0]);
@@ -140,9 +141,9 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardContainer}
+        style={[styles.keyboardContainer, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}
       >
-        <View style={styles.modalSheet}>
+        <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           {/* Header */}
           <View style={styles.header}>
             <View>

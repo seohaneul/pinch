@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  Switch,
   Image,
   Alert,
   Modal,
   TextInput,
-  ActivityIndicator,
   StyleSheet,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '../../src/components/common/Header';
-import { Card, Badge } from '../../src/components/common/Card';
+import { Button } from '../../src/components/common/Button';
 import { usePlaceStore } from '../../src/store/usePlaceStore';
 import { useTripStore } from '../../src/store/useTripStore';
 import { useWalletStore } from '../../src/store/useWalletStore';
@@ -21,11 +22,7 @@ import { useAuthStore } from '../../src/store/useAuthStore';
 import { AuthModal } from '../../src/components/auth/AuthModal';
 import {
   User,
-  Settings,
-  Bell,
   Shield,
-  Smartphone,
-  Cloud,
   ChevronRight,
   Heart,
   MapPin,
@@ -35,21 +32,82 @@ import {
   Trash2,
   Lock,
   Globe,
-  Footprints,
-  Bus,
   Coins,
   Check,
+  X,
+  KeyRound,
+  Edit3,
 } from 'lucide-react-native';
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const [authModalVisible, setAuthModalVisible] = useState(false);
-  const [pushEnabled, setPushEnabled] = useState(true);
+  const [editNicknameModalVisible, setEditNicknameModalVisible] = useState(false);
+  const [changePasswordModalVisible, setChangePasswordModalVisible] = useState(false);
 
-  const { isLoggedIn, user, defaultBaseCurrency, defaultTransportMode, logout, updatePreferences } =
-    useAuthStore();
+  // Form states
+  const [newNicknameInput, setNewNicknameInput] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+
+  const {
+    isLoggedIn,
+    user,
+    defaultBaseCurrency,
+    defaultTransportMode,
+    logout,
+    updatePreferences,
+    updateNickname,
+    changePassword,
+  } = useAuthStore();
+
   const { places, resetToDefaults: resetPlaces } = usePlaceStore();
   const { trips, resetToDefaults: resetTrips } = useTripStore();
   const { expenses, resetToDefaults: resetWallet } = useWalletStore();
+
+  const handleOpenEditNickname = () => {
+    setNewNicknameInput(user?.nickname || '여행자');
+    setEditNicknameModalVisible(true);
+  };
+
+  const handleSaveNickname = () => {
+    if (!newNicknameInput.trim()) {
+      Alert.alert('알림', '변경할 닉네임을 입력해 주세요.');
+      return;
+    }
+    const success = updateNickname(newNicknameInput.trim());
+    if (success) {
+      setEditNicknameModalVisible(false);
+    }
+  };
+
+  const handleOpenChangePassword = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setNewPasswordConfirm('');
+    setChangePasswordModalVisible(true);
+  };
+
+  const handleSavePassword = () => {
+    if (!currentPassword) {
+      Alert.alert('알림', '현재 비밀번호를 입력해 주세요.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      Alert.alert('알림', '새 비밀번호는 최소 6자 이상이어야 합니다.');
+      return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+      Alert.alert('알림', '새 비밀번호와 비밀번호 확인이 일치하지 않습니다.');
+      return;
+    }
+
+    const res = changePassword(currentPassword, newPassword);
+    if (res.success) {
+      setChangePasswordModalVisible(false);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까? 기기에 저장된 여행 데이터는 유지됩니다.', [
@@ -133,7 +191,7 @@ export default function ProfileScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 }]}
       >
         {/* 1. User Profile Header Card */}
         <View style={styles.profileCard}>
@@ -154,7 +212,7 @@ export default function ProfileScreen() {
           <View style={styles.profileTextWrap}>
             <View style={styles.nameRow}>
               <Text style={styles.userNameText}>
-                {isLoggedIn && user ? user.nickname : '게스트 여행자'}
+                {user?.nickname || '게스트 여행자'}
               </Text>
               {isLoggedIn && user ? (
                 <View style={styles.verifiedBadge}>
@@ -209,7 +267,46 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* 2. Travel Preferences Section */}
+        {/* 2. Account Management Section (Req [6]) */}
+        <View style={styles.sectionWrap}>
+          <Text style={styles.sectionHeaderTitle}>계정 관리</Text>
+
+          <View style={styles.menuCard}>
+            {/* Edit Nickname Row */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleOpenEditNickname}
+              style={[styles.menuRow, { borderBottomWidth: 1, borderColor: '#F1F5F9' }]}
+            >
+              <View style={styles.menuLeft}>
+                <Edit3 size={18} color="#FF6B6B" style={{ marginRight: 10 }} />
+                <View>
+                  <Text style={styles.menuTitle}>닉네임 변경</Text>
+                  <Text style={styles.menuSubtitle}>현재: {user?.nickname || '여행자'}</Text>
+                </View>
+              </View>
+              <ChevronRight size={16} color="#CBD5E1" />
+            </TouchableOpacity>
+
+            {/* Change Password Row */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleOpenChangePassword}
+              style={styles.menuRow}
+            >
+              <View style={styles.menuLeft}>
+                <KeyRound size={18} color="#4ECDC4" style={{ marginRight: 10 }} />
+                <View>
+                  <Text style={styles.menuTitle}>비밀번호 변경</Text>
+                  <Text style={styles.menuSubtitle}>계정 보안을 위한 비밀번호 업데이트</Text>
+                </View>
+              </View>
+              <ChevronRight size={16} color="#CBD5E1" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* 3. Travel Preferences Section */}
         <View style={styles.sectionWrap}>
           <Text style={styles.sectionHeaderTitle}>여행 기본 설정</Text>
 
@@ -250,13 +347,13 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {/* Default Transport Mode Selection */}
-            <View style={[styles.menuRow, { borderBottomWidth: 0 }]}>
+            {/* Default Transport Mode */}
+            <View style={[styles.menuRow, { borderTopWidth: 1, borderColor: '#F1F5F9' }]}>
               <View style={styles.menuLeft}>
-                <Bus size={18} color="#2A9D8F" style={{ marginRight: 10 }} />
+                <Coins size={18} color="#2A9D8F" style={{ marginRight: 10 }} />
                 <View>
                   <Text style={styles.menuTitle}>기본 이동 수단</Text>
-                  <Text style={styles.menuSubtitle}>일정 추가 시 기본 이동 모델</Text>
+                  <Text style={styles.menuSubtitle}>동선 플래너 자동 시간 계산 기준</Text>
                 </View>
               </View>
 
@@ -288,7 +385,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* 3. Data Management Section */}
+        {/* 4. Data Management Section */}
         <View style={styles.sectionWrap}>
           <Text style={styles.sectionHeaderTitle}>데이터 관리</Text>
 
@@ -325,7 +422,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* 4. Account Actions Section */}
+        {/* 5. Account Actions Section */}
         <View style={styles.sectionWrap}>
           <Text style={styles.sectionHeaderTitle}>계정 & 서비스</Text>
 
@@ -370,7 +467,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* 5. App Info Footer */}
+        {/* 6. App Info Footer */}
         <View style={styles.appInfoFooter}>
           <Text style={styles.versionText}>Pinch (핀치) v1.0.0-mvp</Text>
           <Text style={styles.copyrightText}>
@@ -384,6 +481,162 @@ export default function ProfileScreen() {
         visible={authModalVisible}
         onClose={() => setAuthModalVisible(false)}
       />
+
+      {/* [Req 6] Edit Nickname Modal (Zero Bottom Gap with SafeAreaInsets) */}
+      <Modal
+        visible={editNicknameModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setEditNicknameModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+              {/* Header */}
+              <View style={styles.modalHeader}>
+                <View style={styles.modalHeaderLeft}>
+                  <View style={styles.iconCircle}>
+                    <Edit3 size={18} color="#FF6B6B" />
+                  </View>
+                  <Text style={styles.modalTitle}>닉네임 변경</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setEditNicknameModalVisible(false)}
+                  style={styles.modalCloseBtn}
+                >
+                  <X size={18} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.modalSubtitle}>
+                핀치에서 사용할 새로운 닉네임을 입력해 주세요.
+              </Text>
+
+              <View style={styles.inputWrap}>
+                <TextInput
+                  value={newNicknameInput}
+                  onChangeText={setNewNicknameInput}
+                  placeholder="새 닉네임 입력"
+                  placeholderTextColor="#9CA3AF"
+                  style={styles.textInput}
+                  maxLength={20}
+                  autoFocus={true}
+                />
+              </View>
+
+              <View style={styles.modalBtnRow}>
+                <Button
+                  title="취소"
+                  variant="outline"
+                  size="md"
+                  onPress={() => setEditNicknameModalVisible(false)}
+                  style={{ flex: 1, marginRight: 8 }}
+                />
+                <Button
+                  title="저장하기 ✨"
+                  variant="primary"
+                  size="md"
+                  onPress={handleSaveNickname}
+                  style={{ flex: 1.5 }}
+                />
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* [Req 6] Change Password Modal (Zero Bottom Gap with SafeAreaInsets) */}
+      <Modal
+        visible={changePasswordModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setChangePasswordModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+              {/* Header */}
+              <View style={styles.modalHeader}>
+                <View style={styles.modalHeaderLeft}>
+                  <View style={[styles.iconCircle, { backgroundColor: 'rgba(78, 205, 196, 0.12)' }]}>
+                    <KeyRound size={18} color="#4ECDC4" />
+                  </View>
+                  <Text style={styles.modalTitle}>비밀번호 변경 🔒</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setChangePasswordModalVisible(false)}
+                  style={styles.modalCloseBtn}
+                >
+                  <X size={18} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.modalSubtitle}>
+                계정 보안을 위해 6자리 이상의 새 비밀번호를 입력해 주세요.
+              </Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>현재 비밀번호</Text>
+                <View style={styles.inputWrap}>
+                  <TextInput
+                    value={currentPassword}
+                    onChangeText={setCurrentPassword}
+                    placeholder="현재 비밀번호 입력"
+                    placeholderTextColor="#9CA3AF"
+                    secureTextEntry={true}
+                    style={styles.textInput}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>새 비밀번호 (6자 이상)</Text>
+                <View style={styles.inputWrap}>
+                  <TextInput
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    placeholder="새 비밀번호 입력"
+                    placeholderTextColor="#9CA3AF"
+                    secureTextEntry={true}
+                    style={styles.textInput}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>새 비밀번호 확인</Text>
+                <View style={styles.inputWrap}>
+                  <TextInput
+                    value={newPasswordConfirm}
+                    onChangeText={setNewPasswordConfirm}
+                    placeholder="새 비밀번호 다시 입력"
+                    placeholderTextColor="#9CA3AF"
+                    secureTextEntry={true}
+                    style={styles.textInput}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.modalBtnRow}>
+                <Button
+                  title="취소"
+                  variant="outline"
+                  size="md"
+                  onPress={() => setChangePasswordModalVisible(false)}
+                  style={{ flex: 1, marginRight: 8 }}
+                />
+                <Button
+                  title="변경하기 🔒"
+                  variant="primary"
+                  size="md"
+                  onPress={handleSavePassword}
+                  style={{ flex: 1.5 }}
+                />
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 }
@@ -394,16 +647,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   scrollContent: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 48,
   },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
-    padding: 16,
+    padding: 18,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#F1F5F9',
     elevation: 2,
@@ -411,18 +664,16 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
-    marginBottom: 14,
   },
   avatarWrap: {
     position: 'relative',
-    marginRight: 14,
+    marginRight: 16,
   },
   avatarImage: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    borderWidth: 2,
-    borderColor: '#FF6B6B',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#E2E8F0',
   },
   avatarMiniBadge: {
     position: 'absolute',
@@ -434,7 +685,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF6B6B',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#FFFFFF',
   },
   profileTextWrap: {
@@ -446,63 +697,66 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   userNameText: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
     color: '#0F172A',
     marginRight: 8,
   },
   verifiedBadge: {
     backgroundColor: '#ECFDF5',
-    paddingHorizontal: 6,
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
   },
   verifiedBadgeText: {
-    color: '#059669',
     fontSize: 10,
     fontWeight: '700',
+    color: '#059669',
   },
   guestBadge: {
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 6,
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   guestBadgeText: {
-    color: '#64748B',
     fontSize: 10,
     fontWeight: '700',
+    color: '#64748B',
   },
   userEmailText: {
     fontSize: 12,
-    color: '#64748B',
     fontWeight: '500',
+    color: '#64748B',
     marginBottom: 6,
   },
   loginCtaBtn: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FF6B6B',
-    alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 10,
+    borderRadius: 12,
+    marginTop: 2,
   },
   loginCtaText: {
-    color: '#FFFFFF',
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   statsBar: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     paddingVertical: 14,
     paddingHorizontal: 12,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: '#F1F5F9',
-    marginBottom: 20,
-    elevation: 1,
   },
   statBox: {
     flex: 1,
@@ -510,21 +764,20 @@ const styles = StyleSheet.create({
   },
   statCount: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '800',
     color: '#0F172A',
     marginTop: 4,
+    marginBottom: 1,
   },
   statLabel: {
     fontSize: 11,
     fontWeight: '600',
     color: '#64748B',
-    marginTop: 1,
   },
   statDivider: {
     width: 1,
-    height: '65%',
-    backgroundColor: '#E2E8F0',
-    alignSelf: 'center',
+    height: 28,
+    backgroundColor: '#F1F5F9',
   },
   sectionWrap: {
     marginBottom: 20,
@@ -533,10 +786,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: '#64748B',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
     marginBottom: 8,
-    paddingLeft: 4,
+    marginLeft: 4,
   },
   menuCard: {
     backgroundColor: '#FFFFFF',
@@ -558,21 +809,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuTitle: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#1E293B',
-    marginBottom: 2,
   },
   menuSubtitle: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#94A3B8',
+    marginTop: 2,
   },
   currencyToggleWrap: {
     flexDirection: 'row',
     backgroundColor: '#F1F5F9',
-    borderRadius: 12,
     padding: 3,
+    borderRadius: 12,
   },
   togglePill: {
     paddingHorizontal: 8,
@@ -580,7 +831,12 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   togglePillActive: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FFFFFF',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   togglePillText: {
     fontSize: 11,
@@ -588,24 +844,99 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   togglePillTextActive: {
-    color: '#FFFFFF',
+    color: '#FF6B6B',
   },
   appInfoFooter: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 24,
   },
   versionText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#94A3B8',
     marginBottom: 4,
   },
   copyrightText: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: 10,
     color: '#CBD5E1',
     textAlign: 'center',
-    paddingHorizontal: 24,
-    lineHeight: 16,
+    lineHeight: 14,
+  },
+  // Modal Styles (Zero bottom gap + Safe Area)
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 22,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 107, 107, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  modalCloseBtn: {
+    padding: 6,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  inputGroup: {
+    marginBottom: 12,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 6,
+  },
+  inputWrap: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  textInput: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+    padding: 0,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
   },
 });

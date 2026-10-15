@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { usePlaceStore } from '../src/store/usePlaceStore';
 import { useTripStore } from '../src/store/useTripStore';
 import { useWalletStore } from '../src/store/useWalletStore';
+import { useAuthStore } from '../src/store/useAuthStore';
 import { detectSnsPlatform, parseSnsUrl } from '../src/services/parserService';
 
 describe('Store Actions & Cross-Store Integration (FN-PLC, FN-PLN, FN-WAL)', () => {
@@ -10,6 +11,7 @@ describe('Store Actions & Cross-Store Integration (FN-PLC, FN-PLN, FN-WAL)', () 
     usePlaceStore.getState().resetToDefaults();
     useTripStore.getState().resetToDefaults();
     useWalletStore.getState().resetToDefaults();
+    useAuthStore.getState().logout();
   });
 
   describe('[FN-PLC-001] Clipboard Detector Logic', () => {
@@ -358,4 +360,81 @@ describe('Store Actions & Cross-Store Integration (FN-PLC, FN-PLN, FN-WAL)', () 
       assert.strictEqual(useTripStore.getState().activeTripId, tripA.id);
     });
   });
+
+  describe('[Task 3] Trip-Scoped Place Pocket', () => {
+    it('correctly associates new places with the active trip', () => {
+      const activeTrip = useTripStore.getState().currentTrip;
+      assert.ok(activeTrip);
+
+      const newPlace = {
+        id: 'place_trip_scope_1',
+        name: '도쿄 디즈니씨',
+        address: 'Tokyo DisneySea, Urayasu',
+        category: 'ATTRACTION' as const,
+        latitude: 35.6267,
+        longitude: 139.8851,
+        isPinned: false,
+        createdAt: '2026-10-15T00:00:00Z',
+      };
+
+      const added = usePlaceStore.getState().addPlace(newPlace);
+      assert.strictEqual(added, true);
+
+      const addedItem = usePlaceStore.getState().places.find((p) => p.id === 'place_trip_scope_1');
+      assert.ok(addedItem);
+      assert.strictEqual(addedItem.trip_id, activeTrip.id);
+    });
+
+    it('getPlacesByTrip returns only places for the specified trip', () => {
+      const tokyoPlaces = usePlaceStore.getState().getPlacesByTrip('t_tokyo');
+      const jejuPlaces = usePlaceStore.getState().getPlacesByTrip('t_jeju');
+
+      assert.ok(tokyoPlaces.length > 0);
+      assert.ok(jejuPlaces.length > 0);
+
+      // Verify no cross-contamination
+      tokyoPlaces.forEach((p) => {
+        assert.ok(!p.trip_id || p.trip_id === 't_tokyo');
+      });
+      jejuPlaces.forEach((p) => {
+        assert.ok(!p.trip_id || p.trip_id === 't_jeju');
+      });
+    });
+  });
+
+  describe('[Task 5 & 6] useAuthStore Management & Actions', () => {
+    it('supports signup, login, and dynamic nickname update', async () => {
+      // 1. Signup
+      const signedUp = await useAuthStore.getState().signup('민지', 'minji@example.com', 'password123');
+      assert.strictEqual(signedUp, true);
+      assert.strictEqual(useAuthStore.getState().isLoggedIn, true);
+      assert.strictEqual(useAuthStore.getState().user?.nickname, '민지');
+      assert.ok(useAuthStore.getState().user?.id);
+
+      // 2. Update Nickname (Task 6)
+      const updated = useAuthStore.getState().updateNickname('여행하는민지');
+      assert.strictEqual(updated, true);
+      assert.strictEqual(useAuthStore.getState().user?.nickname, '여행하는민지');
+
+      // 3. Reject empty nickname
+      const emptyUpdate = useAuthStore.getState().updateNickname('   ');
+      assert.strictEqual(emptyUpdate, false);
+      assert.strictEqual(useAuthStore.getState().user?.nickname, '여행하는민지');
+    });
+
+    it('changePassword enforces minimum 6 characters and valid inputs', () => {
+      // 1. Reject empty
+      const emptyRes = useAuthStore.getState().changePassword('', '');
+      assert.strictEqual(emptyRes.success, false);
+
+      // 2. Reject short password
+      const shortRes = useAuthStore.getState().changePassword('oldpass', '123');
+      assert.strictEqual(shortRes.success, false);
+
+      // 3. Accept valid password
+      const validRes = useAuthStore.getState().changePassword('oldpass', 'newsecurepass123');
+      assert.strictEqual(validRes.success, true);
+    });
+  });
 });
+
