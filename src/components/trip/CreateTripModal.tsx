@@ -10,6 +10,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
 } from 'react-native';
 import { X, Calendar, MapPin, Sparkles, DollarSign, Users, Check } from 'lucide-react-native';
 import { useTripStore } from '../../store/useTripStore';
@@ -139,29 +140,30 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1 justify-end bg-black/50"
+        style={styles.keyboardContainer}
       >
-        <View className="bg-white rounded-t-[32px] max-h-[90%] pb-8 pt-4 px-5">
+        <View style={styles.modalSheet}>
           {/* Header */}
-          <View className="flex-row items-center justify-between pb-3 border-b border-gray-100">
+          <View style={styles.header}>
             <View>
-              <Text className="text-xl font-extrabold text-darkText">새로운 여행 만들기 ✈️</Text>
-              <Text className="text-xs text-mutedText mt-0.5">
+              <Text style={styles.headerTitle}>새로운 여행 만들기 ✈️</Text>
+              <Text style={styles.headerSubtitle}>
                 새로운 일정과 가계부를 함께 시작해 보세요
               </Text>
             </View>
             <TouchableOpacity
               onPress={onClose}
-              className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center"
+              activeOpacity={0.7}
+              style={styles.closeBtn}
             >
               <X size={18} color="#64748B" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} className="mt-4">
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollBody}>
             {/* Destination Presets */}
-            <Text className="text-xs font-bold text-darkText mb-2">인기 여행지 선택</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row mb-4">
+            <Text style={styles.sectionLabel}>인기 여행지 선택</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetScroll}>
               {DESTINATION_PRESETS.map((preset) => {
                 const isSelected = selectedPreset.id === preset.id;
                 return (
@@ -169,22 +171,21 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                     key={preset.id}
                     activeOpacity={0.8}
                     onPress={() => handleSelectPreset(preset)}
-                    className={`mr-3 p-2.5 rounded-2xl border items-center w-28 ${
-                      isSelected
-                        ? 'border-primary bg-primary/5 shadow-sm'
-                        : 'border-borderLine bg-surface'
-                    }`}
+                    style={[
+                      styles.presetItem,
+                      isSelected && styles.presetItemSelected,
+                    ]}
                   >
                     <Image
                       source={{ uri: preset.coverImage }}
-                      className="w-20 h-14 rounded-xl mb-1.5"
+                      style={styles.presetImage}
                       resizeMode="cover"
                     />
-                    <Text className="text-xs font-bold text-darkText text-center" numberOfLines={1}>
+                    <Text style={styles.presetText} numberOfLines={1}>
                       {preset.flag} {preset.name.split('/')[0]}
                     </Text>
                     {isSelected && (
-                      <View className="absolute top-1 right-1 w-5 h-5 rounded-full bg-primary items-center justify-center">
+                      <View style={styles.checkBadge}>
                         <Check size={11} color="#FFF" />
                       </View>
                     )}
@@ -194,75 +195,75 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
             </ScrollView>
 
             {/* Travel Title Input */}
-            <View className="mb-3.5">
-              <Text className="text-xs font-bold text-darkText mb-1.5">여행 제목</Text>
-              <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-2xl px-3.5 py-3">
-                <Sparkles size={16} color="#FF6B6B" className="mr-2" />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>여행 제목</Text>
+              <View style={styles.inputRow}>
+                <Sparkles size={16} color="#FF6B6B" style={{ marginRight: 8 }} />
                 <TextInput
                   value={title}
                   onChangeText={setTitle}
                   placeholder="예: 도쿄 3박 4일 감성 여행"
-                  className="flex-1 text-sm text-darkText font-medium"
+                  style={styles.textInput}
                 />
               </View>
             </View>
 
             {/* Dates Input */}
-            <View className="flex-row space-x-3 mb-3.5">
-              <View className="flex-1 mr-2">
-                <Text className="text-xs font-bold text-darkText mb-1.5">출발일 (YYYY-MM-DD)</Text>
-                <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-2xl px-3.5 py-3">
-                  <Calendar size={15} color="#64748B" className="mr-2" />
+            <View style={styles.datesRow}>
+              <View style={styles.dateCol}>
+                <Text style={styles.inputLabel}>출발일 (YYYY-MM-DD)</Text>
+                <View style={styles.inputRow}>
+                  <Calendar size={15} color="#64748B" style={{ marginRight: 6 }} />
                   <TextInput
                     value={startDate}
                     onChangeText={setStartDate}
                     placeholder="2026-12-01"
-                    className="flex-1 text-sm text-darkText font-medium"
+                    style={styles.textInput}
                   />
                 </View>
               </View>
-              <View className="flex-1">
-                <Text className="text-xs font-bold text-darkText mb-1.5">도착일 (YYYY-MM-DD)</Text>
-                <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-2xl px-3.5 py-3">
-                  <Calendar size={15} color="#64748B" className="mr-2" />
+              <View style={styles.dateCol}>
+                <Text style={styles.inputLabel}>도착일 (YYYY-MM-DD)</Text>
+                <View style={styles.inputRow}>
+                  <Calendar size={15} color="#64748B" style={{ marginRight: 6 }} />
                   <TextInput
                     value={endDate}
                     onChangeText={setEndDate}
                     placeholder="2026-12-04"
-                    className="flex-1 text-sm text-darkText font-medium"
+                    style={styles.textInput}
                   />
                 </View>
               </View>
             </View>
 
             {/* Budget Input */}
-            <View className="mb-3.5">
-              <Text className="text-xs font-bold text-darkText mb-1.5">총 예산 (KRW)</Text>
-              <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-2xl px-3.5 py-3">
-                <DollarSign size={16} color="#059669" className="mr-2" />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>총 예산 (KRW)</Text>
+              <View style={styles.inputRow}>
+                <DollarSign size={16} color="#059669" style={{ marginRight: 8 }} />
                 <TextInput
                   value={budgetStr}
                   onChangeText={setBudgetStr}
                   keyboardType="numeric"
                   placeholder="1000000"
-                  className="flex-1 text-sm text-darkText font-medium"
+                  style={styles.textInput}
                 />
-                <Text className="text-xs font-bold text-mutedText">원</Text>
+                <Text style={styles.currencySuffix}>원</Text>
               </View>
             </View>
 
             {/* Members Input */}
-            <View className="mb-5">
-              <Text className="text-xs font-bold text-darkText mb-1.5">
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>
                 동행 멤버 (쉼표로 구분)
               </Text>
-              <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-2xl px-3.5 py-3">
-                <Users size={16} color="#64748B" className="mr-2" />
+              <View style={styles.inputRow}>
+                <Users size={16} color="#64748B" style={{ marginRight: 8 }} />
                 <TextInput
                   value={memberInput}
                   onChangeText={setMemberInput}
                   placeholder="나, 민지, 수현"
-                  className="flex-1 text-sm text-darkText font-medium"
+                  style={styles.textInput}
                 />
               </View>
             </View>
@@ -271,9 +272,9 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={handleCreate}
-              className="bg-primary py-4 rounded-2xl items-center justify-center shadow-md mb-2"
+              style={styles.submitBtn}
             >
-              <Text className="text-base font-bold text-white">이 여행으로 일정 시작하기 🚀</Text>
+              <Text style={styles.submitBtnText}>이 여행으로 일정 시작하기 🚀</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -281,3 +282,156 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    maxHeight: '90%',
+    paddingBottom: 24,
+    paddingTop: 16,
+    paddingHorizontal: 20,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollBody: {
+    marginTop: 14,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 8,
+  },
+  presetScroll: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  presetItem: {
+    marginRight: 12,
+    padding: 10,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    width: 108,
+    position: 'relative',
+  },
+  presetItemSelected: {
+    borderColor: '#FF6B6B',
+    backgroundColor: '#FFF5F5',
+  },
+  presetImage: {
+    width: 84,
+    height: 56,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  presetText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1E293B',
+    textAlign: 'center',
+  },
+  checkBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FF6B6B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inputGroup: {
+    marginBottom: 14,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 6,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1E293B',
+    fontWeight: '500',
+    padding: 0,
+  },
+  currencySuffix: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    marginLeft: 4,
+  },
+  datesRow: {
+    flexDirection: 'row',
+    marginBottom: 14,
+    gap: 10,
+  },
+  dateCol: {
+    flex: 1,
+  },
+  submitBtn: {
+    backgroundColor: '#FF6B6B',
+    paddingVertical: 15,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 16,
+    elevation: 3,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  submitBtnText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+});
