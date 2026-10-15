@@ -282,7 +282,7 @@ export default function PlannerScreen() {
             </View>
 
             <TouchableOpacity
-              onPress={handleAddRandomPlace}
+              onPress={() => setAddSpotModalVisible(true)}
               className="flex-row items-center bg-primary/10 px-3 py-2 rounded-2xl border border-primary/20"
             >
               <Plus size={14} color="#FF6B6B" />
