@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Calendar, MapPin, Sparkles, DollarSign, Users, Check } from 'lucide-react-native';
 import { useTripStore } from '../../store/useTripStore';

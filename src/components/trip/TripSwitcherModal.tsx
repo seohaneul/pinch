@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
   StyleSheet,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Check, Plus, Trash2, Calendar, MapPin } from 'lucide-react-native';
 import { useTripStore } from '../../store/useTripStore';
