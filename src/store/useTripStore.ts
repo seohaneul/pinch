@@ -29,6 +29,8 @@ interface TripState {
   setTripFlight: (tripId: string, flight: FlightInfo) => void;
   getTripFlight: (tripId?: string) => FlightInfo | null;
   deleteTripFlight: (tripId: string) => void;
+  syncFlightToSchedule: (tripId: string, flight: FlightInfo) => void;
+  setRangeLodging: (tripId: string, lodging: LodgingInfo, startDayNumber: number, endDayNumber: number) => void;
 
   createTrip: (tripData: {
     title: string;
@@ -169,7 +171,7 @@ const DEFAULT_TRIP: Trip = {
   endDate: '2026-11-13',
   coverImage: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop',
   status: 'ongoing',
-  budget: 1200000,
+  budget: 0,
   createdAt: '2026-10-01T00:00:00Z',
   members: MOCK_MEMBERS,
   places: [],
@@ -222,7 +224,7 @@ const OSAKA_TRIP: Trip = {
   endDate: '2026-12-07',
   coverImage: 'https://images.unsplash.com/photo-1590559899731-a382839e5549?w=800&auto=format&fit=crop',
   status: 'planning',
-  budget: 900000,
+  budget: 0,
   createdAt: '2026-10-05T00:00:00Z',
   members: [MOCK_MEMBERS[0], MOCK_MEMBERS[1]],
   places: [],
@@ -246,6 +248,11 @@ const INITIAL_DAY_LODGINGS: Record<string, LodgingInfo> = {
     address: '1 Chome-19-1 Kabukicho, Shinjuku City, Tokyo',
     checkInTime: '15:00',
     checkOutTime: '11:00',
+    startDate: '2026-11-10',
+    endDate: '2026-11-13',
+    stayNights: 3,
+    startDay: 1,
+    endDay: 4,
     memo: '고질라 헤드가 보이는 가부키초 중심 호텔. 아고다 예약 완료 (예약번호 #GRC-9281)',
     phoneNumber: '+81 3-6833-1111',
     imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1000&auto=format&fit=crop',
@@ -254,26 +261,84 @@ const INITIAL_DAY_LODGINGS: Record<string, LodgingInfo> = {
 
 const INITIAL_TRIP_FLIGHTS: Record<string, FlightInfo> = {
   t_tokyo: {
+    tripType: 'roundTrip',
     flightNumber: 'KE703',
     airline: '대한항공 (Korean Air)',
-    departureAirport: 'ICN (인천 제2터미널)',
-    arrivalAirport: 'NRT (도쿄 나리타 제1터미널)',
+    departureAirport: '인천 (ICN)',
+    arrivalAirport: '도쿄 나리타 (NRT)',
+    departureDate: '2026-11-10',
     departureTime: '09:20',
+    arrivalDate: '2026-11-10',
     arrivalTime: '12:40',
     terminal: '제2터미널 탑승구 242',
     bufferMinutes: 90,
     memo: '모바일 체크인 완료 / 수하물 23kg 1개 무료',
+    autoAddToSchedule: true,
+    outbound: {
+      flightNumber: 'KE703',
+      airline: '대한항공',
+      departureAirport: '인천 (ICN)',
+      departureDate: '2026-11-10',
+      departureTime: '09:20',
+      arrivalAirport: '도쿄 나리타 (NRT)',
+      arrivalDate: '2026-11-10',
+      arrivalTime: '12:40',
+      terminal: '제2터미널',
+      bufferMinutes: 90,
+      memo: '모바일 체크인 완료',
+    },
+    returnFlight: {
+      flightNumber: 'KE704',
+      airline: '대한항공',
+      departureAirport: '도쿄 나리타 (NRT)',
+      departureDate: '2026-11-13',
+      departureTime: '14:00',
+      arrivalAirport: '인천 (ICN)',
+      arrivalDate: '2026-11-13',
+      arrivalTime: '17:15',
+      terminal: '제1터미널',
+      bufferMinutes: 60,
+      memo: '귀국편',
+    },
   },
   t_osaka: {
+    tripType: 'roundTrip',
     flightNumber: 'OZ112',
     airline: '아시아나항공',
-    departureAirport: 'ICN (인천)',
-    arrivalAirport: 'KIX (오사카 간사이)',
+    departureAirport: '인천 (ICN)',
+    arrivalAirport: '오사카 간사이 (KIX)',
+    departureDate: '2026-12-05',
     departureTime: '08:00',
+    arrivalDate: '2026-12-05',
     arrivalTime: '09:50',
     terminal: '제1터미널',
     bufferMinutes: 60,
     memo: '라피트 특급 열차 교환권 포함',
+    autoAddToSchedule: true,
+    outbound: {
+      flightNumber: 'OZ112',
+      airline: '아시아나항공',
+      departureAirport: '인천 (ICN)',
+      departureDate: '2026-12-05',
+      departureTime: '08:00',
+      arrivalAirport: '오사카 간사이 (KIX)',
+      arrivalDate: '2026-12-05',
+      arrivalTime: '09:50',
+      terminal: '제1터미널',
+      bufferMinutes: 60,
+    },
+    returnFlight: {
+      flightNumber: 'OZ113',
+      airline: '아시아나항공',
+      departureAirport: '오사카 간사이 (KIX)',
+      departureDate: '2026-12-07',
+      departureTime: '17:00',
+      arrivalAirport: '인천 (ICN)',
+      arrivalDate: '2026-12-07',
+      arrivalTime: '18:55',
+      terminal: '제1터미널',
+      bufferMinutes: 60,
+    },
   },
 };
 
@@ -297,6 +362,9 @@ export const useTripStore = create<TripState>()(
         [tripId]: flight,
       },
     }));
+    if (flight.autoAddToSchedule !== false) {
+      get().syncFlightToSchedule(tripId, flight);
+    }
   },
 
   getTripFlight: (tripId?: string) => {
@@ -309,10 +377,152 @@ export const useTripStore = create<TripState>()(
     set((state) => {
       const current = { ...state.tripFlights };
       delete current[tripId];
-      return { tripFlights: current };
+      const nonFlightItems = state.scheduleItems.filter(
+        (s) => !(s.trip_id === tripId && (s.id.startsWith(`flight_${tripId}`) || s.category === 'FLIGHT'))
+      );
+      return { tripFlights: current, scheduleItems: nonFlightItems };
     });
   },
 
+  syncFlightToSchedule: (tripId: string, flight: FlightInfo) => {
+    const { scheduleItems, trips, setDayStartTime, recalculateTimes } = get();
+    const trip = trips.find((t) => t.id === tripId) || get().currentTrip;
+    if (!trip) return;
+
+    // 1. Remove previous auto-created flight items for this trip
+    const nonFlightItems = scheduleItems.filter(
+      (s) => !(s.trip_id === tripId && (s.id.startsWith(`flight_${tripId}`) || s.category === 'FLIGHT'))
+    );
+
+    const newFlightItems: ScheduleItem[] = [];
+
+    const getDayNumberForDate = (dateStr?: string, defaultDay: number = 1): number => {
+      if (!dateStr) return defaultDay;
+      const sched = trip.schedules?.find((s) => s.date === dateStr);
+      if (sched) return sched.dayNumber;
+      if (trip.startDate) {
+        const startMs = new Date(trip.startDate).getTime();
+        const targetMs = new Date(dateStr).getTime();
+        const diffDays = Math.round((targetMs - startMs) / (1000 * 60 * 60 * 24));
+        return Math.max(1, diffDays + 1);
+      }
+      return defaultDay;
+    };
+
+    const outbound = flight.outbound || {
+      flightNumber: flight.flightNumber || 'KE703',
+      airline: flight.airline || '대한항공',
+      departureAirport: flight.departureAirport || '인천 (ICN)',
+      departureDate: flight.departureDate || trip.startDate || '2026-11-10',
+      departureTime: flight.departureTime || '09:20',
+      arrivalAirport: flight.arrivalAirport || '도쿄 나리타 (NRT)',
+      arrivalDate: flight.arrivalDate || flight.departureDate || trip.startDate || '2026-11-10',
+      arrivalTime: flight.arrivalTime || '12:40',
+      bufferMinutes: flight.bufferMinutes || 90,
+      terminal: flight.terminal || '제2터미널',
+      memo: flight.memo,
+    };
+
+    // Outbound Departure
+    const outDepDay = getDayNumberForDate(outbound.departureDate, 1);
+    newFlightItems.push({
+      id: `flight_${tripId}_out_dep`,
+      trip_id: tripId,
+      place_id: `place_airport_out_dep`,
+      place_name: `🛫 [출발편 탑승] ${outbound.departureAirport} (${outbound.airline || ''} ${outbound.flightNumber})`,
+      category: 'FLIGHT',
+      latitude: 37.4602,
+      longitude: 126.4407,
+      day_number: outDepDay,
+      order_index: 1,
+      stay_duration_minutes: 60,
+      transport_mode: 'TRANSIT',
+      travel_duration_minutes: 0,
+      arrival_time: outbound.departureTime || '09:20',
+      memo: `출발 ${outbound.departureTime} · ${outbound.terminal || ''}`,
+      address: outbound.departureAirport,
+    });
+
+    // Outbound Arrival
+    const outArrDay = getDayNumberForDate(outbound.arrivalDate, outDepDay);
+    newFlightItems.push({
+      id: `flight_${tripId}_out_arr`,
+      trip_id: tripId,
+      place_id: `place_airport_out_arr`,
+      place_name: `🛬 [도착편 입국] ${outbound.arrivalAirport} (${outbound.airline || ''} ${outbound.flightNumber})`,
+      category: 'FLIGHT',
+      latitude: 35.7720,
+      longitude: 140.3929,
+      day_number: outArrDay,
+      order_index: 1,
+      stay_duration_minutes: outbound.bufferMinutes || 90,
+      transport_mode: 'TRANSIT',
+      travel_duration_minutes: 0,
+      arrival_time: outbound.arrivalTime || '12:40',
+      memo: `도착 ${outbound.arrivalTime} · 입국 수속 버퍼 ${outbound.bufferMinutes || 90}분`,
+      address: outbound.arrivalAirport,
+    });
+
+    // Automatically update arrival day start time
+    const parts = (outbound.arrivalTime || '12:40').split(':').map((v) => parseInt(v, 10));
+    const h = isNaN(parts[0]) ? 12 : parts[0];
+    const m = isNaN(parts[1]) ? 0 : parts[1];
+    const totalMinutes = (h * 60 + m + (outbound.bufferMinutes || 90)) % (24 * 60);
+    const resH = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
+    const resM = (totalMinutes % 60).toString().padStart(2, '0');
+    setDayStartTime(outArrDay, `${resH}:${resM}`);
+
+    // Return Flight (if present)
+    if (flight.returnFlight && flight.returnFlight.flightNumber) {
+      const ret = flight.returnFlight;
+      const maxDay = trip.schedules?.length || 3;
+      const retDepDay = getDayNumberForDate(ret.departureDate, maxDay);
+      const retArrDay = getDayNumberForDate(ret.arrivalDate, retDepDay);
+
+      newFlightItems.push({
+        id: `flight_${tripId}_ret_dep`,
+        trip_id: tripId,
+        place_id: `place_airport_ret_dep`,
+        place_name: `🛫 [귀국편 출발] ${ret.departureAirport} (${ret.airline || ''} ${ret.flightNumber})`,
+        category: 'FLIGHT',
+        latitude: 35.7720,
+        longitude: 140.3929,
+        day_number: retDepDay,
+        order_index: 99,
+        stay_duration_minutes: 60,
+        transport_mode: 'TRANSIT',
+        travel_duration_minutes: 0,
+        arrival_time: ret.departureTime || '14:00',
+        memo: `출국 수속 및 탑승 ${ret.departureTime} · ${ret.terminal || ''}`,
+        address: ret.departureAirport,
+      });
+
+      newFlightItems.push({
+        id: `flight_${tripId}_ret_arr`,
+        trip_id: tripId,
+        place_id: `place_airport_ret_arr`,
+        place_name: `🛬 [귀국편 도착] ${ret.arrivalAirport} (${ret.airline || ''} ${ret.flightNumber})`,
+        category: 'FLIGHT',
+        latitude: 37.4602,
+        longitude: 126.4407,
+        day_number: retArrDay,
+        order_index: 100,
+        stay_duration_minutes: 30,
+        transport_mode: 'TRANSIT',
+        travel_duration_minutes: 0,
+        arrival_time: ret.arrivalTime || '17:15',
+        memo: `귀국 완료 ${ret.arrivalTime}`,
+        address: ret.arrivalAirport,
+      });
+    }
+
+    set({
+      scheduleItems: [...nonFlightItems, ...newFlightItems],
+    });
+
+    const affectedDays = Array.from(new Set(newFlightItems.map((item) => item.day_number)));
+    affectedDays.forEach((day) => recalculateTimes(day));
+  },
 
   getActiveTrip: () => {
     const { trips, activeTripId } = get();
@@ -365,7 +575,7 @@ export const useTripStore = create<TripState>()(
       endDate: tripData.endDate,
       coverImage: tripData.coverImage || 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&auto=format&fit=crop',
       status: 'planning',
-      budget: tripData.budget || 1000000,
+      budget: tripData.budget || 0,
       createdAt: new Date().toISOString(),
       members,
       places: [],
@@ -595,6 +805,23 @@ export const useTripStore = create<TripState>()(
   getDayLodging: (dayNumber) => {
     const { activeTripId, dayLodgings } = get();
     return dayLodgings?.[`${activeTripId}_day_${dayNumber}`] || null;
+  },
+
+  setRangeLodging: (tripId: string, lodging: LodgingInfo, startDayNumber: number, endDayNumber: number) => {
+    const { dayLodgings } = get();
+    const updated = { ...dayLodgings };
+    const minDay = Math.min(startDayNumber, endDayNumber);
+    const maxDay = Math.max(startDayNumber, endDayNumber);
+    for (let d = minDay; d <= maxDay; d++) {
+      updated[`${tripId}_day_${d}`] = {
+        ...lodging,
+        trip_id: tripId,
+        day_number: d,
+        startDay: minDay,
+        endDay: maxDay,
+      };
+    }
+    set({ dayLodgings: updated });
   },
 
   applyFlightStartTime: (dayNumber, flightTimeStr, bufferMinutes = 90) => {

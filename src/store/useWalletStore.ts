@@ -268,15 +268,20 @@ export const useWalletStore = create<WalletState>()(
   },
 
   getCategoryBudgets: (tripId?: string) => {
-    if (!tripId) return { ...DEFAULT_CATEGORY_BUDGET_MAP };
+    if (!tripId) return {};
     const saved = get().categoryBudgets?.[tripId];
-    if (!saved) return { ...DEFAULT_CATEGORY_BUDGET_MAP };
-    // Migrate old STAY key to LODGING if needed
-    const normalized = { ...DEFAULT_CATEGORY_BUDGET_MAP, ...saved };
-    if (saved.STAY && !saved.LODGING) {
-      normalized.LODGING = saved.STAY;
+    if (saved) {
+      const normalized = { ...saved };
+      if (saved.STAY && !saved.LODGING) {
+        normalized.LODGING = saved.STAY;
+      }
+      return normalized;
     }
-    return normalized;
+    // Pre-fill demo budgets for Tokyo and Osaka mock trips
+    if (tripId === 't_tokyo') return { ...INITIAL_CATEGORY_BUDGETS.t_tokyo };
+    if (tripId === 't_osaka') return { ...INITIAL_CATEGORY_BUDGETS.t_osaka };
+    // For any user-created trip, start with empty budgets so user has full control
+    return {};
   },
 
   addCustomBudget: (tripId: string, item) => {

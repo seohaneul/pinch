@@ -36,6 +36,11 @@ export interface LodgingInfo {
   id?: string;
   trip_id?: string;
   day_number?: number;
+  startDate?: string; // e.g. "2026-11-10"
+  endDate?: string;   // e.g. "2026-11-12"
+  stayNights?: number; // e.g. 2
+  startDay?: number;  // e.g. 1
+  endDay?: number;    // e.g. 3
   name: string;
   address?: string;
   checkInTime?: string;
@@ -108,17 +113,39 @@ export interface Trip {
   };
 }
 
+export interface SingleFlightLeg {
+  flightNumber: string; // e.g. KE113
+  airline?: string; // e.g. 대한항공
+  departureAirport: string; // e.g. ICN (인천)
+  departureDate: string; // e.g. 2026-11-10
+  departureTime: string; // e.g. 23:00
+  arrivalAirport: string; // e.g. GUM (괌)
+  arrivalDate: string; // e.g. 2026-11-11
+  arrivalTime: string; // e.g. 04:00
+  bufferMinutes?: number; // e.g. 90분
+  terminal?: string; // e.g. 제2터미널
+  memo?: string;
+}
+
 export interface FlightInfo {
   id?: string;
   trip_id?: string;
-  flightNumber: string; // e.g. KE703
-  airline?: string; // e.g. 대한항공
-  departureAirport?: string; // e.g. ICN (인천)
-  arrivalAirport?: string; // e.g. NRT (도쿄 나리타)
-  departureTime?: string; // e.g. 09:20
-  arrivalTime: string; // e.g. 12:40
-  bufferMinutes?: number; // e.g. 90분
-  terminal?: string; // e.g. 제2터미널
+  tripType?: 'roundTrip' | 'oneWay'; // default roundTrip
+  outbound?: SingleFlightLeg; // 가는 편
+  returnFlight?: SingleFlightLeg; // 오는 편
+  autoAddToSchedule?: boolean; // 일정에 자동 등록
+
+  // Backwards compatibility legacy fields
+  flightNumber?: string;
+  airline?: string;
+  departureAirport?: string;
+  arrivalAirport?: string;
+  departureDate?: string;
+  departureTime?: string;
+  arrivalDate?: string;
+  arrivalTime?: string;
+  bufferMinutes?: number;
+  terminal?: string;
   memo?: string;
 }
 

@@ -267,8 +267,6 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
   const [endDate, setEndDate] = useState('2026-12-04');
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
 
-  // 총 예산 (자동 콤마)
-  const [budgetStr, setBudgetStr] = useState('1,000,000');
   const [memberInput, setMemberInput] = useState('나, 지은, 민혁');
 
   // 실시간 여행지 검색 필터링
@@ -304,23 +302,6 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     setEndDate(end);
   };
 
-  // 예산 텍스트 변경 (실시간 자동 콤마)
-  const handleBudgetChange = (text: string) => {
-    const formatted = formatNumberWithCommas(text);
-    setBudgetStr(formatted);
-  };
-
-  // 빠른 예산 추가 버튼 (+10만, +50만, +100만)
-  const handleAddBudget = (amount: number) => {
-    const currentNum = Number(budgetStr.replace(/[^0-9]/g, '')) || 0;
-    const nextNum = currentNum + amount;
-    setBudgetStr(Number(nextNum).toLocaleString('ko-KR'));
-  };
-
-  const handleResetBudget = () => {
-    setBudgetStr('0');
-  };
-
   // 여행 생성 제출
   const handleCreate = () => {
     if (!title.trim()) {
@@ -341,14 +322,12 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
       .map((m) => m.trim())
       .filter(Boolean);
 
-    const cleanBudget = Number(budgetStr.replace(/[^0-9]/g, '')) || 1000000;
-
     const newTrip = createTrip({
       title: title.trim(),
       destination: destination.trim(),
       startDate,
       endDate,
-      budget: cleanBudget,
+      budget: 0,
       coverImage: selectedPreset.coverImage,
       memberNames: members.length > 0 ? members : ['나 (민지)', '수현'],
     });
@@ -524,56 +503,15 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {/* 4. 총 예산 (자동 콤마 포맷팅) */}
-              <View style={styles.inputGroup}>
-                <View style={styles.labelWithBadgeRow}>
-                  <Text style={styles.inputLabel}>총 예산 (KRW)</Text>
-                  <Text style={styles.inputSubLabel}>숫자 입력 시 자동 콤마</Text>
+              {/* 4. 예산 설정 안내 카드 (가계부 탭에서 설정) */}
+              <View style={styles.budgetGuideCard}>
+                <View style={styles.budgetGuideHeader}>
+                  <Sparkles size={16} color="#FF6B6B" style={{ marginRight: 6 }} />
+                  <Text style={styles.budgetGuideTitle}>예산 계획은 가계부에서 🎯</Text>
                 </View>
-                <View style={styles.inputRow}>
-                  <DollarSign size={16} color="#059669" style={{ marginRight: 8 }} />
-                  <TextInput
-                    value={budgetStr}
-                    onChangeText={handleBudgetChange}
-                    keyboardType="numeric"
-                    placeholder="1,000,000"
-                    placeholderTextColor="#94A3B8"
-                    style={styles.textInput}
-                  />
-                  <Text style={styles.currencySuffix}>원</Text>
-                </View>
-
-                {/* 예산 퀵 버튼 (+10만, +50만, +100만, 초기화) */}
-                <View style={styles.quickBudgetRow}>
-                  <TouchableOpacity
-                    onPress={() => handleAddBudget(100000)}
-                    style={styles.quickBudgetBtn}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.quickBudgetText}>+10만</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleAddBudget(500000)}
-                    style={styles.quickBudgetBtn}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.quickBudgetText}>+50만</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleAddBudget(1000000)}
-                    style={styles.quickBudgetBtn}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.quickBudgetText}>+100만</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={handleResetBudget}
-                    style={[styles.quickBudgetBtn, styles.quickBudgetResetBtn]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.quickBudgetResetText}>초기화</Text>
-                  </TouchableOpacity>
-                </View>
+                <Text style={styles.budgetGuideDesc}>
+                  여행 생성 후 가계부 탭에서 항공권, 숙소, 식비, 투어/패키지 등 세부 항목별로 정밀하게 예산을 계획하고 관리할 수 있습니다.
+                </Text>
               </View>
 
               {/* 5. 동행 멤버 */}
@@ -861,27 +799,29 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 8,
   },
-  quickBudgetBtn: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
+  budgetGuideCard: {
+    backgroundColor: '#FFF7ED',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#FED7AA',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
   },
-  quickBudgetText: {
+  budgetGuideHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  budgetGuideTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#9A3412',
+  },
+  budgetGuideDesc: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  quickBudgetResetBtn: {
-    backgroundColor: '#FFF1F2',
-    borderColor: '#FFE4E6',
-  },
-  quickBudgetResetText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#E11D48',
+    lineHeight: 16,
+    color: '#C2410C',
+    fontWeight: '500',
   },
   submitBtn: {
     backgroundColor: '#FF6B6B',

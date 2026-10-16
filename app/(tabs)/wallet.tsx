@@ -166,8 +166,9 @@ export default function WalletScreen() {
   const totalCustomBudgetKrw = customBudgets.reduce((sum, b) => sum + (b.amount || 0), 0);
   const totalCategoryBudgetKrw =
     Object.values(activeBudgets).reduce((sum, val) => sum + (val || 0), 0) + totalCustomBudgetKrw;
-  const effectiveBudget = totalCategoryBudgetKrw > 0 ? totalCategoryBudgetKrw : (currentTrip?.budget || 1200000);
-  const budgetUsagePercent = Math.min(Math.round((totalKrw / effectiveBudget) * 100), 100);
+  // Strictly calculate total budget from wallet category budgets and custom budgets only
+  const effectiveBudget = totalCategoryBudgetKrw;
+  const budgetUsagePercent = effectiveBudget > 0 ? Math.min(Math.round((totalKrw / effectiveBudget) * 100), 100) : 0;
 
   const memberBalances = getMemberBalances(currentTrip?.id, tripMembers);
   const transactions = getTransactions(currentTrip?.id, tripMembers);

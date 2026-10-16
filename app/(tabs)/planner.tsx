@@ -80,6 +80,7 @@ export default function PlannerScreen() {
     getDayStartTime,
     setDayLodging,
     getDayLodging,
+    setRangeLodging,
     getTripFlight,
     setTripFlight,
     deleteTripFlight,
@@ -368,7 +369,7 @@ export default function PlannerScreen() {
               <View className="flex-row items-center">
                 <Plane size={16} color="#0284C7" style={{ marginRight: 6 }} />
                 <Text className="text-xs font-bold text-darkText">
-                  항공권 예약 정보 ✈️
+                  {tripFlight?.returnFlight ? '왕복 항공권 예약 정보 ✈️' : '항공권 예약 정보 ✈️'}
                 </Text>
               </View>
               <TouchableOpacity
@@ -383,40 +384,58 @@ export default function PlannerScreen() {
 
             {tripFlight ? (
               <View className="pt-2">
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-row items-center">
-                    <Text className="text-sm font-black text-sky-800 mr-2">
-                      {tripFlight.flightNumber}
-                    </Text>
-                    {tripFlight.airline && (
-                      <Text className="text-xs font-bold text-mutedText">
-                        {tripFlight.airline}
+                {/* Outbound Leg */}
+                <View className="bg-sky-50/70 p-2.5 rounded-xl mb-1.5 border border-sky-100">
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center">
+                      <Text className="text-xs font-black text-sky-800 mr-1.5">
+                        🛫 가는 편: {tripFlight.outbound?.flightNumber || tripFlight.flightNumber}
                       </Text>
-                    )}
+                      {(tripFlight.outbound?.airline || tripFlight.airline) && (
+                        <Text className="text-[10px] font-bold text-mutedText">
+                          ({tripFlight.outbound?.airline || tripFlight.airline})
+                        </Text>
+                      )}
+                    </View>
+                    <View className="bg-sky-100 px-1.5 py-0.5 rounded">
+                      <Text className="text-[9px] font-black text-sky-700">
+                        {tripFlight.outbound?.departureDate || tripFlight.departureDate}
+                      </Text>
+                    </View>
                   </View>
-                  <View className="bg-sky-100 px-2 py-0.5 rounded-md">
-                    <Text className="text-[10px] font-black text-sky-700">
-                      {tripFlight.departureAirport?.slice(0, 3) || 'ICN'} ➔ {tripFlight.arrivalAirport?.slice(0, 3) || 'NRT'}
-                    </Text>
-                  </View>
+                  <Text className="text-xs font-bold text-darkText mt-1">
+                    {tripFlight.outbound?.departureAirport || tripFlight.departureAirport} ({tripFlight.outbound?.departureTime || tripFlight.departureTime}) ➔ {tripFlight.outbound?.arrivalAirport || tripFlight.arrivalAirport} ({tripFlight.outbound?.arrivalTime || tripFlight.arrivalTime})
+                  </Text>
                 </View>
 
-                <View className="flex-row items-center gap-2 mt-1.5">
-                  <View className="flex-row items-center">
-                    <Clock size={11} color="#64748B" style={{ marginRight: 3 }} />
-                    <Text className="text-xs font-extrabold text-darkText">
-                      출발 {tripFlight.departureTime || '09:20'} ➔ 도착 {tripFlight.arrivalTime || '12:40'}
+                {/* Return Leg (if registered) */}
+                {tripFlight.returnFlight && (
+                  <View className="bg-teal-50/70 p-2.5 rounded-xl mb-1.5 border border-teal-100">
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-row items-center">
+                        <Text className="text-xs font-black text-teal-800 mr-1.5">
+                          🛬 오는 편: {tripFlight.returnFlight.flightNumber}
+                        </Text>
+                        {tripFlight.returnFlight.airline && (
+                          <Text className="text-[10px] font-bold text-mutedText">
+                            ({tripFlight.returnFlight.airline})
+                          </Text>
+                        )}
+                      </View>
+                      <View className="bg-teal-100 px-1.5 py-0.5 rounded">
+                        <Text className="text-[9px] font-black text-teal-700">
+                          {tripFlight.returnFlight.departureDate}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text className="text-xs font-bold text-darkText mt-1">
+                      {tripFlight.returnFlight.departureAirport} ({tripFlight.returnFlight.departureTime}) ➔ {tripFlight.returnFlight.arrivalAirport} ({tripFlight.returnFlight.arrivalTime})
                     </Text>
                   </View>
-                  {tripFlight.terminal && (
-                    <Text className="text-[11px] text-gray-500 font-semibold" numberOfLines={1}>
-                      📍 {tripFlight.terminal}
-                    </Text>
-                  )}
-                </View>
+                )}
 
                 {tripFlight.memo && (
-                  <Text className="text-[11px] text-sky-700 font-medium mt-1" numberOfLines={1}>
+                  <Text className="text-[11px] text-sky-700 font-medium mt-0.5" numberOfLines={1}>
                     📝 {tripFlight.memo}
                   </Text>
                 )}
@@ -428,7 +447,7 @@ export default function PlannerScreen() {
                 className="py-2.5 items-center justify-center"
               >
                 <Text className="text-xs font-bold text-mutedText">
-                  아직 등록된 항공권이 없습니다. 탭하여 출/도착 비행기 티켓을 등록하세요.
+                  아직 등록된 항공권이 없습니다. 탭하여 왕복/편도 티켓을 등록하세요.
                 </Text>
               </TouchableOpacity>
             )}
@@ -457,7 +476,16 @@ export default function PlannerScreen() {
 
             {dayLodging ? (
               <View className="pt-2">
-                <Text className="text-sm font-extrabold text-darkText">{dayLodging.name}</Text>
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-sm font-extrabold text-darkText flex-1 mr-2">{dayLodging.name}</Text>
+                  {dayLodging.stayNights && (
+                    <View className="bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                      <Text className="text-[10px] font-bold text-rose-600">
+                        {dayLodging.startDay && dayLodging.endDay ? `DAY ${dayLodging.startDay}~${dayLodging.endDay} (${dayLodging.stayNights}박)` : `${dayLodging.stayNights}박 연박`}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 {dayLodging.address && (
                   <Text className="text-xs text-mutedText mt-0.5" numberOfLines={1}>
                     📍 {dayLodging.address}
@@ -470,9 +498,9 @@ export default function PlannerScreen() {
                       체크인 {dayLodging.checkInTime || '15:00'} · 체크아웃 {dayLodging.checkOutTime || '11:00'}
                     </Text>
                   </View>
-                  {dayLodging.memo && (
-                    <Text className="text-[11px] text-primary font-semibold" numberOfLines={1}>
-                      📝 {dayLodging.memo}
+                  {dayLodging.startDate && dayLodging.endDate && (
+                    <Text className="text-[10px] text-gray-400 font-medium">
+                      ({dayLodging.startDate} ~ {dayLodging.endDate})
                     </Text>
                   )}
                 </View>
@@ -484,7 +512,7 @@ export default function PlannerScreen() {
                 className="py-2.5 items-center justify-center"
               >
                 <Text className="text-xs font-bold text-mutedText">
-                  아직 등록된 숙소가 없습니다. 탭하여 호텔/숙소를 입력하세요.
+                  아직 등록된 숙소가 없습니다. 탭하여 언제부터 언제까지 묵을지 설정하세요.
                 </Text>
               </TouchableOpacity>
             )}
@@ -545,12 +573,19 @@ export default function PlannerScreen() {
                         <View className="flex-row items-center justify-between mb-1.5">
                           <View className="flex-row items-center">
                             <View className="bg-primary/10 px-2 py-0.5 rounded-md mr-2 flex-row items-center">
-                              <Clock size={11} color="#FF6B6B" />
+                              {stop.category === 'FLIGHT' ? (
+                                <Plane size={11} color="#FF6B6B" />
+                              ) : (
+                                <Clock size={11} color="#FF6B6B" />
+                              )}
                               <Text className="text-[11px] font-bold color-primary ml-1">
-                                {stop.arrival_time} 도착
+                                {stop.arrival_time} {stop.category === 'FLIGHT' ? '시간' : '도착'}
                               </Text>
                             </View>
-                            <Badge label={stop.category} variant="secondary" />
+                            <Badge
+                              label={stop.category === 'FLIGHT' ? '항공편 ✈️' : stop.category}
+                              variant={stop.category === 'FLIGHT' ? 'primary' : 'secondary'}
+                            />
                           </View>
 
                           {/* Reorder Up/Down buttons */}
@@ -587,6 +622,11 @@ export default function PlannerScreen() {
                           <Text className="text-base font-bold text-darkText mb-1">
                             {stop.place_name}
                           </Text>
+                          {stop.memo ? (
+                            <Text className="text-xs text-sky-700 font-semibold mb-1" numberOfLines={1}>
+                              ℹ️ {stop.memo}
+                            </Text>
+                          ) : null}
                           {stop.address && (
                             <Text className="text-xs text-mutedText mb-2" numberOfLines={1}>
                               {stop.address}
@@ -992,8 +1032,14 @@ export default function PlannerScreen() {
         visible={lodgingModalVisible}
         onClose={() => setLodgingModalVisible(false)}
         dayNumber={selectedDay}
+        tripStartDate={currentTrip?.startDate}
+        tripEndDate={currentTrip?.endDate}
+        schedules={currentTrip?.schedules}
         initialLodging={dayLodging}
         onSave={(lodging) => setDayLodging(selectedDay, lodging)}
+        onSaveRange={(lodging, startDay, endDay) => {
+          setRangeLodging(currentTrip?.id || 't_tokyo', lodging, startDay, endDay);
+        }}
       />
 
       {/* 항공권 입력 및 확인 모달 (FlightModal) */}
@@ -1002,10 +1048,12 @@ export default function PlannerScreen() {
         onClose={() => setFlightModalVisible(false)}
         tripTitle={currentTrip?.title}
         tripId={currentTrip?.id || 't_tokyo'}
+        tripStartDate={currentTrip?.startDate}
+        tripEndDate={currentTrip?.endDate}
+        schedules={currentTrip?.schedules}
         initialFlight={tripFlight}
         onSaveFlight={(flight) => setTripFlight(currentTrip?.id || 't_tokyo', flight)}
         onDeleteFlight={() => deleteTripFlight(currentTrip?.id || 't_tokyo')}
-        onSyncDayStartTime={(flightArrival, buffer) => applyFlightStartTime(1, flightArrival, buffer)}
       />
 
       {/* 일정 시작 시간 수정 모달 (DayStartTimeModal) */}
