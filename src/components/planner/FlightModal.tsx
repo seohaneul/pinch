@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Alert,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -24,8 +25,17 @@ import {
   ShieldCheck,
   ChevronRight,
   Info,
+  Search,
+  Globe,
+  Navigation,
 } from 'lucide-react-native';
 import type { FlightInfo, SingleFlightLeg, DaySchedule } from '../../types';
+import {
+  POPULAR_AIRPORTS,
+  searchAirports,
+  resolveAirportLocation,
+  AirportItem,
+} from '../../services/airportService';
 
 interface FlightModalProps {
   visible: boolean;
@@ -39,6 +49,34 @@ interface FlightModalProps {
   onSaveFlight: (flight: FlightInfo) => void;
   onDeleteFlight?: () => void;
 }
+
+const ORIGIN_PRESET_AIRPORTS = [
+  { label: '인천 (ICN)', value: '인천국제공항 (ICN)' },
+  { label: '김포 (GMP)', value: '김포국제공항 (GMP)' },
+  { label: '김해/부산 (PUS)', value: '김해국제공항 (PUS)' },
+  { label: '제주 (CJU)', value: '제주국제공항 (CJU)' },
+  { label: '대구 (TAE)', value: '대구국제공항 (TAE)' },
+  { label: '청주 (CJJ)', value: '청주국제공항 (CJJ)' },
+];
+
+const DEST_PRESET_AIRPORTS = [
+  { label: '괌 (GUM)', value: '앤토니오 B. 원 팻 국제공항 (GUM)' },
+  { label: '도쿄 나리타 (NRT)', value: '도쿄 나리타 국제공항 (NRT)' },
+  { label: '도쿄 하네다 (HND)', value: '도쿄 하네다 공항 (HND)' },
+  { label: '오사카 간사이 (KIX)', value: '오사카 간사이 국제공항 (KIX)' },
+  { label: '후쿠오카 (FUK)', value: '후쿠오카 공항 (FUK)' },
+  { label: '다낭 (DAD)', value: '다낭 국제공항 (DAD)' },
+  { label: '방콕 (BKK)', value: '수완나품 국제공항 (BKK)' },
+  { label: '하와이 호놀룰루 (HNL)', value: '호놀룰루 다니엘 K. 이노우에 국제공항 (HNL)' },
+  { label: '싱가포르 (SIN)', value: '싱가포르 창이 공항 (SIN)' },
+];
+
+const BUFFER_PRESETS = [
+  { label: '1시간 (빠른 수속)', mins: 60 },
+  { label: '1시간 30분 (추천)', mins: 90 },
+  { label: '2시간 (시내 이동)', mins: 120 },
+  { label: '2시간 30분 (여유)', mins: 150 },
+];
 
 export const FlightModal: React.FC<FlightModalProps> = ({
   visible,
@@ -84,6 +122,17 @@ export const FlightModal: React.FC<FlightModalProps> = ({
   // 일정 자동 연동 토글
   const [autoAddToSchedule, setAutoAddToSchedule] = useState(true);
 
+  // Resolved Location Cache for live feedback
+  const [outDepLoc, setOutDepLoc] = useState<any>(null);
+  const [outArrLoc, setOutArrLoc] = useState<any>(null);
+  const [retDepLoc, setRetDepLoc] = useState<any>(null);
+  const [retArrLoc, setRetArrLoc] = useState<any>(null);
+
+  // Airport Picker Sub-modal State
+  const [pickerTarget, setPickerTarget] = useState<'outDep' | 'outArr' | 'retDep' | 'retArr' | null>(null);
+  const [pickerQuery, setPickerQuery] = useState('');
+  const [pickerRegion, setPickerRegion] = useState<'ALL' | 'KR' | 'JP' | 'US' | 'SEA'>('ALL');
+
   // Helper to add 1 day to YYYY-MM-DD
   const addDaysToDate = (dateStr: string, days: number = 1): string => {
     try {
@@ -102,10 +151,10 @@ export const FlightModal: React.FC<FlightModalProps> = ({
         const out = initialFlight.outbound || {
           flightNumber: initialFlight.flightNumber || 'KE113',
           airline: initialFlight.airline || '대한항공',
-          departureAirport: initialFlight.departureAirport || '인천 (ICN)',
+          departureAirport: initialFlight.departureAirport || '인천국제공항 (ICN)',
           departureDate: initialFlight.departureDate || tripStartDate || '2026-11-10',
           departureTime: initialFlight.departureTime || '23:00',
-          arrivalAirport: initialFlight.arrivalAirport || '괌 (GUM)',
+          arrivalAirport: initialFlight.arrivalAirport || '앤토니오 B. 원 팻 국제공항 (GUM)',
           arrivalDate: initialFlight.arrivalDate || initialFlight.departureDate || tripStartDate || '2026-11-11',
           arrivalTime: initialFlight.arrivalTime || '04:00',
           terminal: initialFlight.terminal || '제2터미널',
@@ -115,10 +164,10 @@ export const FlightModal: React.FC<FlightModalProps> = ({
 
         setOutFlightNumber(out.flightNumber || '');
         setOutAirline(out.airline || '');
-        setOutDepAirport(out.departureAirport || '');
+        setOutDepAirport(out.departureAirport || '인천국제공항 (ICN)');
         setOutDepDate(out.departureDate || tripStartDate || '2026-11-10');
         setOutDepTime(out.departureTime || '23:00');
-        setOutArrAirport(out.arrivalAirport || '');
+        setOutArrAirport(out.arrivalAirport || '앤토니오 B. 원 팻 국제공항 (GUM)');
         setOutArrDate(out.arrivalDate || tripStartDate || '2026-11-11');
         setOutArrTime(out.arrivalTime || '04:00');
         setOutTerminal(out.terminal || '');
@@ -130,10 +179,10 @@ export const FlightModal: React.FC<FlightModalProps> = ({
           const ret = initialFlight.returnFlight;
           setRetFlightNumber(ret.flightNumber || '');
           setRetAirline(ret.airline || '');
-          setRetDepAirport(ret.departureAirport || '');
+          setRetDepAirport(ret.departureAirport || out.arrivalAirport || '앤토니오 B. 원 팻 국제공항 (GUM)');
           setRetDepDate(ret.departureDate || tripEndDate || '2026-11-13');
           setRetDepTime(ret.departureTime || '15:30');
-          setRetArrAirport(ret.arrivalAirport || '');
+          setRetArrAirport(ret.arrivalAirport || out.departureAirport || '인천국제공항 (ICN)');
           setRetArrDate(ret.arrivalDate || tripEndDate || '2026-11-13');
           setRetArrTime(ret.arrivalTime || '20:00');
           setRetTerminal(ret.terminal || '');
@@ -142,10 +191,10 @@ export const FlightModal: React.FC<FlightModalProps> = ({
           setHasReturnFlight(false);
           setRetFlightNumber('KE114');
           setRetAirline('대한항공');
-          setRetDepAirport(out.arrivalAirport || '괌 (GUM)');
+          setRetDepAirport(out.arrivalAirport || '앤토니오 B. 원 팻 국제공항 (GUM)');
           setRetDepDate(tripEndDate || '2026-11-13');
           setRetDepTime('15:30');
-          setRetArrAirport(out.departureAirport || '인천 (ICN)');
+          setRetArrAirport(out.departureAirport || '인천국제공항 (ICN)');
           setRetArrDate(tripEndDate || '2026-11-13');
           setRetArrTime('20:00');
           setRetTerminal('제1터미널');
@@ -157,10 +206,10 @@ export const FlightModal: React.FC<FlightModalProps> = ({
         // Defaults: Outbound with overnight arrival example (Incheon 23:00 -> Guam 04:00)
         setOutFlightNumber('KE113');
         setOutAirline('대한항공');
-        setOutDepAirport('인천 (ICN)');
+        setOutDepAirport('인천국제공항 (ICN)');
         setOutDepDate(tripStartDate || '2026-11-10');
         setOutDepTime('23:00');
-        setOutArrAirport('괌 (GUM)');
+        setOutArrAirport('앤토니오 B. 원 팻 국제공항 (GUM)');
         setOutArrDate(addDaysToDate(tripStartDate || '2026-11-10', 1));
         setOutArrTime('04:00');
         setOutTerminal('제2터미널');
@@ -170,10 +219,10 @@ export const FlightModal: React.FC<FlightModalProps> = ({
         setHasReturnFlight(true);
         setRetFlightNumber('KE114');
         setRetAirline('대한항공');
-        setRetDepAirport('괌 (GUM)');
+        setRetDepAirport('앤토니오 B. 원 팻 국제공항 (GUM)');
         setRetDepDate(tripEndDate || '2026-11-13');
         setRetDepTime('15:30');
-        setRetArrAirport('인천 (ICN)');
+        setRetArrAirport('인천국제공항 (ICN)');
         setRetArrDate(tripEndDate || '2026-11-13');
         setRetArrTime('20:00');
         setRetTerminal('제1터미널');
@@ -183,6 +232,23 @@ export const FlightModal: React.FC<FlightModalProps> = ({
       }
     }
   }, [visible, initialFlight, tripStartDate, tripEndDate]);
+
+  // Live resolve airport location coordinates for immediate user feedback
+  useEffect(() => {
+    if (outDepAirport) resolveAirportLocation(outDepAirport).then(setOutDepLoc);
+  }, [outDepAirport]);
+
+  useEffect(() => {
+    if (outArrAirport) resolveAirportLocation(outArrAirport).then(setOutArrLoc);
+  }, [outArrAirport]);
+
+  useEffect(() => {
+    if (retDepAirport) resolveAirportLocation(retDepAirport).then(setRetDepLoc);
+  }, [retDepAirport]);
+
+  useEffect(() => {
+    if (retArrAirport) resolveAirportLocation(retArrAirport).then(setRetArrLoc);
+  }, [retArrAirport]);
 
   // Quick next-day arrival handler
   const handleSetNextDayArrival = () => {
@@ -209,6 +275,28 @@ export const FlightModal: React.FC<FlightModalProps> = ({
 
   const computedStartTime = calculateStartTime(outArrTime || '04:00', outBufferMinutes);
 
+  // Airport selection handler
+  const handleSelectAirportItem = (airport: AirportItem) => {
+    const formatted = `${airport.nameKo} (${airport.code})`;
+    if (pickerTarget === 'outDep') {
+      setOutDepAirport(formatted);
+      if (!retArrAirport || retArrAirport.includes('인천')) {
+        setRetArrAirport(formatted);
+      }
+    } else if (pickerTarget === 'outArr') {
+      setOutArrAirport(formatted);
+      if (!retDepAirport || retDepAirport.includes('괌') || retDepAirport.includes('현지')) {
+        setRetDepAirport(formatted);
+      }
+    } else if (pickerTarget === 'retDep') {
+      setRetDepAirport(formatted);
+    } else if (pickerTarget === 'retArr') {
+      setRetArrAirport(formatted);
+    }
+    setPickerTarget(null);
+    setPickerQuery('');
+  };
+
   const handleSave = () => {
     if (!outFlightNumber.trim()) {
       Alert.alert('알림', '가는 편(출발) 항공편명을 입력해주세요 (예: KE113).');
@@ -230,10 +318,10 @@ export const FlightModal: React.FC<FlightModalProps> = ({
     const outboundData: SingleFlightLeg = {
       flightNumber: outFlightNumber.trim(),
       airline: outAirline.trim(),
-      departureAirport: outDepAirport.trim() || '인천 (ICN)',
+      departureAirport: outDepAirport.trim() || '인천국제공항 (ICN)',
       departureDate: outDepDate.trim() || tripStartDate,
       departureTime: outDepTime.trim() || '23:00',
-      arrivalAirport: outArrAirport.trim() || '도착 공항',
+      arrivalAirport: outArrAirport.trim() || '앤토니오 B. 원 팻 국제공항 (GUM)',
       arrivalDate: outArrDate.trim() || outDepDate.trim() || tripStartDate,
       arrivalTime: outArrTime.trim() || '04:00',
       terminal: outTerminal.trim(),
@@ -262,7 +350,6 @@ export const FlightModal: React.FC<FlightModalProps> = ({
       autoAddToSchedule,
       outbound: outboundData,
       returnFlight: returnData,
-      // Legacy backwards-compatible fields
       flightNumber: outboundData.flightNumber,
       airline: outboundData.airline,
       departureAirport: outboundData.departureAirport,
@@ -279,8 +366,8 @@ export const FlightModal: React.FC<FlightModalProps> = ({
     onSaveFlight(flightData);
 
     const message = autoAddToSchedule
-      ? `왕복 항공권(${outFlightNumber.trim()}${hasReturnFlight ? ` / ${retFlightNumber.trim()}` : ''})이 등록되었습니다.\n출발/도착 일차 타임라인에 항공 스팟이 생성되고 도착 후 시작 시간이 자동 계산되었습니다.`
-      : `항공권 정보가 성공적으로 저장되었습니다.`;
+      ? `항공권 정보가 일정에 자동 반영되었습니다.\n출발 및 도착 공항의 실제 위치 좌표가 일정 지도에 정확히 매핑되었습니다!`
+      : `항공권 정보가 저장되었습니다.`;
 
     Alert.alert('항공권 등록 완료 ✈️', message);
     onClose();
@@ -301,17 +388,35 @@ export const FlightModal: React.FC<FlightModalProps> = ({
     ]);
   };
 
-  const BUFFER_PRESETS = [
-    { mins: 60, label: '1시간 (빠른 이동)' },
-    { mins: 90, label: '1시간 30분 (추천 ⭐)' },
-    { mins: 120, label: '2시간 (여유 입국)' },
-  ];
+  // Filter airports for the picker
+  const filteredAirports = POPULAR_AIRPORTS.filter((a) => {
+    if (pickerRegion === 'KR' && a.country !== '대한민국') return false;
+    if (pickerRegion === 'JP' && a.country !== '일본') return false;
+    if (pickerRegion === 'US' && a.country !== '미국') return false;
+    if (pickerRegion === 'SEA' && !['베트남', '태국', '인도네시아', '싱가포르', '필리핀', '대만'].includes(a.country)) {
+      return false;
+    }
+
+    if (!pickerQuery.trim()) return true;
+    const q = pickerQuery.toLowerCase().trim();
+    return (
+      a.code.toLowerCase().includes(q) ||
+      a.nameKo.toLowerCase().includes(q) ||
+      a.nameEn.toLowerCase().includes(q) ||
+      a.city.toLowerCase().includes(q) ||
+      a.country.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={onClose} />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom > 0 ? insets.bottom : 16 }]}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFillObject}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
@@ -319,8 +424,10 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                 <Plane size={18} color="#FF6B6B" />
               </View>
               <View>
-                <Text style={styles.title}>왕복 항공권 등록 및 일정 연동 ✈️</Text>
-                <Text style={styles.subtitle}>가는 편 & 오는 편 시간을 일정에 맞춰 자동 추가</Text>
+                <Text style={styles.title}>왕복 항공권 등록 ✈️</Text>
+                <Text style={styles.subtitle}>
+                  공항 위치를 자동 매핑하고 타임라인에 비행 일정을 등록합니다
+                </Text>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
@@ -328,22 +435,22 @@ export const FlightModal: React.FC<FlightModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Navigation Tab Bar: Outbound vs Inbound */}
-          <View style={styles.tabContainer}>
+          {/* Tab Navigation: Outbound vs Return */}
+          <View style={styles.tabRow}>
             <TouchableOpacity
               onPress={() => setActiveTab('outbound')}
-              style={[styles.tabButton, activeTab === 'outbound' && styles.activeTabButton]}
+              style={[styles.tabBtn, activeTab === 'outbound' && styles.tabBtnActive]}
               activeOpacity={0.8}
             >
               <Plane size={14} color={activeTab === 'outbound' ? '#FF6B6B' : '#64748B'} style={{ marginRight: 6 }} />
-              <Text style={[styles.tabButtonText, activeTab === 'outbound' && styles.activeTabButtonText]}>
-                가는 편 (출발)
+              <Text style={[styles.tabBtnText, activeTab === 'outbound' && styles.tabBtnTextActive]}>
+                가는 편 (출발편)
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => setActiveTab('return')}
-              style={[styles.tabButton, activeTab === 'return' && styles.activeTabButton]}
+              style={[styles.tabBtn, activeTab === 'return' && styles.tabBtnActive]}
               activeOpacity={0.8}
             >
               <Plane
@@ -351,59 +458,17 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                 color={activeTab === 'return' ? '#FF6B6B' : '#64748B'}
                 style={{ marginRight: 6, transform: [{ rotate: '180deg' }] }}
               />
-              <Text style={[styles.tabButtonText, activeTab === 'return' && styles.activeTabButtonText]}>
-                오는 편 (귀국) {hasReturnFlight ? '✅' : '(미선택)'}
+              <Text style={[styles.tabBtnText, activeTab === 'return' && styles.tabBtnTextActive]}>
+                오는 편 (귀국편)
               </Text>
+              {!hasReturnFlight && <View style={styles.tabOffBadge} />}
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollBody}>
+          <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
             {/* TAB 1: OUTBOUND (가는 편) */}
             {activeTab === 'outbound' && (
               <View>
-                {/* Boarding Pass Preview Ticket */}
-                <View style={styles.ticketCard}>
-                  <View style={styles.ticketHeader}>
-                    <Text style={styles.ticketAirlineText}>{outAirline || '대한항공'}</Text>
-                    <Text style={styles.ticketFlightNo}>{outFlightNumber || 'KE113'}</Text>
-                  </View>
-
-                  <View style={styles.ticketRouteRow}>
-                    <View style={styles.ticketAirportBlock}>
-                      <Text style={styles.ticketAirportCode}>
-                        {outDepAirport.includes('(')
-                          ? outDepAirport.split('(')[1].replace(')', '').trim()
-                          : outDepAirport.slice(0, 3).toUpperCase() || 'ICN'}
-                      </Text>
-                      <Text style={styles.ticketAirportName}>{outDepAirport || '인천공항'}</Text>
-                      <Text style={styles.ticketTimeText}>{outDepTime || '23:00'}</Text>
-                      <Text style={styles.ticketDateText}>{outDepDate}</Text>
-                    </View>
-
-                    <View style={styles.ticketCenterArrow}>
-                      <Text style={styles.ticketLegTag}>가는 편 직항</Text>
-                      <View style={styles.arrowLine} />
-                      <Plane size={16} color="#FF6B6B" style={{ marginVertical: 2 }} />
-                      {outDepDate !== outArrDate && (
-                        <View style={styles.nextDayBadge}>
-                          <Text style={styles.nextDayBadgeText}>+1일 익일도착</Text>
-                        </View>
-                      )}
-                    </View>
-
-                    <View style={[styles.ticketAirportBlock, { alignItems: 'flex-end' }]}>
-                      <Text style={styles.ticketAirportCode}>
-                        {outArrAirport.includes('(')
-                          ? outArrAirport.split('(')[1].replace(')', '').trim()
-                          : outArrAirport.slice(0, 3).toUpperCase() || 'GUM'}
-                      </Text>
-                      <Text style={styles.ticketAirportName}>{outArrAirport || '도착공항'}</Text>
-                      <Text style={styles.ticketTimeText}>{outArrTime || '04:00'}</Text>
-                      <Text style={styles.ticketDateText}>{outArrDate}</Text>
-                    </View>
-                  </View>
-                </View>
-
                 {/* 1. 편명 & 항공사 */}
                 <View style={styles.row}>
                   <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
@@ -431,14 +496,67 @@ export const FlightModal: React.FC<FlightModalProps> = ({
 
                 {/* 2. 출발지 공항 & 출발 날짜 & 시간 */}
                 <View style={styles.formGroup}>
-                  <Text style={styles.label}>출발 공항 및 출발 일시 *</Text>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.label}>출발 공항 및 출발 일시 *</Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setPickerTarget('outDep');
+                        setPickerQuery('');
+                      }}
+                      style={styles.searchPickerLink}
+                      activeOpacity={0.7}
+                    >
+                      <Search size={12} color="#FF6B6B" style={{ marginRight: 3 }} />
+                      <Text style={styles.searchPickerLinkText}>공항 검색/선택</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Preset chips for Departure */}
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.presetChipRow}
+                  >
+                    {ORIGIN_PRESET_AIRPORTS.map((item) => (
+                      <TouchableOpacity
+                        key={item.value}
+                        onPress={() => setOutDepAirport(item.value)}
+                        style={[
+                          styles.presetChip,
+                          outDepAirport === item.value && styles.presetChipActive,
+                        ]}
+                        activeOpacity={0.75}
+                      >
+                        <Text
+                          style={[
+                            styles.presetChipText,
+                            outDepAirport === item.value && styles.presetChipTextActive,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
                   <TextInput
                     value={outDepAirport}
                     onChangeText={setOutDepAirport}
-                    placeholder="예: 인천 (ICN) 제2터미널"
+                    placeholder="예: 인천국제공항 (ICN)"
                     placeholderTextColor="#94A3B8"
-                    style={[styles.input, { marginBottom: 8 }]}
+                    style={[styles.input, { marginBottom: 6 }]}
                   />
+
+                  {/* Resolved Location Badge */}
+                  {outDepLoc && (
+                    <View style={styles.locBadge}>
+                      <MapPin size={12} color="#059669" style={{ marginRight: 4 }} />
+                      <Text style={styles.locBadgeText} numberOfLines={1}>
+                        위치 매핑: {outDepLoc.name} ({outDepLoc.code}) · {outDepLoc.address}
+                      </Text>
+                    </View>
+                  )}
+
                   <View style={styles.row}>
                     <View style={[styles.inputWithIcon, { flex: 1.3, marginRight: 8 }]}>
                       <Calendar size={14} color="#64748B" style={{ marginRight: 6 }} />
@@ -463,37 +581,93 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                   </View>
                 </View>
 
-                {/* 3. 도착지 공항 & 도착 날짜 & 시간 (익일 도착 지원!) */}
+                {/* 3. 도착지 공항 & 도착 날짜 & 시간 */}
                 <View style={styles.formGroup}>
                   <View style={styles.labelRow}>
                     <Text style={styles.label}>도착 공항 및 도착 일시 *</Text>
-                    <View style={styles.dateHelperButtons}>
-                      <TouchableOpacity
-                        onPress={handleSetSameDayArrival}
-                        style={[styles.smallChip, outDepDate === outArrDate && styles.smallChipActive]}
-                      >
-                        <Text style={[styles.smallChipText, outDepDate === outArrDate && styles.smallChipTextActive]}>
-                          당일 도착
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={handleSetNextDayArrival}
-                        style={[styles.smallChip, outDepDate !== outArrDate && styles.smallChipActive]}
-                      >
-                        <Text style={[styles.smallChipText, outDepDate !== outArrDate && styles.smallChipTextActive]}>
-                          +1일 익일 도착 🌙
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setPickerTarget('outArr');
+                        setPickerQuery('');
+                      }}
+                      style={styles.searchPickerLink}
+                      activeOpacity={0.7}
+                    >
+                      <Search size={12} color="#FF6B6B" style={{ marginRight: 3 }} />
+                      <Text style={styles.searchPickerLinkText}>공항 검색/선택</Text>
+                    </TouchableOpacity>
                   </View>
+
+                  {/* Preset chips for Destination */}
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.presetChipRow}
+                  >
+                    {DEST_PRESET_AIRPORTS.map((item) => (
+                      <TouchableOpacity
+                        key={item.value}
+                        onPress={() => {
+                          setOutArrAirport(item.value);
+                          if (!retDepAirport || retDepAirport.includes('괌') || retDepAirport.includes('현지')) {
+                            setRetDepAirport(item.value);
+                          }
+                        }}
+                        style={[
+                          styles.presetChip,
+                          outArrAirport === item.value && styles.presetChipActive,
+                        ]}
+                        activeOpacity={0.75}
+                      >
+                        <Text
+                          style={[
+                            styles.presetChipText,
+                            outArrAirport === item.value && styles.presetChipTextActive,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
 
                   <TextInput
                     value={outArrAirport}
                     onChangeText={setOutArrAirport}
-                    placeholder="예: 괌 국제공항 (GUM), 도쿄 나리타 (NRT)"
+                    placeholder="예: 앤토니오 B. 원 팻 국제공항 (GUM)"
                     placeholderTextColor="#94A3B8"
-                    style={[styles.input, { marginBottom: 8 }]}
+                    style={[styles.input, { marginBottom: 6 }]}
                   />
+
+                  {/* Resolved Location Badge */}
+                  {outArrLoc && (
+                    <View style={styles.locBadge}>
+                      <MapPin size={12} color="#059669" style={{ marginRight: 4 }} />
+                      <Text style={styles.locBadgeText} numberOfLines={1}>
+                        위치 매핑: {outArrLoc.name} ({outArrLoc.code}) · {outArrLoc.address}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Date Helper Chips */}
+                  <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+                    <TouchableOpacity
+                      onPress={handleSetSameDayArrival}
+                      style={[styles.smallChip, outDepDate === outArrDate && styles.smallChipActive]}
+                    >
+                      <Text style={[styles.smallChipText, outDepDate === outArrDate && styles.smallChipTextActive]}>
+                        당일 도착
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleSetNextDayArrival}
+                      style={[styles.smallChip, outDepDate !== outArrDate && styles.smallChipActive]}
+                    >
+                      <Text style={[styles.smallChipText, outDepDate !== outArrDate && styles.smallChipTextActive]}>
+                        +1일 익일 도착 🌙
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
 
                   <View style={styles.row}>
                     <View style={[styles.inputWithIcon, { flex: 1.3, marginRight: 8 }]}>
@@ -519,10 +693,10 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                   </View>
                 </View>
 
-                {/* 4. 입국 수속 버퍼 & 도착일 시작 시간 자동 계산 */}
+                {/* 4. 입국 수속 버퍼 */}
                 <View style={styles.bufferCard}>
                   <View style={styles.bufferHeader}>
-                    <Sparkles size={15} color="#FF6B6B" style={{ marginRight: 6 }} />
+                    <Sparkles size={14} color="#FF6B6B" style={{ marginRight: 6 }} />
                     <Text style={styles.bufferTitle}>도착 후 입국 수속 & 추천 일정 시작 시간</Text>
                   </View>
                   <Text style={styles.bufferDesc}>
@@ -579,14 +753,16 @@ export const FlightModal: React.FC<FlightModalProps> = ({
               </View>
             )}
 
-            {/* TAB 2: RETURN (오는 편 / 귀국편) */}
+            {/* TAB 2: RETURN (오는 편) */}
             {activeTab === 'return' && (
               <View>
                 {/* 귀국편 등록 스위치 */}
                 <View style={styles.toggleRowCard}>
                   <View style={{ flex: 1, marginRight: 12 }}>
                     <Text style={styles.toggleTitle}>귀국 항공편(오는 편) 등록하기</Text>
-                    <Text style={styles.toggleSubtitle}>여행 마지막 날 귀국 공항 스팟 및 귀국 일정을 자동 생성합니다</Text>
+                    <Text style={styles.toggleSubtitle}>
+                      여행 마지막 날 귀국 공항 스팟 및 귀국 일정을 자동 생성합니다
+                    </Text>
                   </View>
                   <Switch
                     value={hasReturnFlight}
@@ -598,48 +774,6 @@ export const FlightModal: React.FC<FlightModalProps> = ({
 
                 {hasReturnFlight ? (
                   <View>
-                    {/* Return Ticket Preview */}
-                    <View style={[styles.ticketCard, { borderColor: '#38BDF8' }]}>
-                      <View style={styles.ticketHeader}>
-                        <Text style={[styles.ticketAirlineText, { color: '#0284C7' }]}>{retAirline || '대한항공'}</Text>
-                        <Text style={[styles.ticketFlightNo, { color: '#0369A1' }]}>{retFlightNumber || 'KE114'}</Text>
-                      </View>
-
-                      <View style={styles.ticketRouteRow}>
-                        <View style={styles.ticketAirportBlock}>
-                          <Text style={[styles.ticketAirportCode, { color: '#0369A1' }]}>
-                            {retDepAirport.includes('(')
-                              ? retDepAirport.split('(')[1].replace(')', '').trim()
-                              : retDepAirport.slice(0, 3).toUpperCase() || 'GUM'}
-                          </Text>
-                          <Text style={styles.ticketAirportName}>{retDepAirport || '현지공항'}</Text>
-                          <Text style={styles.ticketTimeText}>{retDepTime || '15:30'}</Text>
-                          <Text style={styles.ticketDateText}>{retDepDate}</Text>
-                        </View>
-
-                        <View style={styles.ticketCenterArrow}>
-                          <Text style={[styles.ticketLegTag, { color: '#0284C7' }]}>귀국편 직항</Text>
-                          <View style={[styles.arrowLine, { backgroundColor: '#BAE6FD' }]} />
-                          <Plane
-                            size={16}
-                            color="#0284C7"
-                            style={{ marginVertical: 2, transform: [{ rotate: '180deg' }] }}
-                          />
-                        </View>
-
-                        <View style={[styles.ticketAirportBlock, { alignItems: 'flex-end' }]}>
-                          <Text style={[styles.ticketAirportCode, { color: '#0369A1' }]}>
-                            {retArrAirport.includes('(')
-                              ? retArrAirport.split('(')[1].replace(')', '').trim()
-                              : retArrAirport.slice(0, 3).toUpperCase() || 'ICN'}
-                          </Text>
-                          <Text style={styles.ticketAirportName}>{retArrAirport || '인천공항'}</Text>
-                          <Text style={styles.ticketTimeText}>{retArrTime || '20:00'}</Text>
-                          <Text style={styles.ticketDateText}>{retArrDate}</Text>
-                        </View>
-                      </View>
-                    </View>
-
                     {/* 편명 & 항공사 */}
                     <View style={styles.row}>
                       <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
@@ -665,16 +799,40 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                       </View>
                     </View>
 
-                    {/* 현지 출발 공항 & 일시 */}
+                    {/* 현지 출발 공항 */}
                     <View style={styles.formGroup}>
-                      <Text style={styles.label}>현지 출발 공항 및 시간 *</Text>
+                      <View style={styles.labelRow}>
+                        <Text style={styles.label}>현지 출발 공항 및 시간 *</Text>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setPickerTarget('retDep');
+                            setPickerQuery('');
+                          }}
+                          style={styles.searchPickerLink}
+                          activeOpacity={0.7}
+                        >
+                          <Search size={12} color="#FF6B6B" style={{ marginRight: 3 }} />
+                          <Text style={styles.searchPickerLinkText}>공항 검색/선택</Text>
+                        </TouchableOpacity>
+                      </View>
+
                       <TextInput
                         value={retDepAirport}
                         onChangeText={setRetDepAirport}
-                        placeholder="예: 괌 국제공항 (GUM), 도쿄 나리타 (NRT)"
+                        placeholder="예: 앤토니오 B. 원 팻 국제공항 (GUM)"
                         placeholderTextColor="#94A3B8"
-                        style={[styles.input, { marginBottom: 8 }]}
+                        style={[styles.input, { marginBottom: 6 }]}
                       />
+
+                      {retDepLoc && (
+                        <View style={styles.locBadge}>
+                          <MapPin size={12} color="#059669" style={{ marginRight: 4 }} />
+                          <Text style={styles.locBadgeText} numberOfLines={1}>
+                            위치 매핑: {retDepLoc.name} ({retDepLoc.code}) · {retDepLoc.address}
+                          </Text>
+                        </View>
+                      )}
+
                       <View style={styles.row}>
                         <View style={[styles.inputWithIcon, { flex: 1.3, marginRight: 8 }]}>
                           <Calendar size={14} color="#64748B" style={{ marginRight: 6 }} />
@@ -699,16 +857,40 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                       </View>
                     </View>
 
-                    {/* 한국 도착 공항 & 일시 */}
+                    {/* 한국 도착 공항 */}
                     <View style={styles.formGroup}>
-                      <Text style={styles.label}>한국 도착 공항 및 시간 *</Text>
+                      <View style={styles.labelRow}>
+                        <Text style={styles.label}>한국 도착 공항 및 시간 *</Text>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setPickerTarget('retArr');
+                            setPickerQuery('');
+                          }}
+                          style={styles.searchPickerLink}
+                          activeOpacity={0.7}
+                        >
+                          <Search size={12} color="#FF6B6B" style={{ marginRight: 3 }} />
+                          <Text style={styles.searchPickerLinkText}>공항 검색/선택</Text>
+                        </TouchableOpacity>
+                      </View>
+
                       <TextInput
                         value={retArrAirport}
                         onChangeText={setRetArrAirport}
-                        placeholder="예: 인천 (ICN) 제1터미널"
+                        placeholder="예: 인천국제공항 (ICN)"
                         placeholderTextColor="#94A3B8"
-                        style={[styles.input, { marginBottom: 8 }]}
+                        style={[styles.input, { marginBottom: 6 }]}
                       />
+
+                      {retArrLoc && (
+                        <View style={styles.locBadge}>
+                          <MapPin size={12} color="#059669" style={{ marginRight: 4 }} />
+                          <Text style={styles.locBadgeText} numberOfLines={1}>
+                            위치 매핑: {retArrLoc.name} ({retArrLoc.code}) · {retArrLoc.address}
+                          </Text>
+                        </View>
+                      )}
+
                       <View style={styles.row}>
                         <View style={[styles.inputWithIcon, { flex: 1.3, marginRight: 8 }]}>
                           <Calendar size={14} color="#64748B" style={{ marginRight: 6 }} />
@@ -750,7 +932,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                         <TextInput
                           value={retMemo}
                           onChangeText={setRetMemo}
-                          placeholder="예: 공항 면세점 픽업"
+                          placeholder="예: 귀국편 면세품 픽업"
                           placeholderTextColor="#94A3B8"
                           style={styles.input}
                         />
@@ -759,23 +941,25 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                   </View>
                 ) : (
                   <View style={styles.emptyReturnBox}>
-                    <Text style={styles.emptyReturnTitle}>오는 편은 등록하지 않습니다</Text>
-                    <Text style={styles.emptyReturnDesc}>편도 여행이거나 귀국편이 미정인 경우 가는 편만 일정에 등록됩니다.</Text>
+                    <Text style={styles.emptyReturnTitle}>편도 여행으로 설정됨</Text>
+                    <Text style={styles.emptyReturnDesc}>
+                      귀국 항공편을 등록하면 마지막 날 귀국 일정까지 자동으로 플래너에 연동됩니다.
+                    </Text>
                   </View>
                 )}
               </View>
             )}
 
-            {/* 일정 자동 연동 토글 카드 */}
+            {/* Auto Schedule Switch */}
             <View style={styles.autoScheduleCard}>
               <View style={styles.autoScheduleLeft}>
                 <View style={styles.sparkleCircle}>
-                  <Sparkles size={16} color="#FF6B6B" />
+                  <Sparkles size={16} color="#EA580C" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.autoScheduleTitle}>내 여행 일정(타임라인)에 자동 추가 ✨</Text>
+                  <Text style={styles.autoScheduleTitle}>내 일정 및 지도에 자동 추가하기</Text>
                   <Text style={styles.autoScheduleDesc}>
-                    출발/도착 일시에 맞춰 각 일차의 타임라인에 공항 탑승 및 입국 스팟이 자동 추가됩니다.
+                    비행기 탑승/도착 스팟을 일정에 추가하고 해당 공항 위치로 지도에 마커를 찍습니다.
                   </Text>
                 </View>
               </View>
@@ -789,25 +973,108 @@ export const FlightModal: React.FC<FlightModalProps> = ({
 
             {/* Action Buttons */}
             <View style={styles.actionButtonsCol}>
-              <TouchableOpacity
-                onPress={handleSave}
-                style={styles.primarySaveBtn}
-                activeOpacity={0.8}
-              >
-                <Check size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.primarySaveBtnText}>
-                  항공권 저장 및 일정 자동 연동 🚀
-                </Text>
+              <TouchableOpacity onPress={handleSave} style={styles.primarySaveBtn} activeOpacity={0.85}>
+                <Plane size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.primarySaveBtnText}>항공권 저장 & 일정 반영 ✈️</Text>
               </TouchableOpacity>
 
               {initialFlight && (
-                <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn} activeOpacity={0.7}>
+                <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn} activeOpacity={0.75}>
                   <Trash2 size={16} color="#EF4444" style={{ marginRight: 6 }} />
                   <Text style={styles.deleteBtnText}>항공권 정보 삭제</Text>
                 </TouchableOpacity>
               )}
             </View>
           </ScrollView>
+
+          {/* Sub-modal: Airport Picker */}
+          {pickerTarget && (
+            <View style={styles.pickerOverlay}>
+              <View style={styles.pickerSheet}>
+                <View style={styles.pickerHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Globe size={18} color="#FF6B6B" style={{ marginRight: 8 }} />
+                    <Text style={styles.pickerTitle}>공항 선택 🛫</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setPickerTarget(null)} style={styles.pickerCloseBtn}>
+                    <X size={18} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Search in picker */}
+                <View style={styles.pickerSearchBar}>
+                  <Search size={15} color="#FF6B6B" style={{ marginRight: 8 }} />
+                  <TextInput
+                    value={pickerQuery}
+                    onChangeText={setPickerQuery}
+                    placeholder="공항명, 도시명, 또는 IATA 코드 (예: 괌, ICN)"
+                    placeholderTextColor="#94A3B8"
+                    style={styles.pickerSearchInput}
+                    autoFocus={true}
+                  />
+                  {pickerQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setPickerQuery('')}>
+                      <X size={14} color="#94A3B8" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Region Filter Chips */}
+                <View style={styles.pickerFilterRow}>
+                  {[
+                    { label: '전체', value: 'ALL' },
+                    { label: '🇰🇷 한국', value: 'KR' },
+                    { label: '🇯🇵 일본', value: 'JP' },
+                    { label: '🇺🇸 미국/괌', value: 'US' },
+                    { label: '🌴 동남아', value: 'SEA' },
+                  ].map((f) => {
+                    const active = pickerRegion === f.value;
+                    return (
+                      <TouchableOpacity
+                        key={f.value}
+                        onPress={() => setPickerRegion(f.value as any)}
+                        style={[styles.pickerFilterChip, active && styles.pickerFilterChipActive]}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={[styles.pickerFilterChipText, active && styles.pickerFilterChipTextActive]}>
+                          {f.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Airport List */}
+                <ScrollView style={styles.pickerList} keyboardShouldPersistTaps="handled">
+                  {filteredAirports.map((airport) => (
+                    <TouchableOpacity
+                      key={airport.code}
+                      onPress={() => handleSelectAirportItem(airport)}
+                      style={styles.airportItem}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.airportCodeBadge}>
+                        <Text style={styles.airportCodeText}>{airport.code}</Text>
+                      </View>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                          <Text style={styles.airportNameKo}>{airport.nameKo}</Text>
+                          <Text style={styles.airportCity}> · {airport.city}</Text>
+                        </View>
+                        <Text style={styles.airportAddress} numberOfLines={1}>
+                          {airport.address}
+                        </Text>
+                        <Text style={styles.airportCoords}>
+                          좌표: {airport.latitude.toFixed(4)}, {airport.longitude.toFixed(4)}
+                        </Text>
+                      </View>
+                      <ChevronRight size={16} color="#CBD5E1" />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+          )}
         </View>
       </View>
     </Modal>
@@ -817,21 +1084,22 @@ export const FlightModal: React.FC<FlightModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
   },
   sheet: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: '92%',
-    paddingHorizontal: 20,
-    paddingTop: 18,
+    minHeight: '75%',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'between',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 18,
     paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
@@ -844,8 +1112,8 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFF1F2',
+    borderRadius: 12,
+    backgroundColor: '#FFF0F0',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -853,150 +1121,69 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#1E293B',
   },
   subtitle: {
     fontSize: 11,
-    fontWeight: '500',
     color: '#64748B',
-    marginTop: 1,
+    marginTop: 2,
   },
   closeBtn: {
     padding: 6,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 20,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
     borderRadius: 16,
-    padding: 4,
-    marginTop: 12,
-    marginBottom: 12,
+    backgroundColor: '#F8FAFC',
   },
-  tabButton: {
+  tabRow: {
+    flexDirection: 'row',
+    marginHorizontal: 18,
+    marginTop: 12,
+    marginBottom: 8,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    padding: 3,
+  },
+  tabBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 9,
+    borderRadius: 11,
   },
-  activeTabButton: {
+  tabBtnActive: {
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 2,
     elevation: 2,
   },
-  tabButtonText: {
+  tabBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  activeTabButtonText: {
-    color: '#FF6B6B',
-  },
-  scrollBody: {
-    marginTop: 2,
-  },
-  ticketCard: {
-    backgroundColor: '#FFF8F8',
-    borderWidth: 1,
-    borderColor: '#FECDD3',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 16,
-  },
-  ticketHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#FFE4E6',
-    borderStyle: 'dashed',
-    marginBottom: 12,
-  },
-  ticketAirlineText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#E11D48',
-  },
-  ticketFlightNo: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#9F1239',
-  },
-  ticketRouteRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  ticketAirportBlock: {
-    flex: 1,
-  },
-  ticketAirportCode: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#0F172A',
-  },
-  ticketAirportName: {
-    fontSize: 11,
     fontWeight: '600',
     color: '#64748B',
-    marginTop: 1,
   },
-  ticketTimeText: {
-    fontSize: 15,
-    fontWeight: '800',
+  tabBtnTextActive: {
     color: '#FF6B6B',
-    marginTop: 3,
-  },
-  ticketDateText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#94A3B8',
-  },
-  ticketCenterArrow: {
-    alignItems: 'center',
-    paddingHorizontal: 8,
-  },
-  ticketLegTag: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FF6B6B',
-    marginBottom: 2,
-  },
-  arrowLine: {
-    width: 48,
-    height: 1.5,
-    backgroundColor: '#FDA4AF',
-  },
-  nextDayBadge: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginTop: 2,
-  },
-  nextDayBadgeText: {
-    fontSize: 9,
     fontWeight: '800',
-    color: '#D97706',
   },
-  formGroup: {
-    marginBottom: 14,
+  tabOffBadge: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#94A3B8',
+    marginLeft: 4,
+  },
+  body: {
+    paddingHorizontal: 18,
+    paddingTop: 8,
   },
   row: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
-  label: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#334155',
-    marginBottom: 6,
+  formGroup: {
+    marginBottom: 14,
   },
   labelRow: {
     flexDirection: 'row',
@@ -1004,13 +1191,95 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 6,
   },
-  dateHelperButtons: {
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  searchPickerLink: {
     flexDirection: 'row',
-    gap: 4,
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: '#FFF0F0',
+    borderRadius: 8,
+  },
+  searchPickerLinkText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF6B6B',
+  },
+  presetChipRow: {
+    gap: 6,
+    marginBottom: 8,
+  },
+  presetChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  presetChipActive: {
+    backgroundColor: '#FFF0F0',
+    borderColor: '#FF6B6B',
+  },
+  presetChipText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  presetChipTextActive: {
+    color: '#FF6B6B',
+    fontWeight: '700',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13,
+    color: '#1E293B',
+    backgroundColor: '#FFFFFF',
+  },
+  locBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    marginBottom: 8,
+  },
+  locBadgeText: {
+    fontSize: 11,
+    color: '#065F46',
+    fontWeight: '600',
+    flex: 1,
+  },
+  inputWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  innerInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1E293B',
+    padding: 0,
   },
   smallChip: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 8,
     backgroundColor: '#F1F5F9',
   },
@@ -1018,47 +1287,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF6B6B',
   },
   smallChipText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
     color: '#64748B',
+    fontWeight: '600',
   },
   smallChipTextActive: {
     color: '#FFFFFF',
-  },
-  input: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#0F172A',
-    fontWeight: '600',
-  },
-  inputWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-  },
-  innerInput: {
-    flex: 1,
-    fontSize: 12,
     fontWeight: '700',
-    color: '#0F172A',
-    padding: 0,
   },
   bufferCard: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
-    borderRadius: 18,
-    padding: 14,
+    borderColor: '#E2E8F0',
     marginBottom: 14,
   },
   bufferHeader: {
@@ -1069,69 +1311,65 @@ const styles = StyleSheet.create({
   bufferTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#166534',
+    color: '#1E293B',
   },
   bufferDesc: {
     fontSize: 11,
-    lineHeight: 16,
-    color: '#15803D',
-    fontWeight: '500',
+    color: '#64748B',
+    lineHeight: 15,
     marginBottom: 10,
   },
   bufferPresetsRow: {
     flexDirection: 'row',
     gap: 6,
+    flexWrap: 'wrap',
     marginBottom: 10,
   },
   bufferPresetBtn: {
-    flex: 1,
-    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
-    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#86EFAC',
+    borderColor: '#CBD5E1',
   },
   bufferPresetBtnActive: {
-    backgroundColor: '#16A34A',
-    borderColor: '#16A34A',
+    backgroundColor: '#FF6B6B',
+    borderColor: '#FF6B6B',
   },
   bufferPresetText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#15803D',
+    fontSize: 11,
+    color: '#475569',
+    fontWeight: '600',
   },
   bufferPresetTextActive: {
     color: '#FFFFFF',
+    fontWeight: '700',
   },
   computedBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#86EFAC',
+    backgroundColor: '#FFF0F0',
+    padding: 8,
+    borderRadius: 8,
   },
   computedLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#15803D',
+    color: '#E11D48',
   },
   computedTime: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#16A34A',
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#E11D48',
   },
   toggleRowCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 14,
+    padding: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     marginBottom: 14,
@@ -1139,20 +1377,18 @@ const styles = StyleSheet.create({
   toggleTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#1E293B',
   },
   toggleSubtitle: {
     fontSize: 11,
-    fontWeight: '500',
     color: '#64748B',
     marginTop: 2,
   },
   emptyReturnBox: {
     padding: 24,
     alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#F8FAFC',
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderStyle: 'dashed',
@@ -1176,9 +1412,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF7ED',
     borderWidth: 1,
     borderColor: '#FED7AA',
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 16,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
   },
   autoScheduleLeft: {
     flexDirection: 'row',
@@ -1204,7 +1440,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 14,
     color: '#C2410C',
-    fontWeight: '500',
     marginTop: 2,
   },
   actionButtonsCol: {
@@ -1214,15 +1449,10 @@ const styles = StyleSheet.create({
   primarySaveBtn: {
     backgroundColor: '#FF6B6B',
     paddingVertical: 14,
-    borderRadius: 16,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF6B6B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 3,
   },
   primarySaveBtnText: {
     fontSize: 14,
@@ -1231,7 +1461,7 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1241,5 +1471,116 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#EF4444',
+  },
+  pickerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  pickerSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+    minHeight: '65%',
+    padding: 16,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  pickerCloseBtn: {
+    padding: 6,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+  },
+  pickerSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 10,
+  },
+  pickerSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1E293B',
+    padding: 0,
+  },
+  pickerFilterRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 10,
+  },
+  pickerFilterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: '#F1F5F9',
+  },
+  pickerFilterChipActive: {
+    backgroundColor: '#FF6B6B',
+  },
+  pickerFilterChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  pickerFilterChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  pickerList: {
+    flex: 1,
+  },
+  airportItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  airportCodeBadge: {
+    width: 44,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  airportCodeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#2563EB',
+  },
+  airportNameKo: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  airportCity: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  airportAddress: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  airportCoords: {
+    fontSize: 10,
+    color: '#059669',
+    marginTop: 2,
   },
 });

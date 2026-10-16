@@ -9,6 +9,7 @@ import {
   formatMinutesToTime,
   solveTSPNearestNeighbor,
 } from '../utils/routeUtils';
+import { resolveAirportLocation } from '../services/airportService';
 
 interface TripState {
   trips: Trip[];
@@ -384,7 +385,7 @@ export const useTripStore = create<TripState>()(
     });
   },
 
-  syncFlightToSchedule: (tripId: string, flight: FlightInfo) => {
+  syncFlightToSchedule: async (tripId: string, flight: FlightInfo) => {
     const { scheduleItems, trips, setDayStartTime, recalculateTimes } = get();
     const trip = trips.find((t) => t.id === tripId) || get().currentTrip;
     if (!trip) return;
@@ -423,6 +424,10 @@ export const useTripStore = create<TripState>()(
       memo: flight.memo,
     };
 
+    // Lookup real geographic coordinates for departure and arrival airports
+    const outDepLocation = await resolveAirportLocation(outbound.departureAirport);
+    const outArrLocation = await resolveAirportLocation(outbound.arrivalAirport);
+
     // Outbound Departure
     const outDepDay = getDayNumberForDate(outbound.departureDate, 1);
     newFlightItems.push({
@@ -431,8 +436,8 @@ export const useTripStore = create<TripState>()(
       place_id: `place_airport_out_dep`,
       place_name: `🛫 [출발편 탑승] ${outbound.departureAirport} (${outbound.airline || ''} ${outbound.flightNumber})`,
       category: 'FLIGHT',
-      latitude: 37.4602,
-      longitude: 126.4407,
+      latitude: outDepLocation.latitude,
+      longitude: outDepLocation.longitude,
       day_number: outDepDay,
       order_index: 1,
       stay_duration_minutes: 60,
@@ -440,7 +445,7 @@ export const useTripStore = create<TripState>()(
       travel_duration_minutes: 0,
       arrival_time: outbound.departureTime || '09:20',
       memo: `출발 ${outbound.departureTime} · ${outbound.terminal || ''}`,
-      address: outbound.departureAirport,
+      address: outDepLocation.address || outbound.departureAirport,
     });
 
     // Outbound Arrival
@@ -451,8 +456,8 @@ export const useTripStore = create<TripState>()(
       place_id: `place_airport_out_arr`,
       place_name: `🛬 [도착편 입국] ${outbound.arrivalAirport} (${outbound.airline || ''} ${outbound.flightNumber})`,
       category: 'FLIGHT',
-      latitude: 35.7720,
-      longitude: 140.3929,
+      latitude: outArrLocation.latitude,
+      longitude: outArrLocation.longitude,
       day_number: outArrDay,
       order_index: 1,
       stay_duration_minutes: outbound.bufferMinutes || 90,
@@ -460,7 +465,7 @@ export const useTripStore = create<TripState>()(
       travel_duration_minutes: 0,
       arrival_time: outbound.arrivalTime || '12:40',
       memo: `도착 ${outbound.arrivalTime} · 입국 수속 버퍼 ${outbound.bufferMinutes || 90}분`,
-      address: outbound.arrivalAirport,
+      address: outArrLocation.address || outbound.arrivalAirport,
     });
 
     // Automatically update arrival day start time
@@ -479,14 +484,17 @@ export const useTripStore = create<TripState>()(
       const retDepDay = getDayNumberForDate(ret.departureDate, maxDay);
       const retArrDay = getDayNumberForDate(ret.arrivalDate, retDepDay);
 
+      const retDepLocation = await resolveAirportLocation(ret.departureAirport);
+      const retArrLocation = await resolveAirportLocation(ret.arrivalAirport);
+
       newFlightItems.push({
         id: `flight_${tripId}_ret_dep`,
         trip_id: tripId,
         place_id: `place_airport_ret_dep`,
         place_name: `🛫 [귀국편 출발] ${ret.departureAirport} (${ret.airline || ''} ${ret.flightNumber})`,
         category: 'FLIGHT',
-        latitude: 35.7720,
-        longitude: 140.3929,
+        latitude: retDepLocation.latitude,
+        longitude: retDepLocation.longitude,
         day_number: retDepDay,
         order_index: 99,
         stay_duration_minutes: 60,
@@ -494,7 +502,7 @@ export const useTripStore = create<TripState>()(
         travel_duration_minutes: 0,
         arrival_time: ret.departureTime || '14:00',
         memo: `출국 수속 및 탑승 ${ret.departureTime} · ${ret.terminal || ''}`,
-        address: ret.departureAirport,
+        address: retDepLocation.address || ret.departureAirport,
       });
 
       newFlightItems.push({
@@ -503,8 +511,8 @@ export const useTripStore = create<TripState>()(
         place_id: `place_airport_ret_arr`,
         place_name: `🛬 [귀국편 도착] ${ret.arrivalAirport} (${ret.airline || ''} ${ret.flightNumber})`,
         category: 'FLIGHT',
-        latitude: 37.4602,
-        longitude: 126.4407,
+        latitude: retArrLocation.latitude,
+        longitude: retArrLocation.longitude,
         day_number: retArrDay,
         order_index: 100,
         stay_duration_minutes: 30,
@@ -512,7 +520,7 @@ export const useTripStore = create<TripState>()(
         travel_duration_minutes: 0,
         arrival_time: ret.arrivalTime || '17:15',
         memo: `귀국 완료 ${ret.arrivalTime}`,
-        address: ret.arrivalAirport,
+        address: retArrLocation.address || ret.arrivalAirport,
       });
     }
 

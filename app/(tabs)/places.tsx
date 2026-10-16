@@ -19,6 +19,7 @@ import { useSavedLinkStore } from '../../src/store/useSavedLinkStore';
 import { useClipboardListener } from '../../src/hooks/useClipboardListener';
 import { ClipboardToast } from '../../src/components/places/ClipboardToast';
 import { AddPlaceModal } from '../../src/components/places/AddPlaceModal';
+import { PlaceSearchModal } from '../../src/components/places/PlaceSearchModal';
 import { LinkPlacesModal } from '../../src/components/places/LinkPlacesModal';
 import { PlaceDetailModal } from '../../src/components/places/PlaceDetailModal';
 import { useTripStore } from '../../src/store/useTripStore';
@@ -83,6 +84,7 @@ export default function PlacesScreen() {
   const [activeTab, setActiveTab] = useState<'PLACES' | 'LINKS'>('PLACES');
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [plannerModalVisible, setPlannerModalVisible] = useState(false);
   const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
 
@@ -214,13 +216,24 @@ export default function PlacesScreen() {
         title="장소 & 링크 보관함 📌"
         subtitle={`${currentTrip?.title || '여행'} · 핫플 ${tripPlaces.length}개 · 링크 ${tripLinks.length}개`}
         rightAction={
-          <TouchableOpacity
-            onPress={() => setModalVisible(true)}
-            style={styles.addHeaderBtn}
-            activeOpacity={0.8}
-          >
-            <Plus size={20} color="#FF6B6B" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => setSearchModalVisible(true)}
+              style={[styles.addHeaderBtn, { backgroundColor: '#FFF0F0', borderColor: '#FECDD3', borderWidth: 1 }]}
+              activeOpacity={0.8}
+              accessibilityLabel="장소 이름 검색하여 저장"
+            >
+              <Search size={18} color="#FF6B6B" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setModalVisible(true)}
+              style={styles.addHeaderBtn}
+              activeOpacity={0.8}
+              accessibilityLabel="장소 및 링크 추가"
+            >
+              <Plus size={20} color="#FF6B6B" />
+            </TouchableOpacity>
+          </View>
         }
       />
 
@@ -311,6 +324,20 @@ export default function PlacesScreen() {
                 </TouchableOpacity>
               ) : null}
             </View>
+
+            {/* Online search prompt when search query entered */}
+            {searchQuery.trim().length > 0 && (
+              <TouchableOpacity
+                onPress={() => setSearchModalVisible(true)}
+                style={styles.searchOnlinePrompt}
+                activeOpacity={0.8}
+              >
+                <Search size={13} color="#E11D48" style={{ marginRight: 6 }} />
+                <Text style={styles.searchOnlinePromptText} numberOfLines={1}>
+                  "{searchQuery}" 장소를 전체 데이터베이스에서 검색 및 저장 ↗
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 16 }}>
               {CATEGORIES.map((cat) => {
@@ -469,14 +496,23 @@ export default function PlacesScreen() {
             <EmptyState
               icon={<Bookmark size={28} color="#FF6B6B" />}
               title="보관함에 담긴 장소가 없습니다"
-              description="릴스나 블로그 링크를 핀치하여 마음에 드는 핫플들을 보관함에 쏙 담아보세요."
+              description="원하는 장소 이름을 직접 검색하여 저장하거나 릴스/블로그 링크를 핀치해보세요."
               actionButton={
-                <Button
-                  title="새 링크 핀치하기"
-                  onPress={() => setModalVisible(true)}
-                  size="sm"
-                  icon={<Sparkles size={14} color="#FFF" />}
-                />
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                  <Button
+                    title="장소 이름 검색"
+                    onPress={() => setSearchModalVisible(true)}
+                    size="sm"
+                    icon={<Search size={14} color="#FFF" />}
+                  />
+                  <Button
+                    title="링크 핀치"
+                    onPress={() => setModalVisible(true)}
+                    size="sm"
+                    variant="outline"
+                    icon={<Sparkles size={14} color="#FF6B6B" />}
+                  />
+                </View>
               }
             />
           )}
@@ -571,6 +607,12 @@ export default function PlacesScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* 장소 직접 검색 & 저장 모달 (PlaceSearchModal) */}
+      <PlaceSearchModal
+        visible={searchModalVisible}
+        onClose={() => setSearchModalVisible(false)}
+      />
 
       {/* 링크 추가 모달 (AddPlaceModal) */}
       <AddPlaceModal
@@ -958,5 +1000,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#0284C7',
+  },
+  searchOnlinePrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1,
+    borderColor: '#FECDD3',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  searchOnlinePromptText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#E11D48',
+    flex: 1,
   },
 });
