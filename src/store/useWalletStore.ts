@@ -17,23 +17,35 @@ import {
 } from '../utils/settlementUtils';
 import { fetchLiveExchangeRates } from '../services/exchangeRateService';
 
+import type { CustomBudgetItem, TourPackageItem } from '../types';
+
 export interface WalletState {
   expenses: ExpenseItem[];
   members: WalletMember[];
-  activeTab: 'expenses' | 'settlement';
+  activeTab: 'budget' | 'expenses' | 'settlement';
   exchangeRates: Record<CurrencyCode, number>;
   lastExchangeRateUpdate: string;
   isUpdatingRates: boolean;
   settledTransactionIds: string[];
   tripCurrencies: Record<string, CurrencyCode>;
   categoryBudgets: Record<string, Record<string, number>>;
+  customBudgets: Record<string, CustomBudgetItem[]>;
+  tourPackages: Record<string, TourPackageItem[]>;
 
   // Actions
-  setActiveTab: (tab: 'expenses' | 'settlement') => void;
+  setActiveTab: (tab: 'budget' | 'expenses' | 'settlement') => void;
   setTripCurrency: (tripId: string, currency: CurrencyCode) => void;
   getTripCurrency: (tripId?: string) => CurrencyCode;
   setCategoryBudget: (tripId: string, category: string, amount: number) => void;
+  deleteCategoryBudget: (tripId: string, category: string) => void;
   getCategoryBudgets: (tripId?: string) => Record<string, number>;
+  addCustomBudget: (tripId: string, item: Omit<CustomBudgetItem, 'id' | 'trip_id'>) => void;
+  removeCustomBudget: (tripId: string, id: string) => void;
+  updateCustomBudget: (tripId: string, id: string, amount: number) => void;
+  getCustomBudgets: (tripId?: string) => CustomBudgetItem[];
+  addTourPackage: (tripId: string, item: Omit<TourPackageItem, 'id' | 'trip_id'>) => void;
+  removeTourPackage: (tripId: string, id: string) => void;
+  getTourPackages: (tripId?: string) => TourPackageItem[];
   addExpense: (expense: Omit<ExpenseItem, 'id' | 'created_at' | 'krw_amount'>) => void;
   deleteExpense: (id: string) => void;
   updateExchangeRate: (currency: CurrencyCode, rate: number) => void;
@@ -45,6 +57,7 @@ export interface WalletState {
   generateShareText: (tripTitle?: string, tripId?: string, customMembers?: WalletMember[]) => string;
   resetToDefaults: () => void;
 }
+
 
 const MOCK_MEMBERS: WalletMember[] = [
   { id: 'm1', name: '나 (민지)', color: '#FF6B6B' },
@@ -138,10 +151,32 @@ const INITIAL_EXPENSES: ExpenseItem[] = [
   },
 ];
 
+const INITIAL_CUSTOM_BUDGETS: Record<string, CustomBudgetItem[]> = {
+  t_tokyo: [
+    { id: 'cb_1', trip_id: 't_tokyo', name: 'eSIM 데이터 무제한', amount: 18000, color: '#06B6D4' },
+    { id: 'cb_2', trip_id: 't_tokyo', name: '여행자보험', amount: 15000, color: '#8B5CF6' },
+  ],
+  t_osaka: [
+    { id: 'cb_3', trip_id: 't_osaka', name: '간사이 와이파이 도시락', amount: 20000, color: '#06B6D4' },
+  ],
+};
+
+const INITIAL_TOUR_PACKAGES: Record<string, TourPackageItem[]> = {
+  t_tokyo: [
+    { id: 'tp_1', trip_id: 't_tokyo', name: '시부야 스카이 전망대 입장권', amount: 22000, memo: '17:00 일몰 시간대 예약권' },
+    { id: 'tp_2', trip_id: 't_tokyo', name: '도쿄 디즈니씨 1일 자유이용권', amount: 88000, memo: '공식 앱 DPA 예약 포함' },
+    { id: 'tp_3', trip_id: 't_tokyo', name: '팀랩 플래닛 도쿄 전시회', amount: 38000, memo: '토요스 모바일 QR' },
+  ],
+  t_osaka: [
+    { id: 'tp_4', trip_id: 't_osaka', name: '유니버셜 스튜디오 재팬 (USJ) 1일권', amount: 86000, memo: '슈퍼 닌텐도 월드 확약권' },
+  ],
+};
+
 const INITIAL_CATEGORY_BUDGETS: Record<string, Record<string, number>> = {
   t_tokyo: {
     FOOD: 400000,
-    STAY: 600000,
+    LODGING: 600000,
+    FLIGHT: 450000,
     TRANSPORT: 250000,
     SHOPPING: 350000,
     ACTIVITY: 150000,
@@ -149,7 +184,8 @@ const INITIAL_CATEGORY_BUDGETS: Record<string, Record<string, number>> = {
   },
   t_osaka: {
     FOOD: 300000,
-    STAY: 350000,
+    LODGING: 350000,
+    FLIGHT: 350000,
     TRANSPORT: 150000,
     SHOPPING: 200000,
     ACTIVITY: 100000,
@@ -164,7 +200,8 @@ const INITIAL_TRIP_CURRENCIES: Record<string, CurrencyCode> = {
 
 export const DEFAULT_CATEGORY_BUDGET_MAP: Record<string, number> = {
   FOOD: 400000,
-  STAY: 600000,
+  LODGING: 600000,
+  FLIGHT: 450000,
   TRANSPORT: 250000,
   SHOPPING: 350000,
   ACTIVITY: 150000,
@@ -183,6 +220,8 @@ export const useWalletStore = create<WalletState>()(
   settledTransactionIds: [],
   tripCurrencies: INITIAL_TRIP_CURRENCIES,
   categoryBudgets: INITIAL_CATEGORY_BUDGETS,
+  customBudgets: INITIAL_CUSTOM_BUDGETS,
+  tourPackages: INITIAL_TOUR_PACKAGES,
 
   setActiveTab: (tab) => set({ activeTab: tab }),
 
@@ -215,10 +254,119 @@ export const useWalletStore = create<WalletState>()(
     });
   },
 
+  deleteCategoryBudget: (tripId: string, category: string) => {
+    set((state) => {
+      const current = { ...(state.categoryBudgets[tripId] || {}) };
+      delete current[category];
+      return {
+        categoryBudgets: {
+          ...state.categoryBudgets,
+          [tripId]: current,
+        },
+      };
+    });
+  },
+
   getCategoryBudgets: (tripId?: string) => {
     if (!tripId) return { ...DEFAULT_CATEGORY_BUDGET_MAP };
-    return get().categoryBudgets?.[tripId] || { ...DEFAULT_CATEGORY_BUDGET_MAP };
+    const saved = get().categoryBudgets?.[tripId];
+    if (!saved) return { ...DEFAULT_CATEGORY_BUDGET_MAP };
+    // Migrate old STAY key to LODGING if needed
+    const normalized = { ...DEFAULT_CATEGORY_BUDGET_MAP, ...saved };
+    if (saved.STAY && !saved.LODGING) {
+      normalized.LODGING = saved.STAY;
+    }
+    return normalized;
   },
+
+  addCustomBudget: (tripId: string, item) => {
+    const id = `cb_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newItem: CustomBudgetItem = {
+      ...item,
+      id,
+      trip_id: tripId,
+    };
+    set((state) => ({
+      customBudgets: {
+        ...state.customBudgets,
+        [tripId]: [...(state.customBudgets[tripId] || []), newItem],
+      },
+    }));
+  },
+
+  removeCustomBudget: (tripId: string, id: string) => {
+    set((state) => ({
+      customBudgets: {
+        ...state.customBudgets,
+        [tripId]: (state.customBudgets[tripId] || []).filter((b) => b.id !== id),
+      },
+    }));
+  },
+
+  updateCustomBudget: (tripId: string, id: string, amount: number) => {
+    set((state) => ({
+      customBudgets: {
+        ...state.customBudgets,
+        [tripId]: (state.customBudgets[tripId] || []).map((b) =>
+          b.id === id ? { ...b, amount } : b
+        ),
+      },
+    }));
+  },
+
+  getCustomBudgets: (tripId?: string) => {
+    if (!tripId) return [];
+    return get().customBudgets?.[tripId] || [];
+  },
+
+  addTourPackage: (tripId: string, item) => {
+    const id = `tp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newItem: TourPackageItem = {
+      ...item,
+      id,
+      trip_id: tripId,
+    };
+    set((state) => {
+      const currentList = state.tourPackages[tripId] || [];
+      const updatedList = [...currentList, newItem];
+      
+      // Auto-update or suggest ACTIVITY budget if tour sum exceeds current activity budget
+      const totalTours = updatedList.reduce((sum, t) => sum + t.amount, 0);
+      const currentBudgets = state.categoryBudgets[tripId] || { ...DEFAULT_CATEGORY_BUDGET_MAP };
+      const currentActivityBudget = currentBudgets.ACTIVITY || 0;
+      
+      const newActivityBudget = Math.max(currentActivityBudget, totalTours);
+
+      return {
+        tourPackages: {
+          ...state.tourPackages,
+          [tripId]: updatedList,
+        },
+        categoryBudgets: {
+          ...state.categoryBudgets,
+          [tripId]: {
+            ...currentBudgets,
+            ACTIVITY: newActivityBudget,
+          },
+        },
+      };
+    });
+  },
+
+  removeTourPackage: (tripId: string, id: string) => {
+    set((state) => ({
+      tourPackages: {
+        ...state.tourPackages,
+        [tripId]: (state.tourPackages[tripId] || []).filter((t) => t.id !== id),
+      },
+    }));
+  },
+
+  getTourPackages: (tripId?: string) => {
+    if (!tripId) return [];
+    return get().tourPackages?.[tripId] || [];
+  },
+
 
   refreshLiveExchangeRates: async () => {
     set({ isUpdatingRates: true });
@@ -356,6 +504,8 @@ export const useWalletStore = create<WalletState>()(
       settledTransactionIds: [],
       tripCurrencies: INITIAL_TRIP_CURRENCIES,
       categoryBudgets: INITIAL_CATEGORY_BUDGETS,
+      customBudgets: INITIAL_CUSTOM_BUDGETS,
+      tourPackages: INITIAL_TOUR_PACKAGES,
     });
   },
 }),
@@ -368,6 +518,9 @@ export const useWalletStore = create<WalletState>()(
     settledTransactionIds: state.settledTransactionIds,
     tripCurrencies: state.tripCurrencies,
     categoryBudgets: state.categoryBudgets,
+    customBudgets: state.customBudgets,
+    tourPackages: state.tourPackages,
   }),
 }
 ));
+

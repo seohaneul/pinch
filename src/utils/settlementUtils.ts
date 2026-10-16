@@ -7,7 +7,15 @@ export interface WalletMember {
   color?: string;
 }
 
-export type WalletCategory = 'FOOD' | 'TRANSPORT' | 'SHOPPING' | 'LODGING' | 'ACTIVITY' | 'OTHER';
+export type WalletCategory =
+  | 'FOOD'
+  | 'TRANSPORT'
+  | 'SHOPPING'
+  | 'LODGING'
+  | 'ACTIVITY'
+  | 'FLIGHT'
+  | 'OTHER'
+  | (string & {});
 
 export interface ExpenseItem {
   id: string;

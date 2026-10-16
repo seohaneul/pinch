@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlaceStore } from '../../store/usePlaceStore';
+import { useSavedLinkStore } from '../../store/useSavedLinkStore';
 import { useTripStore } from '../../store/useTripStore';
 import type { Place, PlaceCategory } from '../../types';
 import {
@@ -23,6 +24,8 @@ import {
   Sparkles,
   Check,
   Building,
+  Hotel,
+  Tag,
 } from 'lucide-react-native';
 
 interface AddSpotModalProps {
@@ -41,9 +44,13 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
   onSelectPlace,
 }) => {
   const insets = useSafeAreaInsets();
-  const { currentTrip } = useTripStore();
+  const { currentTrip, getDayLodging } = useTripStore();
+  const { places, addPlace } = usePlaceStore();
+  const { savedLinks } = useSavedLinkStore();
+
   const [tab, setTab] = useState<'pocket' | 'manual'>('pocket');
   const [pocketScope, setPocketScope] = useState<'trip' | 'all'>('trip');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [failedImageIds, setFailedImageIds] = useState<Record<string, boolean>>({});
 
@@ -52,30 +59,115 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
   const [manualAddress, setManualAddress] = useState('');
   const [manualCategory, setManualCategory] = useState<PlaceCategory>('CAFE');
 
-  const { places, addPlace } = usePlaceStore();
+  const dayLodging = getDayLodging(dayNumber);
 
-  const tripPlaces = useMemo(() => {
-    return places.filter((p) => !p.trip_id || p.trip_id === currentTrip?.id);
-  }, [places, currentTrip?.id]);
+  // Synchronize ALL saved pocket places: both usePlaceStore and useSavedLinkStore extractedPlaces
+  const allPocketPlaces = useMemo(() => {
+    const combined: Place[] = [...places];
 
-  // Filter pocket places based on scope and search
+    savedLinks.forEach((link) => {
+      link.extractedPlaces.forEach((ep) => {
+        const alreadyExists = combined.some(
+          (p) =>
+            p.id === ep.id ||
+            p.name.trim().toLowerCase() === ep.name.trim().toLowerCase()
+        );
+        if (!alreadyExists) {
+          combined.push({
+            id: ep.id,
+            trip_id: link.trip_id,
+            name: ep.name,
+            address: ep.address,
+            category: ep.category,
+            latitude: ep.latitude,
+            longitude: ep.longitude,
+            memo: ep.memo || `${link.title}에서 보관된 장소`,
+            imageUrl: ep.imageUrl,
+            rating: ep.rating || 4.8,
+            isPinned: true,
+            createdAt: link.createdAt,
+            tags: ep.tags,
+            sourcePlatform: link.platform,
+          });
+        }
+      });
+    });
+
+    return combined;
+  }, [places, savedLinks]);
+
+  const activeTripId = currentTrip?.id || 't_tokyo';
+
+  const tripPocketPlaces = useMemo(() => {
+    return allPocketPlaces.filter((p) => {
+      if (activeTripId === 't_tokyo') {
+        return !p.trip_id || p.trip_id === 't_tokyo';
+      }
+      return p.trip_id === activeTripId;
+    });
+  }, [allPocketPlaces, activeTripId]);
+
+  // Filter pocket places based on scope, category filter and search query
   const displayedPocketPlaces = useMemo(() => {
-    const baseList = pocketScope === 'trip' ? tripPlaces : places;
-    if (!searchQuery.trim()) return baseList;
+    const baseList = pocketScope === 'trip' ? tripPocketPlaces : allPocketPlaces;
 
-    const q = searchQuery.toLowerCase().trim();
     return baseList.filter((p) => {
+      // Category filter
+      if (selectedCategory !== 'ALL') {
+        const pCat = (p.category || '').toUpperCase();
+        const filterCat = selectedCategory.toUpperCase();
+        if (filterCat === 'LODGING') {
+          if (pCat !== 'LODGING' && pCat !== 'STAY') return false;
+        } else if (filterCat === 'CAFE') {
+          if (pCat !== 'CAFE') return false;
+        } else if (filterCat === 'RESTAURANT') {
+          if (pCat !== 'RESTAURANT') return false;
+        } else if (filterCat === 'ATTRACTION') {
+          if (pCat !== 'ATTRACTION' && pCat !== 'SPOT') return false;
+        } else if (filterCat === 'SHOPPING') {
+          if (pCat !== 'SHOPPING') return false;
+        }
+      }
+
+      // Search query filter
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
       return (
         p.name.toLowerCase().includes(q) ||
         (p.address && p.address.toLowerCase().includes(q)) ||
-        (p.memo && p.memo.toLowerCase().includes(q))
+        (p.memo && p.memo.toLowerCase().includes(q)) ||
+        (p.tags && p.tags.some((t) => t.toLowerCase().includes(q)))
       );
     });
-  }, [pocketScope, tripPlaces, places, searchQuery]);
+  }, [pocketScope, tripPocketPlaces, allPocketPlaces, selectedCategory, searchQuery]);
 
   const handleSelectPocketPlace = (place: Place) => {
     onSelectPlace(place);
     onClose();
+  };
+
+  // Add current Day's Lodging as spot
+  const handleAddDayLodgingAsSpot = () => {
+    if (!dayLodging) return;
+
+    const lodgingPlace: Place = {
+      id: `lodging_spot_${dayNumber}_${Date.now()}`,
+      trip_id: activeTripId,
+      name: dayLodging.name,
+      address: dayLodging.address || `${currentTrip?.destination || '현지'} 숙소`,
+      category: 'LODGING',
+      latitude: dayLodging.latitude || (activeTripId === 't_osaka' ? 34.6937 : 35.6858),
+      longitude: dayLodging.longitude || (activeTripId === 't_osaka' ? 135.5023 : 139.6908),
+      memo: dayLodging.memo || `DAY ${dayNumber} 숙소 체크인 (${dayLodging.checkInTime || '15:00'})`,
+      imageUrl: dayLodging.imageUrl,
+      isPinned: true,
+      createdAt: new Date().toISOString(),
+      sourcePlatform: 'manual',
+    };
+
+    onSelectPlace(lodgingPlace);
+    onClose();
+    Alert.alert('숙소 스팟 추가 완료 🏨', `"${dayLodging.name}"가 DAY ${dayNumber} 일정 스팟으로 추가되었습니다.`);
   };
 
   const handleCreateManualPlace = () => {
@@ -84,24 +176,24 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
       return;
     }
 
-    const targetTripId = currentTrip?.id || 't_tokyo';
-    const isOsaka = targetTripId === 't_osaka';
+    const isOsaka = activeTripId === 't_osaka';
 
     const newPlace: Place = {
       id: `p_manual_${Date.now()}`,
-      trip_id: targetTripId,
+      trip_id: activeTripId,
       name: manualName.trim(),
-      address: manualAddress.trim() || `${currentTrip?.destination || '현지'} 추천 스팟`,
+      address: manualAddress.trim() || `${currentTrip?.destination || '현지'} 추천 장소`,
       category: manualCategory,
       latitude: isOsaka ? 34.6937 + (Math.random() - 0.5) * 0.04 : 35.6762 + (Math.random() - 0.5) * 0.04,
       longitude: isOsaka ? 135.5023 + (Math.random() - 0.5) * 0.04 : 139.6503 + (Math.random() - 0.5) * 0.04,
+      memo: manualCategory === 'LODGING' ? '호텔/숙소 스팟' : undefined,
       isPinned: true,
       createdAt: new Date().toISOString(),
       sourcePlatform: 'manual',
     };
 
-    // Save to pocket store with current tripId
-    addPlace(newPlace, targetTripId);
+    // Save to pocket store
+    addPlace(newPlace, activeTripId);
 
     // Add to schedule
     onSelectPlace(newPlace);
@@ -112,18 +204,26 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
     onClose();
   };
 
+  const CATEGORY_TABS = [
+    { key: 'ALL', label: '전체' },
+    { key: 'CAFE', label: '☕ 카페' },
+    { key: 'RESTAURANT', label: '🍴 맛집' },
+    { key: 'ATTRACTION', label: '📸 명소' },
+    { key: 'LODGING', label: '🏨 숙소' },
+    { key: 'SHOPPING', label: '🛍️ 쇼핑' },
+  ];
+
   const CATEGORY_CHOICES: { key: PlaceCategory; label: string }[] = [
     { key: 'CAFE', label: '☕ 카페' },
     { key: 'RESTAURANT', label: '🍴 맛집' },
     { key: 'ATTRACTION', label: '📸 명소' },
+    { key: 'LODGING', label: '🏨 숙소/호텔' },
     { key: 'SHOPPING', label: '🛍️ 쇼핑' },
-    { key: 'LODGING', label: '🏨 숙소' },
   ];
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        {/* Backdrop touchable to close */}
         <TouchableOpacity
           style={StyleSheet.absoluteFillObject}
           activeOpacity={1}
@@ -139,11 +239,11 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
               <View>
                 <Text style={styles.title}>DAY {dayNumber} 스팟 추가</Text>
                 <Text style={styles.subtitle}>
-                  {currentTrip?.title || '여행'} 보관함에서 핀치하거나 새 장소를 등록하세요
+                  보관함에 저장된 장소 & 숙소를 일정에 핀치하세요
                 </Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
               <X size={18} color="#6B7280" />
             </TouchableOpacity>
           </View>
@@ -173,13 +273,13 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
 
           {tab === 'pocket' ? (
             <View style={{ flex: 1 }}>
-              {/* Trip vs All Scope Filter Pills */}
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
+              {/* Scope Pills: Current Trip vs All */}
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
                 <TouchableOpacity
                   onPress={() => setPocketScope('trip')}
                   style={{
                     paddingHorizontal: 12,
-                    paddingVertical: 6,
+                    paddingVertical: 5,
                     borderRadius: 20,
                     backgroundColor: pocketScope === 'trip' ? '#0F172A' : '#F1F5F9',
                   }}
@@ -191,7 +291,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                       color: pocketScope === 'trip' ? '#FFFFFF' : '#64748B',
                     }}
                   >
-                    📍 {currentTrip?.title ? currentTrip.title.slice(0, 10) + '...' : '현재 여행'} ({tripPlaces.length})
+                    📍 {currentTrip?.title ? currentTrip.title.slice(0, 10) + '...' : '현재 여행'} ({tripPocketPlaces.length})
                   </Text>
                 </TouchableOpacity>
 
@@ -199,7 +299,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                   onPress={() => setPocketScope('all')}
                   style={{
                     paddingHorizontal: 12,
-                    paddingVertical: 6,
+                    paddingVertical: 5,
                     borderRadius: 20,
                     backgroundColor: pocketScope === 'all' ? '#0F172A' : '#F1F5F9',
                   }}
@@ -211,10 +311,37 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                       color: pocketScope === 'all' ? '#FFFFFF' : '#64748B',
                     }}
                   >
-                    전체 보관함 ({places.length})
+                    전체 보관함 ({allPocketPlaces.length})
                   </Text>
                 </TouchableOpacity>
               </View>
+
+              {/* QUICK LODGING BUTTON: Add current Day's Lodging as spot if exists */}
+              {dayLodging && (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={handleAddDayLodgingAsSpot}
+                  style={styles.quickLodgingBanner}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+                    <View style={styles.quickLodgingIconWrap}>
+                      <Hotel size={15} color="#8B5CF6" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.quickLodgingTitle}>
+                        🏨 DAY {dayNumber} 숙소: {dayLodging.name}
+                      </Text>
+                      <Text style={styles.quickLodgingSub}>
+                        탭하여 이 숙소를 일정 타임라인 스팟으로 바로 추가
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.quickLodgingBadge}>
+                    <Plus size={12} color="#FFFFFF" style={{ marginRight: 2 }} />
+                    <Text style={styles.quickLodgingBadgeText}>스팟 추가</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
 
               {/* Search Bar */}
               <View style={styles.searchBar}>
@@ -222,7 +349,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                 <TextInput
                   value={searchQuery}
                   onChangeText={setSearchQuery}
-                  placeholder="보관함 장소 검색 (예: 푸글렌, 빔즈)"
+                  placeholder="보관함 장소 검색 (예: 푸글렌, 빔즈, 시부야)"
                   placeholderTextColor="#9CA3AF"
                   style={styles.searchInput}
                 />
@@ -233,6 +360,37 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                 )}
               </View>
 
+              {/* Category Filter Chips (숙소 LODGING 포함!) */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginBottom: 10, maxHeight: 32 }}
+                contentContainerStyle={{ gap: 6 }}
+              >
+                {CATEGORY_TABS.map((cat) => {
+                  const isSelected = selectedCategory === cat.key;
+                  return (
+                    <TouchableOpacity
+                      key={cat.key}
+                      onPress={() => setSelectedCategory(cat.key)}
+                      style={[
+                        styles.catFilterChip,
+                        isSelected && styles.catFilterChipActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.catFilterChipText,
+                          isSelected && styles.catFilterChipTextActive,
+                        ]}
+                      >
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
               {/* Places List */}
               <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -242,6 +400,8 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                   displayedPocketPlaces.map((place) => {
                     const isAlreadyAdded = existingPlaceIds.includes(place.id);
                     const hasImage = place.imageUrl && !failedImageIds[place.id];
+                    const catUpper = (place.category || '').toUpperCase();
+                    const isLodging = catUpper === 'LODGING' || catUpper === 'STAY';
 
                     return (
                       <TouchableOpacity
@@ -267,26 +427,40 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                             style={[
                               styles.placeImage,
                               {
-                                backgroundColor: '#F1F5F9',
+                                backgroundColor: isLodging ? '#F5F3FF' : '#F1F5F9',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                               },
                             ]}
                           >
-                            <MapPin size={20} color="#FF6B6B" />
+                            {isLodging ? (
+                              <Hotel size={20} color="#8B5CF6" />
+                            ) : (
+                              <MapPin size={20} color="#FF6B6B" />
+                            )}
                           </View>
                         )}
                         <View style={styles.placeDetails}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <View style={styles.categoryBadge}>
-                              <Text style={styles.categoryBadgeText}>
-                                {place.category === 'CAFE' || place.category === 'cafe'
+                            <View
+                              style={[
+                                styles.categoryBadge,
+                                isLodging && { backgroundColor: '#F5F3FF' },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.categoryBadgeText,
+                                  isLodging && { color: '#8B5CF6' },
+                                ]}
+                              >
+                                {catUpper === 'CAFE'
                                   ? '☕ 카페'
-                                  : place.category === 'RESTAURANT' || place.category === 'restaurant'
+                                  : catUpper === 'RESTAURANT'
                                   ? '🍴 맛집'
-                                  : place.category === 'SHOPPING' || place.category === 'shopping'
+                                  : catUpper === 'SHOPPING'
                                   ? '🛍️ 쇼핑'
-                                  : place.category === 'LODGING' || place.category === 'stay'
+                                  : isLodging
                                   ? '🏨 숙소'
                                   : '📸 명소'}
                               </Text>
@@ -341,8 +515,8 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                     <Text style={styles.emptyTitle}>추가 가능한 장소가 없습니다</Text>
                     <Text style={styles.emptySubtitle}>
                       {searchQuery
-                        ? '검색어와 일치하는 장소가 없어요.'
-                        : '선택한 보관함에 장소가 아직 등록되지 않았어요.'}
+                        ? '검색어와 일치하는 보관함 장소가 없어요.'
+                        : '선택한 카테고리에 저장된 장소가 아직 없어요.'}
                     </Text>
                   </View>
                 )}
@@ -354,11 +528,11 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
               contentContainerStyle={{ paddingBottom: 24 }}
             >
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>장소 이름 *</Text>
+                <Text style={styles.formLabel}>장소 또는 숙소 이름 *</Text>
                 <TextInput
                   value={manualName}
                   onChangeText={setManualName}
-                  placeholder="예: 시부야 스카이 전망대"
+                  placeholder="예: 시부야 스카이 전망대, 신주쿠 프린스 호텔"
                   placeholderTextColor="#9CA3AF"
                   style={styles.formInput}
                 />
@@ -431,14 +605,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 0,
-    maxHeight: '86%',
-    minHeight: 440,
+    maxHeight: '90%',
+    minHeight: 480,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -474,7 +648,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     borderRadius: 14,
     padding: 4,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   tabBtn: {
     flex: 1,
@@ -500,6 +674,49 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: '#FF6B6B',
   },
+  quickLodgingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F5F3FF',
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 10,
+  },
+  quickLodgingIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#EDE9FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  quickLodgingTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#6D28D9',
+  },
+  quickLodgingSub: {
+    fontSize: 10,
+    color: '#7C3AED',
+    marginTop: 1,
+  },
+  quickLodgingBadge: {
+    backgroundColor: '#8B5CF6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  quickLodgingBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -508,8 +725,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     borderRadius: 14,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 12,
+    paddingVertical: 7,
+    marginBottom: 8,
   },
   searchInput: {
     flex: 1,
@@ -517,6 +734,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1E293B',
     padding: 0,
+  },
+  catFilterChip: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  catFilterChipActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  catFilterChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  catFilterChipTextActive: {
+    color: '#FFFFFF',
   },
   listContent: {
     paddingBottom: 24,

@@ -13,11 +13,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   X,
   Clock,
-  Plane,
   Sparkles,
   Check,
+  Plane,
   ArrowRight,
-  ShieldCheck,
 } from 'lucide-react-native';
 
 interface DayStartTimeModalProps {
@@ -26,7 +25,7 @@ interface DayStartTimeModalProps {
   dayNumber: number;
   currentStartTime: string;
   onSaveStartTime: (newTimeStr: string) => void;
-  onApplyFlightTime: (flightTimeStr: string, bufferMinutes: number) => void;
+  onOpenFlightModal?: () => void;
 }
 
 export const DayStartTimeModal: React.FC<DayStartTimeModalProps> = ({
@@ -35,12 +34,10 @@ export const DayStartTimeModal: React.FC<DayStartTimeModalProps> = ({
   dayNumber,
   currentStartTime,
   onSaveStartTime,
-  onApplyFlightTime,
+  onOpenFlightModal,
 }) => {
   const insets = useSafeAreaInsets();
   const [startTimeInput, setStartTimeInput] = useState(currentStartTime || '10:00');
-  const [flightTimeInput, setFlightTimeInput] = useState('12:40');
-  const [flightBuffer, setFlightBuffer] = useState<number>(90); // default 90 mins (1.5h)
 
   useEffect(() => {
     if (visible) {
@@ -48,51 +45,33 @@ export const DayStartTimeModal: React.FC<DayStartTimeModalProps> = ({
     }
   }, [currentStartTime, visible]);
 
-  // Compute live flight-adjusted start time
-  const calculateFlightStartTime = (flightStr: string, bufferMins: number) => {
-    const parts = flightStr.split(':').map((v) => parseInt(v.trim(), 10));
-    const h = isNaN(parts[0]) ? 12 : parts[0];
-    const m = isNaN(parts[1]) ? 0 : parts[1];
-    const totalMinutes = (h * 60 + m + bufferMins) % (24 * 60);
-    const resH = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
-    const resM = (totalMinutes % 60).toString().padStart(2, '0');
-    return `${resH}:${resM}`;
-  };
-
-  const computedFlightStartTime = calculateFlightStartTime(flightTimeInput, flightBuffer);
-
-  const handleSaveDirect = () => {
-    // Validate HH:MM
+  const handleSave = () => {
+    const trimmed = startTimeInput.trim();
     const regex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
-    if (!regex.test(startTimeInput.trim())) {
+    if (!regex.test(trimmed)) {
       Alert.alert('알림', '시간 형식을 09:30 또는 14:00 형태로 입력해주세요.');
       return;
     }
-    onSaveStartTime(startTimeInput.trim());
-    Alert.alert('일정 시작 시간 변경 완료 ⏰', `DAY ${dayNumber} 일정이 ${startTimeInput.trim()}부터 시작되도록 재계산되었습니다.`);
-    onClose();
-  };
 
-  const handleApplyFlight = () => {
-    const regex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
-    if (!regex.test(flightTimeInput.trim())) {
-      Alert.alert('알림', '비행기 도착 시간을 12:40 형태로 입력해주세요.');
-      return;
-    }
-    onApplyFlightTime(flightTimeInput.trim(), flightBuffer);
+    onSaveStartTime(trimmed);
     Alert.alert(
-      '비행기 시간 연동 완료 ✈️',
-      `비행기 도착(${flightTimeInput}) + ${flightBuffer}분 여유를 고려하여,\nDAY ${dayNumber} 일정이 ${computedFlightStartTime}부터 시작됩니다.`
+      '일정 시작 시간 변경 완료 ⏰',
+      `DAY ${dayNumber} 일정이 ${trimmed}부터 시작되도록 모든 방문 스팟의 도착 시간이 자동 재계산되었습니다.`
     );
     onClose();
   };
 
-  const PRESET_TIMES = ['08:30', '09:00', '09:30', '10:00', '11:00', '13:00', '14:00'];
-  const BUFFER_CHOICES = [
-    { mins: 60, label: '1시간 (빠른 이동)' },
-    { mins: 90, label: '1시간 30분 (추천 ⭐️)' },
-    { mins: 120, label: '2시간 (여유 입국)' },
-    { mins: 150, label: '2시간 30분 (수속+식사)' },
+  const PRESET_TIMES = [
+    '08:00',
+    '08:30',
+    '09:00',
+    '09:30',
+    '10:00',
+    '10:30',
+    '11:00',
+    '12:00',
+    '13:00',
+    '14:00',
   ];
 
   return (
@@ -112,8 +91,10 @@ export const DayStartTimeModal: React.FC<DayStartTimeModalProps> = ({
                 <Clock size={18} color="#FF6B6B" />
               </View>
               <View>
-                <Text style={styles.title}>DAY {dayNumber} 시작 시간 & 비행기 연동 ⏰</Text>
-                <Text style={styles.subtitle}>시작 시간에 맞춰 모든 방문 장소의 도착 시간이 자동 재계산됩니다</Text>
+                <Text style={styles.title}>DAY {dayNumber} 시작 시간 수정 ⏰</Text>
+                <Text style={styles.subtitle}>
+                  시작 시간에 맞춰 모든 일정 장소의 도착 시간이 자동 재계산됩니다
+                </Text>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
@@ -122,124 +103,87 @@ export const DayStartTimeModal: React.FC<DayStartTimeModalProps> = ({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollBody}>
-            {/* Section 1: Direct Time Input */}
-            <View style={styles.cardSection}>
-              <View style={styles.sectionHeader}>
-                <Clock size={15} color="#0F172A" style={{ marginRight: 6 }} />
-                <Text style={styles.sectionTitle}>일정 시작 시간 직접 입력</Text>
-              </View>
-
-              <View style={styles.timeInputBox}>
+            {/* Main Time Input Display */}
+            <View style={styles.mainBox}>
+              <Text style={styles.mainLabel}>DAY {dayNumber} 일정 시작 시간 설정</Text>
+              <View style={styles.timeInputRow}>
+                <Clock size={20} color="#FF6B6B" style={{ marginRight: 8 }} />
                 <TextInput
                   value={startTimeInput}
                   onChangeText={setStartTimeInput}
                   placeholder="10:00"
                   placeholderTextColor="#94A3B8"
-                  style={styles.timeTextInput}
+                  style={styles.timeInput}
                   maxLength={5}
                 />
-                <TouchableOpacity activeOpacity={0.8} onPress={handleSaveDirect} style={styles.inlineApplyBtn}>
-                  <Check size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
-                  <Text style={styles.inlineApplyBtnText}>적용</Text>
-                </TouchableOpacity>
               </View>
+              <Text style={styles.helperText}>
+                예: 오전 9시 30분 시작은 09:30, 오후 1시 시작은 13:00
+              </Text>
+            </View>
 
-              {/* Quick Time Presets */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginTop: 8 }}>
-                {PRESET_TIMES.map((time) => (
+            {/* Quick Time Preset Pills */}
+            <Text style={styles.sectionSubTitle}>빠른 시간 선택</Text>
+            <View style={styles.presetGrid}>
+              {PRESET_TIMES.map((time) => {
+                const isSelected = startTimeInput === time;
+                return (
                   <TouchableOpacity
                     key={time}
                     onPress={() => setStartTimeInput(time)}
                     style={[
-                      styles.timePill,
-                      startTimeInput === time && styles.timePillActive,
+                      styles.presetChip,
+                      isSelected && styles.presetChipActive,
                     ]}
                   >
                     <Text
                       style={[
-                        styles.timePillText,
-                        startTimeInput === time && styles.timePillTextActive,
+                        styles.presetChipText,
+                        isSelected && styles.presetChipTextActive,
                       ]}
                     >
                       {time}
                     </Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
+                );
+              })}
             </View>
 
-            {/* Section 2: Flight Landing Sync */}
-            <View style={[styles.cardSection, styles.flightCardSection]}>
-              <View style={styles.sectionHeader}>
-                <Plane size={16} color="#0284C7" style={{ marginRight: 6 }} />
-                <Text style={[styles.sectionTitle, { color: '#0369A1' }]}>
-                  비행기 도착 시간에 맞춰 일정 시작 ✈️
-                </Text>
-              </View>
-              <Text style={styles.flightGuideText}>
-                비행기 착륙 시간과 공항 입국심사 & 시내 이동 여유 시간을 고려하여 첫 일정을 자동 시작합니다.
-              </Text>
-
-              {/* Flight Time Input */}
-              <View style={{ marginTop: 10 }}>
-                <Text style={styles.fieldLabel}>비행기 착륙(도착) 예정 시간</Text>
-                <View style={styles.flightInputWrap}>
+            {/* Link to Flight Modal if available */}
+            {onOpenFlightModal && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  onClose();
+                  onOpenFlightModal();
+                }}
+                style={styles.flightLinkBox}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                   <Plane size={15} color="#0284C7" style={{ marginRight: 8 }} />
-                  <TextInput
-                    value={flightTimeInput}
-                    onChangeText={setFlightTimeInput}
-                    placeholder="12:40"
-                    placeholderTextColor="#94A3B8"
-                    style={styles.flightTextInput}
-                    maxLength={5}
-                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.flightLinkTitle}>비행기 도착 시간에 맞추고 싶으신가요?</Text>
+                    <Text style={styles.flightLinkSub}>
+                      항공편 착륙 시간과 공항 수속 여유를 고려해 시작 시간을 자동 연동하세요
+                    </Text>
+                  </View>
                 </View>
-              </View>
-
-              {/* Buffer choices */}
-              <View style={{ marginTop: 10 }}>
-                <Text style={styles.fieldLabel}>입국심사 & 시내 이동 여유 버퍼</Text>
-                <View style={{ gap: 6, marginTop: 4 }}>
-                  {BUFFER_CHOICES.map((b) => (
-                    <TouchableOpacity
-                      key={b.mins}
-                      onPress={() => setFlightBuffer(b.mins)}
-                      style={[
-                        styles.bufferOption,
-                        flightBuffer === b.mins && styles.bufferOptionActive,
-                      ]}
-                    >
-                      <View style={[styles.radioCircle, flightBuffer === b.mins && styles.radioCircleActive]}>
-                        {flightBuffer === b.mins && <View style={styles.radioInner} />}
-                      </View>
-                      <Text
-                        style={[
-                          styles.bufferOptionText,
-                          flightBuffer === b.mins && styles.bufferOptionTextActive,
-                        ]}
-                      >
-                        {b.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Calculated Result Banner */}
-              <View style={styles.resultBanner}>
-                <Sparkles size={14} color="#0284C7" style={{ marginRight: 6 }} />
-                <Text style={styles.resultBannerText}>
-                  ✈️ {flightTimeInput} 도착 + {flightBuffer}분 여유 = ⏰ <Text style={{ fontWeight: '900', color: '#0369A1' }}>{computedFlightStartTime}</Text> 첫 일정 시작
-                </Text>
-              </View>
-
-              {/* Apply Flight Button */}
-              <TouchableOpacity activeOpacity={0.85} onPress={handleApplyFlight} style={styles.applyFlightBtn}>
-                <Plane size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.applyFlightBtnText}>비행기 시간({computedFlightStartTime})으로 적용하기</Text>
+                <ArrowRight size={14} color="#0284C7" />
               </TouchableOpacity>
-            </View>
+            )}
           </ScrollView>
+
+          {/* Save Button */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={handleSave}
+            style={styles.saveBtn}
+          >
+            <Check size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={styles.saveBtnText}>
+              {startTimeInput} 시작으로 시간 적용하기
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -256,7 +200,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    maxHeight: '90%',
+    maxHeight: '85%',
     paddingTop: 18,
     paddingHorizontal: 20,
   },
@@ -284,12 +228,12 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   title: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
     color: '#0F172A',
   },
   subtitle: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '600',
     color: '#64748B',
     marginTop: 2,
@@ -304,184 +248,116 @@ const styles = StyleSheet.create({
   },
   scrollBody: {
     marginTop: 12,
-    maxHeight: 460,
+    maxHeight: 380,
   },
-  cardSection: {
+  mainBox: {
     backgroundColor: '#F8FAFC',
     borderRadius: 18,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    padding: 14,
-    marginBottom: 12,
-  },
-  flightCardSection: {
-    backgroundColor: '#F0F9FF',
-    borderColor: '#BAE6FD',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
+    padding: 16,
+    marginBottom: 14,
     alignItems: 'center',
-    marginBottom: 4,
   },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
+  mainLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    marginBottom: 8,
   },
-  flightGuideText: {
-    fontSize: 11,
-    color: '#0284C7',
-    fontWeight: '600',
-    lineHeight: 16,
-    marginTop: 2,
-  },
-  timeInputBox: {
+  timeInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderWidth: 2,
+    borderColor: '#FF6B6B',
     borderRadius: 14,
-    paddingHorizontal: 14,
+    paddingHorizontal: 20,
     paddingVertical: 8,
-    marginTop: 8,
   },
-  timeTextInput: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: '800',
+  timeInput: {
+    fontSize: 28,
+    fontWeight: '900',
     color: '#0F172A',
+    textAlign: 'center',
+    minWidth: 90,
     padding: 0,
   },
-  inlineApplyBtn: {
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
+  helperText: {
+    fontSize: 10.5,
+    color: '#94A3B8',
+    marginTop: 8,
   },
-  inlineApplyBtnText: {
-    color: '#FFFFFF',
+  sectionSubTitle: {
     fontSize: 12,
     fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 8,
   },
-  timePill: {
+  presetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  presetChip: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
-  timePillActive: {
+  presetChipActive: {
     backgroundColor: '#FF6B6B',
     borderColor: '#FF6B6B',
   },
-  timePillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  timePillTextActive: {
-    color: '#FFFFFF',
-  },
-  fieldLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0369A1',
-    marginBottom: 4,
-  },
-  flightInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#7DD3FC',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  flightTextInput: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0369A1',
-    padding: 0,
-  },
-  bufferOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E0F2FE',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-  },
-  bufferOptionActive: {
-    borderColor: '#0284C7',
-    backgroundColor: '#F0F9FF',
-  },
-  radioCircle: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 1.5,
-    borderColor: '#94A3B8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  radioCircleActive: {
-    borderColor: '#0284C7',
-  },
-  radioInner: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#0284C7',
-  },
-  bufferOptionText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  bufferOptionTextActive: {
-    fontWeight: '800',
-    color: '#0369A1',
-  },
-  resultBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E0F2FE',
-    padding: 10,
-    borderRadius: 12,
-    marginTop: 10,
-  },
-  resultBannerText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0369A1',
-    flex: 1,
-  },
-  applyFlightBtn: {
-    marginTop: 10,
-    backgroundColor: '#0284C7',
-    paddingVertical: 12,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#0284C7',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  applyFlightBtnText: {
-    color: '#FFFFFF',
+  presetChipText: {
     fontSize: 13,
     fontWeight: '800',
+    color: '#475569',
+  },
+  presetChipTextActive: {
+    color: '#FFFFFF',
+  },
+  flightLinkBox: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  flightLinkTitle: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#0369A1',
+  },
+  flightLinkSub: {
+    fontSize: 10,
+    color: '#0284C7',
+    marginTop: 2,
+  },
+  saveBtn: {
+    marginTop: 10,
+    backgroundColor: '#FF6B6B',
+    paddingVertical: 14,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  saveBtnText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

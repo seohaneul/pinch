@@ -22,7 +22,9 @@ import { TripMapView, PlannerMapView } from '../../src/components/planner/Planne
 import { OptimizeConfirmModal } from '../../src/components/planner/OptimizeConfirmModal';
 import { AddSpotModal } from '../../src/components/planner/AddSpotModal';
 import { LodgingModal } from '../../src/components/planner/LodgingModal';
+import { FlightModal } from '../../src/components/planner/FlightModal';
 import { DayStartTimeModal } from '../../src/components/planner/DayStartTimeModal';
+
 import { CustomDurationModal } from '../../src/components/planner/CustomDurationModal';
 import { CustomTransportModal } from '../../src/components/planner/CustomTransportModal';
 import { TransportMode, calculateDistance, formatTravelSummary } from '../../src/utils/geoUtils';
@@ -78,6 +80,9 @@ export default function PlannerScreen() {
     getDayStartTime,
     setDayLodging,
     getDayLodging,
+    getTripFlight,
+    setTripFlight,
+    deleteTripFlight,
     applyFlightStartTime,
     updateCustomTransport,
   } = useTripStore();
@@ -113,8 +118,9 @@ export default function PlannerScreen() {
   const [addSpotModalVisible, setAddSpotModalVisible] = useState(false);
   const [selectedPlaceForDetail, setSelectedPlaceForDetail] = useState<Place | null>(null);
 
-  // Modals for lodging, day start time & flight sync, custom duration & transport
+  // Modals for lodging, day start time, flight ticket, custom duration & transport
   const [lodgingModalVisible, setLodgingModalVisible] = useState(false);
+  const [flightModalVisible, setFlightModalVisible] = useState(false);
   const [startTimeModalVisible, setStartTimeModalVisible] = useState(false);
   const [customDurationStop, setCustomDurationStop] = useState<ScheduleItem | null>(null);
   const [customTransportPair, setCustomTransportPair] = useState<{
@@ -124,6 +130,8 @@ export default function PlannerScreen() {
 
   const dayStartTime = getDayStartTime(selectedDay);
   const dayLodging = getDayLodging(selectedDay);
+  const tripFlight = getTripFlight(currentTrip?.id);
+
 
   // Get current day's sorted schedule items (filtered by active trip)
   const dayStops = scheduleItems
@@ -320,7 +328,7 @@ export default function PlannerScreen() {
           />
         </View>
 
-        {/* DAY START TIME & FLIGHT ARRIVAL BAR */}
+        {/* 1. DAY START TIME EDIT BAR (일정 시작 시간 수정 바) */}
         <View className="px-4 mt-3">
           <View className="bg-white rounded-2xl border border-borderLine p-3 shadow-xs flex-row items-center justify-between">
             <View className="flex-row items-center flex-1 mr-2">
@@ -347,13 +355,87 @@ export default function PlannerScreen() {
               onPress={() => setStartTimeModalVisible(true)}
               className="bg-primary/10 px-2.5 py-1.5 rounded-xl flex-row items-center"
             >
-              <Plane size={12} color="#FF6B6B" style={{ marginRight: 3 }} />
-              <Text className="text-xs font-bold text-primary">시간/비행기</Text>
+              <Edit3 size={12} color="#FF6B6B" style={{ marginRight: 3 }} />
+              <Text className="text-xs font-bold text-primary">시간 수정</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* DAY LODGING CARD */}
+        {/* 2. DEDICATED FLIGHT TICKET CARD (항공권 전용 등록 & 관리 카드) */}
+        <View className="px-4 mt-3">
+          <View className="bg-white rounded-2xl border border-borderLine p-3.5 shadow-xs">
+            <View className="flex-row items-center justify-between pb-2 border-b border-gray-100">
+              <View className="flex-row items-center">
+                <Plane size={16} color="#0284C7" style={{ marginRight: 6 }} />
+                <Text className="text-xs font-bold text-darkText">
+                  항공권 예약 정보 ✈️
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setFlightModalVisible(true)}
+                className="bg-sky-50 px-2 py-1 rounded-lg"
+              >
+                <Text className="text-[11px] font-bold text-sky-700">
+                  {tripFlight ? '항공권 수정' : '+ 항공권 등록'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {tripFlight ? (
+              <View className="pt-2">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center">
+                    <Text className="text-sm font-black text-sky-800 mr-2">
+                      {tripFlight.flightNumber}
+                    </Text>
+                    {tripFlight.airline && (
+                      <Text className="text-xs font-bold text-mutedText">
+                        {tripFlight.airline}
+                      </Text>
+                    )}
+                  </View>
+                  <View className="bg-sky-100 px-2 py-0.5 rounded-md">
+                    <Text className="text-[10px] font-black text-sky-700">
+                      {tripFlight.departureAirport?.slice(0, 3) || 'ICN'} ➔ {tripFlight.arrivalAirport?.slice(0, 3) || 'NRT'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View className="flex-row items-center gap-2 mt-1.5">
+                  <View className="flex-row items-center">
+                    <Clock size={11} color="#64748B" style={{ marginRight: 3 }} />
+                    <Text className="text-xs font-extrabold text-darkText">
+                      출발 {tripFlight.departureTime || '09:20'} ➔ 도착 {tripFlight.arrivalTime || '12:40'}
+                    </Text>
+                  </View>
+                  {tripFlight.terminal && (
+                    <Text className="text-[11px] text-gray-500 font-semibold" numberOfLines={1}>
+                      📍 {tripFlight.terminal}
+                    </Text>
+                  )}
+                </View>
+
+                {tripFlight.memo && (
+                  <Text className="text-[11px] text-sky-700 font-medium mt-1" numberOfLines={1}>
+                    📝 {tripFlight.memo}
+                  </Text>
+                )}
+              </View>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setFlightModalVisible(true)}
+                className="py-2.5 items-center justify-center"
+              >
+                <Text className="text-xs font-bold text-mutedText">
+                  아직 등록된 항공권이 없습니다. 탭하여 출/도착 비행기 티켓을 등록하세요.
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* 3. DEDICATED DAY LODGING CARD (숙소 전용 등록 & 관리 카드) */}
         <View className="px-4 mt-3">
           <View className="bg-white rounded-2xl border border-borderLine p-3.5 shadow-xs">
             <View className="flex-row items-center justify-between pb-2 border-b border-gray-100">
@@ -408,6 +490,7 @@ export default function PlannerScreen() {
             )}
           </View>
         </View>
+
 
         {/* Day Itinerary Timeline List */}
         <View className="px-4 mt-5">
@@ -910,21 +993,31 @@ export default function PlannerScreen() {
         onClose={() => setLodgingModalVisible(false)}
         dayNumber={selectedDay}
         initialLodging={dayLodging}
-        onSave={(lodging) => setDayLodging(currentTrip?.id || '', selectedDay, lodging)}
+        onSave={(lodging) => setDayLodging(selectedDay, lodging)}
       />
 
-      {/* 일정 시작 시간 & 비행기 도착 동기화 모달 (DayStartTimeModal) */}
+      {/* 항공권 입력 및 확인 모달 (FlightModal) */}
+      <FlightModal
+        visible={flightModalVisible}
+        onClose={() => setFlightModalVisible(false)}
+        tripTitle={currentTrip?.title}
+        tripId={currentTrip?.id || 't_tokyo'}
+        initialFlight={tripFlight}
+        onSaveFlight={(flight) => setTripFlight(currentTrip?.id || 't_tokyo', flight)}
+        onDeleteFlight={() => deleteTripFlight(currentTrip?.id || 't_tokyo')}
+        onSyncDayStartTime={(flightArrival, buffer) => applyFlightStartTime(1, flightArrival, buffer)}
+      />
+
+      {/* 일정 시작 시간 수정 모달 (DayStartTimeModal) */}
       <DayStartTimeModal
         visible={startTimeModalVisible}
         onClose={() => setStartTimeModalVisible(false)}
         dayNumber={selectedDay}
-        currentTime={dayStartTime}
-        tripFlightArrival={currentTrip?.flightArrival}
-        onSaveTime={(time) => setDayStartTime(currentTrip?.id || '', selectedDay, time)}
-        onApplyFlightSync={(flightTime, bufferMinutes) =>
-          applyFlightStartTime(currentTrip?.id || '', selectedDay, flightTime, bufferMinutes)
-        }
+        currentStartTime={dayStartTime}
+        onSaveStartTime={(time) => setDayStartTime(selectedDay, time)}
+        onOpenFlightModal={() => setFlightModalVisible(true)}
       />
+
 
       {/* 체류 시간 직접 입력 모달 (CustomDurationModal) */}
       <CustomDurationModal

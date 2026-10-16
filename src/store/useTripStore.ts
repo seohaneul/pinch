@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Trip, ScheduleItem, Place, Member, Expense, LodgingInfo } from '../types';
+import type { Trip, ScheduleItem, Place, Member, Expense, LodgingInfo, FlightInfo } from '../types';
 import type { TransportMode } from '../utils/routeUtils';
 import {
   calculateDistance,
@@ -19,12 +19,17 @@ interface TripState {
   expenses: Expense[];
   dayStartTimes: Record<string, string>;
   dayLodgings: Record<string, LodgingInfo>;
+  tripFlights: Record<string, FlightInfo>;
 
   // Actions
   getActiveTrip: () => Trip;
   getActiveScheduleItems: () => ScheduleItem[];
   setSelectedDay: (day: number) => void;
   setActiveTrip: (id: string) => void;
+  setTripFlight: (tripId: string, flight: FlightInfo) => void;
+  getTripFlight: (tripId?: string) => FlightInfo | null;
+  deleteTripFlight: (tripId: string) => void;
+
   createTrip: (tripData: {
     title: string;
     destination: string;
@@ -247,6 +252,31 @@ const INITIAL_DAY_LODGINGS: Record<string, LodgingInfo> = {
   },
 };
 
+const INITIAL_TRIP_FLIGHTS: Record<string, FlightInfo> = {
+  t_tokyo: {
+    flightNumber: 'KE703',
+    airline: '대한항공 (Korean Air)',
+    departureAirport: 'ICN (인천 제2터미널)',
+    arrivalAirport: 'NRT (도쿄 나리타 제1터미널)',
+    departureTime: '09:20',
+    arrivalTime: '12:40',
+    terminal: '제2터미널 탑승구 242',
+    bufferMinutes: 90,
+    memo: '모바일 체크인 완료 / 수하물 23kg 1개 무료',
+  },
+  t_osaka: {
+    flightNumber: 'OZ112',
+    airline: '아시아나항공',
+    departureAirport: 'ICN (인천)',
+    arrivalAirport: 'KIX (오사카 간사이)',
+    departureTime: '08:00',
+    arrivalTime: '09:50',
+    terminal: '제1터미널',
+    bufferMinutes: 60,
+    memo: '라피트 특급 열차 교환권 포함',
+  },
+};
+
 export const useTripStore = create<TripState>()(
   persist(
     (set, get) => ({
@@ -258,6 +288,31 @@ export const useTripStore = create<TripState>()(
   expenses: INITIAL_EXPENSES,
   dayStartTimes: INITIAL_DAY_START_TIMES,
   dayLodgings: INITIAL_DAY_LODGINGS,
+  tripFlights: INITIAL_TRIP_FLIGHTS,
+
+  setTripFlight: (tripId: string, flight: FlightInfo) => {
+    set((state) => ({
+      tripFlights: {
+        ...state.tripFlights,
+        [tripId]: flight,
+      },
+    }));
+  },
+
+  getTripFlight: (tripId?: string) => {
+    const { activeTripId, tripFlights } = get();
+    const target = tripId || activeTripId;
+    return tripFlights?.[target] || null;
+  },
+
+  deleteTripFlight: (tripId: string) => {
+    set((state) => {
+      const current = { ...state.tripFlights };
+      delete current[tripId];
+      return { tripFlights: current };
+    });
+  },
+
 
   getActiveTrip: () => {
     const { trips, activeTripId } = get();
@@ -628,6 +683,7 @@ export const useTripStore = create<TripState>()(
       expenses: INITIAL_EXPENSES,
       dayStartTimes: INITIAL_DAY_START_TIMES,
       dayLodgings: INITIAL_DAY_LODGINGS,
+      tripFlights: INITIAL_TRIP_FLIGHTS,
     });
   },
 }),
@@ -643,6 +699,8 @@ export const useTripStore = create<TripState>()(
     expenses: state.expenses,
     dayStartTimes: state.dayStartTimes,
     dayLodgings: state.dayLodgings,
+    tripFlights: state.tripFlights,
   }),
 }
 ));
+

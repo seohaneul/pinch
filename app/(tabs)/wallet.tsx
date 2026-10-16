@@ -53,16 +53,21 @@ import {
   Layers,
   RefreshCw,
   ChevronDown,
+  Plane,
+  PieChart,
+  Tag,
 } from 'lucide-react-native';
 
 const CATEGORIES: { key: WalletCategory; label: string; icon: any; color: string; bg: string }[] = [
   { key: 'FOOD', label: '식비', icon: Utensils, color: '#FF6B6B', bg: 'bg-rose-50' },
+  { key: 'LODGING', label: '숙소', icon: HomeIcon, color: '#A29BFE', bg: 'bg-purple-50' },
+  { key: 'FLIGHT', label: '항공권', icon: Plane, color: '#0284C7', bg: 'bg-sky-50' },
   { key: 'TRANSPORT', label: '교통', icon: Car, color: '#4ECDC4', bg: 'bg-teal-50' },
   { key: 'SHOPPING', label: '쇼핑', icon: ShoppingBag, color: '#FF9F1C', bg: 'bg-amber-50' },
-  { key: 'LODGING', label: '숙소', icon: HomeIcon, color: '#A29BFE', bg: 'bg-purple-50' },
   { key: 'ACTIVITY', label: '관광/체험', icon: Ticket, color: '#3B82F6', bg: 'bg-blue-50' },
   { key: 'OTHER', label: '기타', icon: Coins, color: '#6B7280', bg: 'bg-gray-100' },
 ];
+
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
@@ -86,6 +91,12 @@ export default function WalletScreen() {
     getTripCurrency,
     setCategoryBudget,
     getCategoryBudgets,
+    getTourPackages,
+    addTourPackage,
+    removeTourPackage,
+    getCustomBudgets,
+    addCustomBudget,
+    removeCustomBudget,
   } = useWalletStore();
 
   useEffect(() => {
@@ -95,10 +106,22 @@ export default function WalletScreen() {
   const { currentTrip, scheduleItems } = useTripStore();
   const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
   const [categoryBudgetModalVisible, setCategoryBudgetModalVisible] = useState(false);
-  const [isCategoryBudgetExpanded, setIsCategoryBudgetExpanded] = useState(true);
+
+  // Tour/Package Expand state inside Budget Tab
+  const [isTourExpanded, setIsTourExpanded] = useState(false);
+  const [newTourNameInput, setNewTourNameInput] = useState('');
+  const [newTourAmountInput, setNewTourAmountInput] = useState('');
+
+  // Custom budget inline add inside Budget Tab
+  const [isAddingCustomBudget, setIsAddingCustomBudget] = useState(false);
+  const [newCustomBudgetName, setNewCustomBudgetName] = useState('');
+  const [newCustomBudgetAmount, setNewCustomBudgetAmount] = useState('');
 
   const activeTripCurrency = getTripCurrency(currentTrip?.id);
   const activeBudgets = getCategoryBudgets(currentTrip?.id);
+  const tourPackages = getTourPackages(currentTrip?.id);
+  const customBudgets = getCustomBudgets(currentTrip?.id);
+
 
   // Active trip members fallback
   const tripMembers: WalletMember[] = (currentTrip?.members && currentTrip.members.length > 0)
@@ -140,12 +163,55 @@ export default function WalletScreen() {
 
   // Stats
   const totalKrw = getTotalKrw(currentTrip?.id);
-  const totalCategoryBudgetKrw = Object.values(activeBudgets).reduce((sum, val) => sum + (val || 0), 0);
+  const totalCustomBudgetKrw = customBudgets.reduce((sum, b) => sum + (b.amount || 0), 0);
+  const totalCategoryBudgetKrw =
+    Object.values(activeBudgets).reduce((sum, val) => sum + (val || 0), 0) + totalCustomBudgetKrw;
   const effectiveBudget = totalCategoryBudgetKrw > 0 ? totalCategoryBudgetKrw : (currentTrip?.budget || 1200000);
   const budgetUsagePercent = Math.min(Math.round((totalKrw / effectiveBudget) * 100), 100);
 
   const memberBalances = getMemberBalances(currentTrip?.id, tripMembers);
   const transactions = getTransactions(currentTrip?.id, tripMembers);
+
+  const handleAddTourInTab = () => {
+    if (!newTourNameInput.trim()) {
+      Alert.alert('알림', '투어 또는 패키지명을 입력해주세요.');
+      return;
+    }
+    const num = parseInt(newTourAmountInput.replace(/[^0-9]/g, ''), 10) || 0;
+    if (num <= 0) {
+      Alert.alert('알림', '예상 금액을 입력해주세요.');
+      return;
+    }
+    addTourPackage(currentTrip?.id || 't_tokyo', {
+      name: newTourNameInput.trim(),
+      amount: num,
+    });
+    setNewTourNameInput('');
+    setNewTourAmountInput('');
+    Alert.alert('투어/패키지 등록 완료 🎟️', `"${newTourNameInput.trim()}" (${num.toLocaleString()}원)이 관광/체험 예산에 추가되었습니다.`);
+  };
+
+  const handleAddCustomBudgetInTab = () => {
+    if (!newCustomBudgetName.trim()) {
+      Alert.alert('알림', '예산 항목명을 입력해주세요.');
+      return;
+    }
+    const num = parseInt(newCustomBudgetAmount.replace(/[^0-9]/g, ''), 10) || 0;
+    if (num <= 0) {
+      Alert.alert('알림', '예산 금액을 입력해주세요.');
+      return;
+    }
+    addCustomBudget(currentTrip?.id || 't_tokyo', {
+      name: newCustomBudgetName.trim(),
+      amount: num,
+      color: '#06B6D4',
+    });
+    setNewCustomBudgetName('');
+    setNewCustomBudgetAmount('');
+    setIsAddingCustomBudget(false);
+    Alert.alert('맞춤 예산 추가 완료 ✨', `"${newCustomBudgetName.trim()}" (${num.toLocaleString()}원) 항목이 추가되었습니다.`);
+  };
+
 
   // Filtered Expenses
   const filteredExpenses = tripExpenses.filter((e) => {
@@ -316,6 +382,29 @@ export default function WalletScreen() {
       <View style={tabStyles.container}>
         <View style={tabStyles.track}>
           <TouchableOpacity
+            onPress={() => setActiveTab('budget')}
+            activeOpacity={0.8}
+            style={[
+              tabStyles.tab,
+              activeTab === 'budget' ? tabStyles.activeTab : tabStyles.inactiveTab,
+            ]}
+          >
+            <PieChart
+              size={15}
+              color={activeTab === 'budget' ? '#FF6B6B' : '#6B7280'}
+              style={{ marginRight: 5 }}
+            />
+            <Text
+              style={[
+                tabStyles.tabText,
+                activeTab === 'budget' ? tabStyles.activeTabText : tabStyles.inactiveTabText,
+              ]}
+            >
+              예산 설정
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={() => setActiveTab('expenses')}
             activeOpacity={0.8}
             style={[
@@ -324,9 +413,9 @@ export default function WalletScreen() {
             ]}
           >
             <Receipt
-              size={16}
+              size={15}
               color={activeTab === 'expenses' ? '#FF6B6B' : '#6B7280'}
-              style={{ marginRight: 6 }}
+              style={{ marginRight: 5 }}
             />
             <Text
               style={[
@@ -347,9 +436,9 @@ export default function WalletScreen() {
             ]}
           >
             <Users
-              size={16}
+              size={15}
               color={activeTab === 'settlement' ? '#FF6B6B' : '#6B7280'}
-              style={{ marginRight: 6 }}
+              style={{ marginRight: 5 }}
             />
             <Text
               style={[
@@ -357,7 +446,7 @@ export default function WalletScreen() {
                 activeTab === 'settlement' ? tabStyles.activeTabText : tabStyles.inactiveTabText,
               ]}
             >
-              1/N 정산 ({transactions.length}건 송금)
+              1/N 정산
             </Text>
           </TouchableOpacity>
         </View>
@@ -368,198 +457,422 @@ export default function WalletScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 48 }}
       >
-        {/* Total Spending & Dynamic Currency Dashboard */}
-        <View className="p-4 mx-4 mt-3 bg-surface rounded-3xl border border-borderLine shadow-sm">
-          <View className="flex-row items-center justify-between mb-2">
-            <View className="flex-row items-center">
-              <Coins size={15} color="#FF6B6B" className="mr-1" />
-              <Text className="text-xs font-bold text-mutedText">총 여행 지출</Text>
-            </View>
-            {/* Currency Selector Pills */}
-            <View className="flex-row items-center gap-1 bg-gray-100 p-1 rounded-full">
-              {(['JPY', 'USD', 'EUR', 'KRW'] as CurrencyCode[]).map((cur) => (
-                <TouchableOpacity
-                  key={cur}
-                  onPress={() => setTripCurrency(currentTrip?.id || 't_tokyo', cur)}
-                  className={`px-2 py-0.5 rounded-full ${
-                    activeTripCurrency === cur ? 'bg-primary' : 'bg-transparent'
-                  }`}
-                >
-                  <Text
-                    className={`text-[10px] font-extrabold ${
-                      activeTripCurrency === cur ? 'text-white' : 'text-gray-500'
-                    }`}
-                  >
-                    {CURRENCY_SYMBOLS[cur]} {cur}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Main KRW Amount & Foreign Converted Amount */}
-          <View className="flex-row items-baseline justify-between mb-2">
-            <View className="flex-row items-baseline">
-              <Text className="text-3xl font-extrabold text-darkText tracking-tight">
-                {totalKrw.toLocaleString()}
-              </Text>
-              <Text className="text-lg font-bold text-darkText ml-1">원</Text>
-            </View>
-            {activeTripCurrency !== 'KRW' && (
-              <View className="items-end">
-                <Text className="text-[10px] font-semibold text-gray-400">환산 합계</Text>
-                <Text className="text-base font-extrabold text-primary">
-                  {CURRENCY_SYMBOLS[activeTripCurrency]}
-                  {totalInSelectedCurrency.toLocaleString()} {activeTripCurrency}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Dual Currency Sub-breakdown & Live Exchange Rate */}
-          <View className="flex-row items-center justify-between flex-wrap gap-2 py-2 px-3 bg-gray-50 rounded-2xl mb-3">
-            <View className="flex-row items-center">
-              <Text className="text-[11px] font-bold text-gray-500">{activeTripCurrency} 직접 결제: </Text>
-              <Text className="text-[11px] font-extrabold text-primary">
-                {CURRENCY_SYMBOLS[activeTripCurrency]}
-                {foreignTotalDirect.toLocaleString()}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => refreshLiveExchangeRates()}
-              className="flex-row items-center bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg"
-            >
-              <RefreshCw size={11} color="#059669" style={{ marginRight: 4 }} />
-              <Text className="text-[10px] font-bold text-emerald-700">
-                {getExchangeRateLabel(activeTripCurrency)} ({lastExchangeRateUpdate || '실시간'})
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Budget Progress Bar */}
-          <View className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mb-2">
-            <View
-              className="h-full bg-primary rounded-full"
-              style={{ width: `${budgetUsagePercent}%` }}
-            />
-          </View>
-
-          <View className="flex-row items-center justify-between">
-            <Text className="text-xs text-mutedText">
-              설정 예산: {effectiveBudget.toLocaleString()}원
-            </Text>
-            <Text className="text-xs font-bold text-primary">
-              남은 예산: {Math.max(effectiveBudget - totalKrw, 0).toLocaleString()}원 ({100 - budgetUsagePercent}%)
-            </Text>
-          </View>
-        </View>
-
-        {/* CATEGORY BUDGET PLANNER SECTION */}
-        <View className="p-4 mx-4 mt-3 bg-surface rounded-3xl border border-borderLine shadow-sm">
-          <View className="flex-row items-center justify-between pb-2.5 border-b border-gray-100 mb-2">
-            <View className="flex-row items-center flex-1 mr-2">
-              <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center mr-2">
-                <Layers size={16} color="#FF6B6B" />
-              </View>
-              <View>
-                <Text className="text-sm font-extrabold text-darkText">카테고리별 예산 설정 & 계획 📊</Text>
-                <Text className="text-[11px] font-semibold text-mutedText">
-                  항목마다 약 얼마가 들지 정리 & 실시간 소진율
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setCategoryBudgetModalVisible(true)}
-              className="bg-primary/10 px-3 py-1.5 rounded-xl flex-row items-center"
-            >
-              <Sparkles size={12} color="#FF6B6B" style={{ marginRight: 4 }} />
-              <Text className="text-xs font-extrabold text-primary">예산 설정</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Category Budget Items */}
-          {CATEGORIES.map((cat) => {
-            const catBudget = activeBudgets[cat.key] || 0;
-            const catSpent = tripExpenses
-              .filter((e) => e.category === cat.key)
-              .reduce((acc, curr) => acc + curr.krw_amount, 0);
-            const catPercent = catBudget > 0 ? Math.min(Math.round((catSpent / catBudget) * 100), 150) : 0;
-            const isOverBudget = catSpent > catBudget && catBudget > 0;
-            const IconComp = cat.icon;
-
-            const foreignBudget =
-              activeTripCurrency === 'KRW'
-                ? catBudget
-                : Math.round(catBudget / (exchangeRates[activeTripCurrency] || 1));
-            const foreignSpent =
-              activeTripCurrency === 'KRW'
-                ? catSpent
-                : Math.round(catSpent / (exchangeRates[activeTripCurrency] || 1));
-
-            return (
-              <View key={cat.key} className="py-2 border-b border-gray-50 last:border-b-0">
-                <View className="flex-row items-center justify-between mb-1">
-                  <View className="flex-row items-center">
-                    <View
-                      className="w-7 h-7 rounded-lg items-center justify-center mr-2"
-                      style={{ backgroundColor: `${cat.color}15` }}
-                    >
-                      <IconComp size={13} color={cat.color} />
-                    </View>
-                    <View>
-                      <Text className="text-xs font-bold text-darkText">{cat.label}</Text>
-                      {activeTripCurrency !== 'KRW' && (
-                        <Text className="text-[10px] text-gray-400">
-                          {CURRENCY_SYMBOLS[activeTripCurrency]}
-                          {foreignSpent.toLocaleString()} / {CURRENCY_SYMBOLS[activeTripCurrency]}
-                          {foreignBudget.toLocaleString()}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-
-                  <View className="items-end">
-                    <Text className="text-xs font-bold text-darkText">
-                      {catSpent.toLocaleString()}원 / {catBudget.toLocaleString()}원
-                    </Text>
-                    <Text
-                      className={`text-[10px] font-semibold ${
-                        isOverBudget ? 'text-rose-500 font-bold' : 'text-mutedText'
+        {/* TAB 1: BUDGET SETTING & PLANNING */}
+        {activeTab === 'budget' && (
+          <View>
+            {/* Planned Budget Overview Dashboard */}
+            <View className="p-4 mx-4 mt-3 bg-surface rounded-3xl border border-borderLine shadow-sm">
+              <View className="flex-row items-center justify-between mb-2">
+                <View className="flex-row items-center">
+                  <Coins size={15} color="#FF6B6B" className="mr-1" />
+                  <Text className="text-xs font-bold text-mutedText">총 계획 예산 🎯</Text>
+                </View>
+                {/* Currency Selector Pills */}
+                <View className="flex-row items-center gap-1 bg-gray-100 p-1 rounded-full">
+                  {(['JPY', 'USD', 'EUR', 'KRW'] as CurrencyCode[]).map((cur) => (
+                    <TouchableOpacity
+                      key={cur}
+                      onPress={() => setTripCurrency(currentTrip?.id || 't_tokyo', cur)}
+                      className={`px-2 py-0.5 rounded-full ${
+                        activeTripCurrency === cur ? 'bg-primary' : 'bg-transparent'
                       }`}
                     >
-                      {isOverBudget
-                        ? `${(catSpent - catBudget).toLocaleString()}원 초과 ⚠️`
-                        : `${(catBudget - catSpent).toLocaleString()}원 남음 (${catPercent}%)`}
+                      <Text
+                        className={`text-[10px] font-extrabold ${
+                          activeTripCurrency === cur ? 'text-white' : 'text-gray-500'
+                        }`}
+                      >
+                        {CURRENCY_SYMBOLS[cur]} {cur}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View className="flex-row items-baseline justify-between mb-2">
+                <View className="flex-row items-baseline">
+                  <Text className="text-3xl font-extrabold text-darkText tracking-tight">
+                    {effectiveBudget.toLocaleString()}
+                  </Text>
+                  <Text className="text-lg font-bold text-darkText ml-1">원</Text>
+                </View>
+                {activeTripCurrency !== 'KRW' && (
+                  <View className="items-end">
+                    <Text className="text-[10px] font-semibold text-gray-400">외화 환산</Text>
+                    <Text className="text-base font-extrabold text-primary">
+                      {CURRENCY_SYMBOLS[activeTripCurrency]}
+                      {Math.round(effectiveBudget / (exchangeRates[activeTripCurrency] || 1)).toLocaleString()} {activeTripCurrency}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Real Spending vs Planned Budget Progress */}
+              <View className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mb-2 mt-2">
+                <View
+                  className="h-full bg-primary rounded-full"
+                  style={{ width: `${budgetUsagePercent}%` }}
+                />
+              </View>
+
+              <View className="flex-row items-center justify-between">
+                <Text className="text-xs text-mutedText">
+                  실지출 누적: {totalKrw.toLocaleString()}원
+                </Text>
+                <Text className="text-xs font-bold text-primary">
+                  남은 예산: {Math.max(effectiveBudget - totalKrw, 0).toLocaleString()}원 ({100 - budgetUsagePercent}%)
+                </Text>
+              </View>
+            </View>
+
+            {/* Category Budget Items Section */}
+            <View className="p-4 mx-4 mt-3 bg-surface rounded-3xl border border-borderLine shadow-sm">
+              <View className="flex-row items-center justify-between pb-2.5 border-b border-gray-100 mb-2">
+                <View className="flex-row items-center flex-1 mr-2">
+                  <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center mr-2">
+                    <Layers size={16} color="#FF6B6B" />
+                  </View>
+                  <View>
+                    <Text className="text-sm font-extrabold text-darkText">항목별 예산 계획 & 실시간 소진 📊</Text>
+                    <Text className="text-[11px] font-semibold text-mutedText">
+                      항공권, 숙소, 식비 및 관광 투어/패키지 상세
                     </Text>
                   </View>
                 </View>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setCategoryBudgetModalVisible(true)}
+                  className="bg-primary/10 px-3 py-1.5 rounded-xl flex-row items-center"
+                >
+                  <Sparkles size={12} color="#FF6B6B" style={{ marginRight: 4 }} />
+                  <Text className="text-xs font-extrabold text-primary">예산 설정</Text>
+                </TouchableOpacity>
+              </View>
 
-                {/* Progress bar */}
-                <View className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1">
+              {CATEGORIES.map((cat) => {
+                const catBudget = activeBudgets[cat.key] || 0;
+                const catSpent = tripExpenses
+                  .filter((e) => e.category === cat.key)
+                  .reduce((acc, curr) => acc + curr.krw_amount, 0);
+                const catPercent = catBudget > 0 ? Math.min(Math.round((catSpent / catBudget) * 100), 150) : 0;
+                const isOverBudget = catSpent > catBudget && catBudget > 0;
+                const IconComp = cat.icon;
+                const isActivity = cat.key === 'ACTIVITY';
+
+                return (
+                  <View key={cat.key} className="py-2.5 border-b border-gray-100 last:border-b-0">
+                    <View className="flex-row items-center justify-between mb-1">
+                      <View className="flex-row items-center">
+                        <View
+                          className="w-7 h-7 rounded-lg items-center justify-center mr-2"
+                          style={{ backgroundColor: `${cat.color}15` }}
+                        >
+                          <IconComp size={13} color={cat.color} />
+                        </View>
+                        <View>
+                          <Text className="text-xs font-bold text-darkText">{cat.label}</Text>
+                        </View>
+                      </View>
+
+                      <View className="items-end">
+                        <Text className="text-xs font-bold text-darkText">
+                          {catSpent.toLocaleString()}원 / {catBudget.toLocaleString()}원
+                        </Text>
+                        <Text
+                          className={`text-[10px] font-semibold ${
+                            isOverBudget ? 'text-rose-500 font-bold' : 'text-mutedText'
+                          }`}
+                        >
+                          {isOverBudget
+                            ? `${(catSpent - catBudget).toLocaleString()}원 초과 ⚠️`
+                            : `${(catBudget - catSpent).toLocaleString()}원 남음 (${catPercent}%)`}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Progress bar */}
+                    <View className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1">
+                      <View
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.min(catPercent, 100)}%`,
+                          backgroundColor: isOverBudget
+                            ? '#EF4444'
+                            : catPercent > 80
+                            ? '#F59E0B'
+                            : cat.color,
+                        }}
+                      />
+                    </View>
+
+                    {/* ACTIVITY: Tours & Packages Accordion in Budget Tab */}
+                    {isActivity && (
+                      <View className="mt-2 bg-sky-50 rounded-xl p-2.5 border border-sky-100">
+                        <TouchableOpacity
+                          activeOpacity={0.8}
+                          onPress={() => setIsTourExpanded(!isTourExpanded)}
+                          className="flex-row items-center justify-between"
+                        >
+                          <View className="flex-row items-center">
+                            <Ticket size={13} color="#0284C7" className="mr-1.5" />
+                            <Text className="text-[11px] font-extrabold text-sky-800">
+                              투어 & 패키지 세부 내역 ({tourPackages.length}개 등록됨)
+                            </Text>
+                          </View>
+                          {isTourExpanded ? (
+                            <ChevronDown size={14} color="#0284C7" />
+                          ) : (
+                            <ChevronDown size={14} color="#0284C7" style={{ transform: [{ rotate: '-90deg' }] }} />
+                          )}
+                        </TouchableOpacity>
+
+                        {isTourExpanded && (
+                          <View className="mt-2 pt-2 border-t border-sky-200/60">
+                            {tourPackages.map((tp) => (
+                              <View
+                                key={tp.id}
+                                className="flex-row items-center justify-between bg-white px-2.5 py-1.5 rounded-lg mb-1.5 border border-sky-100"
+                              >
+                                <View className="flex-1 mr-2">
+                                  <Text className="text-xs font-bold text-darkText">{tp.name}</Text>
+                                  {tp.memo && (
+                                    <Text className="text-[10px] text-mutedText" numberOfLines={1}>
+                                      {tp.memo}
+                                    </Text>
+                                  )}
+                                </View>
+                                <Text className="text-xs font-extrabold text-sky-700 mr-2">
+                                  {tp.amount.toLocaleString()}원
+                                </Text>
+                                <TouchableOpacity
+                                  onPress={() => removeTourPackage(currentTrip?.id || 't_tokyo', tp.id)}
+                                  className="p-1"
+                                >
+                                  <Trash2 size={12} color="#EF4444" />
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+
+                            {/* Inline Tour Add Form */}
+                            <View className="bg-white rounded-xl p-2 border border-sky-200 mt-1">
+                              <TextInput
+                                value={newTourNameInput}
+                                onChangeText={setNewTourNameInput}
+                                placeholder="투어/패키지명 (예: 시부야스카이, 유니버셜)"
+                                placeholderTextColor="#94A3B8"
+                                className="text-xs font-semibold text-darkText pb-1 border-b border-gray-100"
+                              />
+                              <View className="flex-row items-center gap-2 mt-1.5">
+                                <TextInput
+                                  value={newTourAmountInput}
+                                  onChangeText={setNewTourAmountInput}
+                                  placeholder="금액 (원)"
+                                  placeholderTextColor="#94A3B8"
+                                  keyboardType="numeric"
+                                  className="flex-1 text-xs font-bold text-sky-700"
+                                />
+                                <TouchableOpacity
+                                  onPress={handleAddTourInTab}
+                                  className="bg-sky-600 px-2.5 py-1 rounded-lg flex-row items-center"
+                                >
+                                  <Plus size={12} color="#FFFFFF" className="mr-0.5" />
+                                  <Text className="text-[11px] font-extrabold text-white">추가</Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* CUSTOM BUDGET ITEMS SECTION (정해진 항목 외 예산 직접 추가) */}
+            <View className="p-4 mx-4 mt-3 bg-surface rounded-3xl border border-borderLine shadow-sm">
+              <View className="flex-row items-center justify-between pb-2 border-b border-gray-100 mb-2">
+                <View className="flex-row items-center">
+                  <Tag size={15} color="#06B6D4" className="mr-1.5" />
+                  <Text className="text-sm font-extrabold text-darkText">
+                    직접 추가한 맞춤 예산 항목 ({customBudgets.length})
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setIsAddingCustomBudget(!isAddingCustomBudget)}
+                  className="bg-cyan-50 px-2.5 py-1 rounded-lg flex-row items-center"
+                >
+                  <Plus size={12} color="#0891B2" className="mr-0.5" />
+                  <Text className="text-xs font-extrabold text-cyan-700">+ 직접 추가</Text>
+                </TouchableOpacity>
+              </View>
+
+              {customBudgets.length > 0 ? (
+                customBudgets.map((cb) => (
                   <View
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${Math.min(catPercent, 100)}%`,
-                      backgroundColor: isOverBudget
-                        ? '#EF4444'
-                        : catPercent > 80
-                        ? '#F59E0B'
-                        : cat.color,
-                    }}
+                    key={cb.id}
+                    className="flex-row items-center justify-between py-2 border-b border-gray-50 last:border-b-0"
+                  >
+                    <View className="flex-row items-center flex-1">
+                      <View className="w-6 h-6 rounded-md bg-cyan-50 items-center justify-center mr-2">
+                        <Sparkles size={12} color="#0891B2" />
+                      </View>
+                      <Text className="text-xs font-bold text-darkText flex-1" numberOfLines={1}>
+                        {cb.name}
+                      </Text>
+                    </View>
+                    <View className="flex-row items-center">
+                      <Text className="text-xs font-extrabold text-darkText mr-2">
+                        {cb.amount.toLocaleString()}원
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => removeCustomBudget(currentTrip?.id || 't_tokyo', cb.id)}
+                        className="p-1"
+                      >
+                        <Trash2 size={13} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text className="text-xs text-mutedText py-1">
+                  eSIM, 여행자보험 등 정해진 항목 외의 예산을 직접 등록해보세요.
+                </Text>
+              )}
+
+              {/* Inline Form to Add Custom Budget */}
+              {isAddingCustomBudget && (
+                <View className="bg-cyan-50/60 rounded-2xl p-3 border border-cyan-200 mt-2">
+                  <View className="flex-row items-center justify-between mb-2">
+                    <Text className="text-xs font-bold text-cyan-900">새 예산 항목 추가 📝</Text>
+                    <TouchableOpacity onPress={() => setIsAddingCustomBudget(false)}>
+                      <X size={14} color="#64748B" />
+                    </TouchableOpacity>
+                  </View>
+                  <TextInput
+                    value={newCustomBudgetName}
+                    onChangeText={setNewCustomBudgetName}
+                    placeholder="항목 이름 (예: 여행자보험, eSIM, 비상금)"
+                    placeholderTextColor="#94A3B8"
+                    className="bg-white rounded-xl px-3 py-2 text-xs font-semibold text-darkText border border-cyan-100 mb-2"
                   />
+                  <View className="flex-row items-center gap-2">
+                    <TextInput
+                      value={newCustomBudgetAmount}
+                      onChangeText={setNewCustomBudgetAmount}
+                      placeholder="예산 금액 (원)"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="numeric"
+                      className="bg-white rounded-xl px-3 py-2 text-xs font-bold text-cyan-800 border border-cyan-100 flex-1"
+                    />
+                    <TouchableOpacity
+                      onPress={handleAddCustomBudgetInTab}
+                      className="bg-cyan-600 px-4 py-2 rounded-xl flex-row items-center"
+                    >
+                      <Check size={14} color="#FFFFFF" className="mr-1" />
+                      <Text className="text-xs font-extrabold text-white">등록</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* TAB 2: ACTUAL EXPENSES LIST */}
+        {activeTab === 'expenses' && (
+          <View>
+            {/* Total Spending & Dynamic Currency Dashboard */}
+            <View className="p-4 mx-4 mt-3 bg-surface rounded-3xl border border-borderLine shadow-sm">
+              <View className="flex-row items-center justify-between mb-2">
+                <View className="flex-row items-center">
+                  <Coins size={15} color="#FF6B6B" className="mr-1" />
+                  <Text className="text-xs font-bold text-mutedText">실제 여행 지출 합계</Text>
+                </View>
+                {/* Currency Selector Pills */}
+                <View className="flex-row items-center gap-1 bg-gray-100 p-1 rounded-full">
+                  {(['JPY', 'USD', 'EUR', 'KRW'] as CurrencyCode[]).map((cur) => (
+                    <TouchableOpacity
+                      key={cur}
+                      onPress={() => setTripCurrency(currentTrip?.id || 't_tokyo', cur)}
+                      className={`px-2 py-0.5 rounded-full ${
+                        activeTripCurrency === cur ? 'bg-primary' : 'bg-transparent'
+                      }`}
+                    >
+                      <Text
+                        className={`text-[10px] font-extrabold ${
+                          activeTripCurrency === cur ? 'text-white' : 'text-gray-500'
+                        }`}
+                      >
+                        {CURRENCY_SYMBOLS[cur]} {cur}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
-            );
-          })}
-        </View>
 
-        {/* TAB 1: EXPENSES LIST */}
-        {activeTab === 'expenses' && (
-          <View className="px-4 mt-5">
-            {/* Category Filter Chips */}
+              {/* Main KRW Amount & Foreign Converted Amount */}
+              <View className="flex-row items-baseline justify-between mb-2">
+                <View className="flex-row items-baseline">
+                  <Text className="text-3xl font-extrabold text-darkText tracking-tight">
+                    {totalKrw.toLocaleString()}
+                  </Text>
+                  <Text className="text-lg font-bold text-darkText ml-1">원</Text>
+                </View>
+                {activeTripCurrency !== 'KRW' && (
+                  <View className="items-end">
+                    <Text className="text-[10px] font-semibold text-gray-400">환산 합계</Text>
+                    <Text className="text-base font-extrabold text-primary">
+                      {CURRENCY_SYMBOLS[activeTripCurrency]}
+                      {totalInSelectedCurrency.toLocaleString()} {activeTripCurrency}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Dual Currency Sub-breakdown & Live Exchange Rate */}
+              <View className="flex-row items-center justify-between flex-wrap gap-2 py-2 px-3 bg-gray-50 rounded-2xl mb-3">
+                <View className="flex-row items-center">
+                  <Text className="text-[11px] font-bold text-gray-500">{activeTripCurrency} 직접 결제: </Text>
+                  <Text className="text-[11px] font-extrabold text-primary">
+                    {CURRENCY_SYMBOLS[activeTripCurrency]}
+                    {foreignTotalDirect.toLocaleString()}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => refreshLiveExchangeRates()}
+                  className="flex-row items-center bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg"
+                >
+                  <RefreshCw size={11} color="#059669" style={{ marginRight: 4 }} />
+                  <Text className="text-[10px] font-bold text-emerald-700">
+                    {getExchangeRateLabel(activeTripCurrency)} ({lastExchangeRateUpdate || '실시간'})
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Budget Progress Bar */}
+              <View className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+                <View
+                  className="h-full bg-primary rounded-full"
+                  style={{ width: `${budgetUsagePercent}%` }}
+                />
+              </View>
+
+              <View className="flex-row items-center justify-between">
+                <Text className="text-xs text-mutedText">
+                  설정 예산: {effectiveBudget.toLocaleString()}원
+                </Text>
+                <Text className="text-xs font-bold text-primary">
+                  남은 예산: {Math.max(effectiveBudget - totalKrw, 0).toLocaleString()}원 ({100 - budgetUsagePercent}%)
+                </Text>
+              </View>
+            </View>
+
+            <View className="px-4 mt-5">
+              {/* Category Filter Chips */}
+
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -718,9 +1031,11 @@ export default function WalletScreen() {
               />
             )}
           </View>
-        )}
+        </View>
+      )}
 
-        {/* TAB 2: 1/N SETTLEMENT */}
+
+        {/* TAB 3: 1/N SETTLEMENT */}
         {activeTab === 'settlement' && (
           <View className="px-4 mt-5">
             {/* Messenger Share Quick Banner */}

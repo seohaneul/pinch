@@ -100,6 +100,7 @@ export interface Trip {
   currency?: 'KRW' | 'JPY' | 'USD' | 'EUR';
   lodging?: LodgingInfo;
   categoryBudgets?: Record<string, number>;
+  flightInfo?: FlightInfo;
   flightArrival?: {
     time: string;
     bufferMinutes?: number;
@@ -107,7 +108,37 @@ export interface Trip {
   };
 }
 
-export type ExpenseCategory = 'food' | 'transport' | 'stay' | 'activity' | 'shopping' | 'other';
+export interface FlightInfo {
+  id?: string;
+  trip_id?: string;
+  flightNumber: string; // e.g. KE703
+  airline?: string; // e.g. 대한항공
+  departureAirport?: string; // e.g. ICN (인천)
+  arrivalAirport?: string; // e.g. NRT (도쿄 나리타)
+  departureTime?: string; // e.g. 09:20
+  arrivalTime: string; // e.g. 12:40
+  bufferMinutes?: number; // e.g. 90분
+  terminal?: string; // e.g. 제2터미널
+  memo?: string;
+}
+
+export interface TourPackageItem {
+  id: string;
+  trip_id: string;
+  name: string;
+  amount: number;
+  memo?: string;
+}
+
+export interface CustomBudgetItem {
+  id: string;
+  trip_id: string;
+  name: string;
+  amount: number;
+  color?: string;
+}
+
+export type ExpenseCategory = 'food' | 'transport' | 'stay' | 'activity' | 'flight' | 'shopping' | 'other';
 
 export interface Expense {
   id: string;
@@ -144,3 +175,4 @@ export interface SavedLink {
   createdAt: string;
   extractedPlaces: ExtractedPlaceItem[];
 }
+
