@@ -41,6 +41,8 @@ interface TripState {
     budget?: number;
     coverImage?: string;
     memberNames?: string[];
+    centerLat?: number;
+    centerLng?: number;
   }) => Trip;
   deleteTrip: (tripId: string) => void;
   updateTrip: (tripId: string, updates: Partial<Trip>) => void;
@@ -589,6 +591,8 @@ export const useTripStore = create<TripState>()(
       members,
       places: [],
       schedules,
+      centerLat: tripData.centerLat,
+      centerLng: tripData.centerLng,
     };
 
     set((state) => ({

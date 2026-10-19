@@ -33,6 +33,7 @@ import {
   TravelPace,
   generatePStyleItinerary,
 } from '../../services/itineraryGeneratorService';
+import { generateItineraryWithGemini } from '../../services/geminiService';
 
 interface PStyleCourseModalProps {
   visible: boolean;
@@ -101,40 +102,48 @@ export const PStyleCourseModal: React.FC<PStyleCourseModalProps> = ({
     return previewData.scheduleItems.slice(0, 4);
   }, [previewData]);
 
-  // 맞춤 코스 적용 핸들러
+  // 맞춤 코스 적용 핸들러 (Gemini 3.8 Flash AI 비동기 생성 + 로컬 폴백)
   const handleApply = async () => {
-    if (!trip || !previewData) return;
+    if (!trip) return;
 
     setIsGenerating(true);
 
-    // 사용자가 '생성 중...' 느낌을 받도록 아주 약간의 연출 딜레이
-    setTimeout(() => {
-      try {
-        // 1. 활성 여행 설정
-        setActiveTrip(trip.id);
+    try {
+      const aiResult = await generateItineraryWithGemini({
+        tripId: trip.id,
+        destination: trip.destination || trip.title,
+        dayCount: totalDays,
+        style: selectedStyle,
+        pace: selectedPace,
+        centerLat: trip.centerLat,
+        centerLng: trip.centerLng,
+      });
 
-        // 2. 일정 스케줄 및 일차별 시작 시간 주입
-        applyRecommendedItinerary(
-          trip.id,
-          previewData.scheduleItems,
-          previewData.dayStartTimes
-        );
+      // 1. 활성 여행 설정
+      setActiveTrip(trip.id);
 
-        // 3. 보관함(Pocket)에도 추천 장소 일괄 등록
-        addPlacesBulk(previewData.pocketPlaces);
+      // 2. 일정 스케줄 및 일차별 시작 시간 주입
+      applyRecommendedItinerary(
+        trip.id,
+        aiResult.scheduleItems,
+        aiResult.dayStartTimes
+      );
 
-        setIsGenerating(false);
-        onClose();
-        if (onCompleted) {
-          onCompleted();
-        } else {
-          router.push('/(tabs)/planner');
-        }
-      } catch (err) {
-        setIsGenerating(false);
-        onClose();
+      // 3. 보관함(Pocket)에도 추천 장소 일괄 등록
+      addPlacesBulk(aiResult.pocketPlaces);
+
+      setIsGenerating(false);
+      onClose();
+      if (onCompleted) {
+        onCompleted();
+      } else {
+        router.push('/(tabs)/planner');
       }
-    }, 400);
+    } catch (err) {
+      console.log('[PStyleCourseModal] AI Generation error:', err);
+      setIsGenerating(false);
+      onClose();
+    }
   };
 
   const currentStyleObj = TRAVEL_STYLES.find((s) => s.key === selectedStyle) || TRAVEL_STYLES[0];
@@ -149,8 +158,8 @@ export const PStyleCourseModal: React.FC<PStyleCourseModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerBadge}>
-              <Zap size={13} color="#FF6B6B" />
-              <Text style={styles.headerBadgeText}>P형 맞춤 코스 추천</Text>
+              <Sparkles size={13} color="#FF6B6B" />
+              <Text style={styles.headerBadgeText}>🤖 Gemini AI 맞춤 코스 기획</Text>
             </View>
             <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={styles.closeBtn}>
               <X size={18} color="#64748B" />
@@ -339,12 +348,12 @@ export const PStyleCourseModal: React.FC<PStyleCourseModalProps> = ({
               {isGenerating ? (
                 <View style={styles.btnRow}>
                   <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.applyBtnText}>최적 코스로 일정 채우는 중...</Text>
+                  <Text style={styles.applyBtnText}>🤖 AI가 최적 동선을 기획하는 중...</Text>
                 </View>
               ) : (
                 <View style={styles.btnRow}>
                   <Sparkles size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.applyBtnText}>✨ 3초 만에 맞춤 코스로 일정 채우기</Text>
+                  <Text style={styles.applyBtnText}>✨ AI 맞춤 코스로 일정 채우기 (3초)</Text>
                 </View>
               )}
             </TouchableOpacity>

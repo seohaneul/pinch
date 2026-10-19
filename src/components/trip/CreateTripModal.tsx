@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -23,12 +24,18 @@ import {
   Check,
   Search,
   Plus,
+  Globe,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import type { Trip } from '../../types';
 import { useTripStore } from '../../store/useTripStore';
 import { CalendarRangePicker } from '../common/CalendarRangePicker';
 import { PStyleCourseModal } from './PStyleCourseModal';
+import {
+  searchWorldwideDestinations,
+  POPULAR_RECOMMENDED_DESTINATIONS,
+  WorldwideDestination,
+} from '../../services/destinationSearchService';
 
 interface CreateTripModalProps {
   visible: boolean;
@@ -36,214 +43,10 @@ interface CreateTripModalProps {
   onCreated?: (tripId: string) => void;
 }
 
-export interface DestinationItem {
-  id: string;
-  name: string;
-  country: string;
-  flag: string;
-  defaultTitle: string;
-  coverImage: string;
-  keywords: string[];
-}
+export type DestinationItem = WorldwideDestination;
 
-export const POPULAR_DESTINATIONS: DestinationItem[] = [
-  // 일본
-  {
-    id: 'osaka',
-    name: '오사카 / 교토',
-    country: '일본',
-    flag: '🇯🇵',
-    defaultTitle: '오사카 먹방 & 교토 힐링 여행 🏯',
-    coverImage: 'https://images.unsplash.com/photo-1590559899731-a3f376dd4558?w=800&auto=format&fit=crop',
-    keywords: ['오사카', '교토', '간사이', '일본', 'osaka', 'kyoto', 'japan'],
-  },
-  {
-    id: 'tokyo',
-    name: '도쿄 / 시부야',
-    country: '일본',
-    flag: '🇯🇵',
-    defaultTitle: '도쿄 쇼핑 & 감성 카페 투어 🗼',
-    coverImage: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop',
-    keywords: ['도쿄', '신주쿠', '시부야', '긴자', '일본', 'tokyo', 'japan'],
-  },
-  {
-    id: 'fukuoka',
-    name: '후쿠오카 / 유후인',
-    country: '일본',
-    flag: '🇯🇵',
-    defaultTitle: '후쿠오카 온천 & 라멘 투어 🍜',
-    coverImage: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=800&auto=format&fit=crop',
-    keywords: ['후쿠오카', '유후인', '벳푸', '하카타', '일본', 'fukuoka', 'japan'],
-  },
-  {
-    id: 'sapporo',
-    name: '삿포로 / 홋카이도',
-    country: '일본',
-    flag: '🇯🇵',
-    defaultTitle: '하얀 눈의 삿포로 설경 여행 ❄️',
-    coverImage: 'https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=800&auto=format&fit=crop',
-    keywords: ['삿포로', '홋카이도', '오타루', '비에이', '일본', 'sapporo', 'hokkaido'],
-  },
-  {
-    id: 'okinawa',
-    name: '오키나와',
-    country: '일본',
-    flag: '🇯🇵',
-    defaultTitle: '에메랄드빛 오키나와 드라이브 🚗',
-    coverImage: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop',
-    keywords: ['오키나와', '나하', '휴양', '일본', 'okinawa'],
-  },
+export const POPULAR_DESTINATIONS: DestinationItem[] = POPULAR_RECOMMENDED_DESTINATIONS;
 
-  // 국내
-  {
-    id: 'jeju',
-    name: '제주도',
-    country: '대한민국',
-    flag: '🇰🇷',
-    defaultTitle: '푸른 바다 제주 드라이브 🍊',
-    coverImage: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop',
-    keywords: ['제주', '제주도', '서귀포', '애월', '한국', 'jeju'],
-  },
-  {
-    id: 'busan',
-    name: '부산 / 해운대',
-    country: '대한민국',
-    flag: '🇰🇷',
-    defaultTitle: '바다와 함께하는 부산 힐링 여행 🌊',
-    coverImage: 'https://images.unsplash.com/photo-1627916607164-7b20241db935?w=800&auto=format&fit=crop',
-    keywords: ['부산', '해운대', '광안리', '영도', '한국', 'busan'],
-  },
-  {
-    id: 'gangneung',
-    name: '강릉 / 속초',
-    country: '대한민국',
-    flag: '🇰🇷',
-    defaultTitle: '동해 바다 & 카페 거리 강릉 여행 ☕',
-    coverImage: 'https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=800&auto=format&fit=crop',
-    keywords: ['강릉', '속초', '양양', '동해', '강원도', '한국'],
-  },
-  {
-    id: 'gyeongju',
-    name: '경주',
-    country: '대한민국',
-    flag: '🇰🇷',
-    defaultTitle: '천년고도 경주 야경 & 감성 투어 🌙',
-    coverImage: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop',
-    keywords: ['경주', '황리단길', '첨성대', '한국', 'gyeongju'],
-  },
-
-  // 동남아
-  {
-    id: 'danang',
-    name: '다낭 / 호이안',
-    country: '베트남',
-    flag: '🇻🇳',
-    defaultTitle: '가성비 최고 다낭 & 호이안 힐링 🏮',
-    coverImage: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=800&auto=format&fit=crop',
-    keywords: ['다낭', '호이안', '바나힐', '베트남', 'danang', 'vietnam'],
-  },
-  {
-    id: 'nhatrang',
-    name: '나트랑',
-    country: '베트남',
-    flag: '🇻🇳',
-    defaultTitle: '푸른 해변 나트랑 리조트 바캉스 🍹',
-    coverImage: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop',
-    keywords: ['나트랑', '냐짱', '베트남', 'nhatrang'],
-  },
-  {
-    id: 'bangkok',
-    name: '방콕',
-    country: '태국',
-    flag: '🇹🇭',
-    defaultTitle: '방콕 야시장 & 루프탑 바 🌴',
-    coverImage: 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=800&auto=format&fit=crop',
-    keywords: ['방콕', '카오산', '태국', 'bangkok', 'thailand'],
-  },
-  {
-    id: 'bali',
-    name: '발리 / 우붓',
-    country: '인도네시아',
-    flag: '🇮🇩',
-    defaultTitle: '신들의 섬 발리 자연 & 요가 여행 🧘',
-    coverImage: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=800&auto=format&fit=crop',
-    keywords: ['발리', '우붓', '스미냑', '인도네시아', 'bali', 'indonesia'],
-  },
-  {
-    id: 'singapore',
-    name: '싱가포르',
-    country: '싱가포르',
-    flag: '🇸🇬',
-    defaultTitle: '마리나베이 싱가포르 시티 투어 ✨',
-    coverImage: 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=800&auto=format&fit=crop',
-    keywords: ['싱가포르', '마리나베이', '센토사', 'singapore'],
-  },
-  {
-    id: 'taipei',
-    name: '타이베이',
-    country: '대만',
-    flag: '🇹🇼',
-    defaultTitle: '지우펀 & 타이베이 미식 기행 🥟',
-    coverImage: 'https://images.unsplash.com/photo-1508248467877-aec1b08de376?w=800&auto=format&fit=crop',
-    keywords: ['타이베이', '대만', '타이완', '지우펀', 'taipei', 'taiwan'],
-  },
-
-  // 유럽 & 미주
-  {
-    id: 'paris',
-    name: '파리',
-    country: '프랑스',
-    flag: '🇫🇷',
-    defaultTitle: '로맨틱 파리 예술 기행 🥐',
-    coverImage: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&auto=format&fit=crop',
-    keywords: ['파리', '프랑스', '에펠탑', '루브르', 'paris', 'france'],
-  },
-  {
-    id: 'london',
-    name: '런던',
-    country: '영국',
-    flag: '🇬🇧',
-    defaultTitle: '클래식 런던 뮤지컬 & 펍 투어 💂',
-    coverImage: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&auto=format&fit=crop',
-    keywords: ['런던', '영국', '빅벤', 'london', 'uk'],
-  },
-  {
-    id: 'rome',
-    name: '로마 / 피렌체',
-    country: '이탈리아',
-    flag: '🇮🇹',
-    defaultTitle: '이탈리아 역사 & 파스타 투어 🍝',
-    coverImage: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=800&auto=format&fit=crop',
-    keywords: ['로마', '피렌체', '이탈리아', '바티칸', 'rome', 'italy'],
-  },
-  {
-    id: 'barcelona',
-    name: '바르셀로나',
-    country: '스페인',
-    flag: '🇪🇸',
-    defaultTitle: '가우디 건축 & 타파스 바르셀로나 🍷',
-    coverImage: 'https://images.unsplash.com/photo-1583422409516-2895a77efded?w=800&auto=format&fit=crop',
-    keywords: ['바르셀로나', '스페인', '가우디', 'barcelona', 'spain'],
-  },
-  {
-    id: 'hawaii',
-    name: '하와이 / 오아후',
-    country: '미국',
-    flag: '🇺🇸',
-    defaultTitle: '알로하! 와이키키 하와이 휴양 🌺',
-    coverImage: 'https://images.unsplash.com/photo-1507876466758-bc54f38483c8?w=800&auto=format&fit=crop',
-    keywords: ['하와이', '호놀룰루', '와이키키', '미국', 'hawaii'],
-  },
-  {
-    id: 'newyork',
-    name: '뉴욕 / 맨해튼',
-    country: '미국',
-    flag: '🇺🇸',
-    defaultTitle: '뉴욕 맨해튼 브로드웨이 & 야경 🗽',
-    coverImage: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=800&auto=format&fit=crop',
-    keywords: ['뉴욕', '맨해튼', '타임스퀘어', '미국', 'newyork', 'nyc'],
-  },
-];
 
 // 콤마 포맷터
 function formatNumberWithCommas(val: string | number): string {
@@ -261,10 +64,16 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
   const router = useRouter();
   const { createTrip } = useTripStore();
 
-  const [selectedPreset, setSelectedPreset] = useState<DestinationItem>(POPULAR_DESTINATIONS[0]);
+  const [selectedDestination, setSelectedDestination] = useState<WorldwideDestination>(
+    POPULAR_RECOMMENDED_DESTINATIONS[0]
+  );
   const [searchQuery, setSearchQuery] = useState('');
-  const [destination, setDestination] = useState(POPULAR_DESTINATIONS[0].name);
-  const [title, setTitle] = useState(POPULAR_DESTINATIONS[0].defaultTitle);
+  const [searchResults, setSearchResults] = useState<WorldwideDestination[]>(
+    POPULAR_RECOMMENDED_DESTINATIONS
+  );
+  const [isSearching, setIsSearching] = useState(false);
+  const [destination, setDestination] = useState(POPULAR_RECOMMENDED_DESTINATIONS[0].name);
+  const [title, setTitle] = useState(POPULAR_RECOMMENDED_DESTINATIONS[0].defaultTitle);
 
   // 날짜 선택 상태 및 캘린더 모달
   const [startDate, setStartDate] = useState('2026-12-01');
@@ -277,21 +86,33 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
 
   const [memberInput, setMemberInput] = useState('나, 지은, 민혁');
 
-  // 실시간 여행지 검색 필터링
-  const filteredDestinations = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return POPULAR_DESTINATIONS;
-    return POPULAR_DESTINATIONS.filter(
-      (item) =>
-        item.name.toLowerCase().includes(q) ||
-        item.country.toLowerCase().includes(q) ||
-        item.keywords.some((k) => k.toLowerCase().includes(q))
-    );
+  // 실시간 전세계 도시 검색 (Open-Meteo Geocoding API + 디바운스 250ms)
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setSearchResults(POPULAR_RECOMMENDED_DESTINATIONS);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const results = await searchWorldwideDestinations(q);
+        setSearchResults(results);
+      } catch (e) {
+        console.log('[CreateTripModal] Search error:', e);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
   }, [searchQuery]);
 
   // 여행지 선택 핸들러
-  const handleSelectDestination = (dest: DestinationItem) => {
-    setSelectedPreset(dest);
+  const handleSelectDestination = (dest: WorldwideDestination) => {
+    setSelectedDestination(dest);
     setDestination(dest.name);
     setTitle(dest.defaultTitle);
   };
@@ -355,8 +176,10 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
       startDate,
       endDate,
       budget: 0,
-      coverImage: selectedPreset.coverImage,
+      coverImage: selectedDestination.coverImage,
       memberNames: members.length > 0 ? members : ['나 (민지)', '수현'],
+      centerLat: selectedDestination.latitude,
+      centerLng: selectedDestination.longitude,
     });
 
     // P형 맞춤 코스 온보딩 팝업 실행 (2번 UX 단독 적용)
@@ -414,74 +237,131 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                 ) : null}
               </View>
 
-              {/* 검색창 */}
+              {/* 실시간 전세계 검색창 */}
               <View style={styles.searchBar}>
-                <Search size={16} color="#94A3B8" style={{ marginRight: 8 }} />
+                <Globe size={16} color="#FF6B6B" style={{ marginRight: 8 }} />
                 <TextInput
                   value={searchQuery}
                   onChangeText={setSearchQuery}
-                  placeholder="여행지 검색 (예: 도쿄, 제주도, 다낭, 파리...)"
+                  placeholder="전세계 모든 도시 검색 (예: 파리, 로마, 런던, 뉴욕, 속초...)"
                   placeholderTextColor="#94A3B8"
                   style={styles.searchInput}
                   returnKeyType="search"
                 />
-                {searchQuery.length > 0 && (
+                {isSearching ? (
+                  <ActivityIndicator size="small" color="#FF6B6B" />
+                ) : searchQuery.length > 0 ? (
                   <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <X size={16} color="#94A3B8" />
                   </TouchableOpacity>
-                )}
+                ) : null}
               </View>
 
-              {/* 검색어 직접 등록 버튼 (필터 결과가 없거나 커스텀 입력 시) */}
-              {searchQuery.trim().length > 0 && (
-                <TouchableOpacity
-                  onPress={handleUseCustomDestination}
-                  activeOpacity={0.8}
-                  style={styles.customDestBanner}
-                >
-                  <Plus size={15} color="#FF6B6B" style={{ marginRight: 6 }} />
-                  <Text style={styles.customDestText}>
-                    '<Text style={{ fontWeight: '800' }}>{searchQuery.trim()}</Text>'(으)로 여행지 지정하기
-                  </Text>
-                </TouchableOpacity>
-              )}
+              {/* 검색 모드 (검색어 입력 시 전세계 실시간 검색 결과 리스트 노출) */}
+              {searchQuery.trim().length > 0 ? (
+                <View style={styles.searchResultsContainer}>
+                  <View style={styles.searchResultHeaderRow}>
+                    <Text style={styles.searchResultCountText}>
+                      검색 결과 {searchResults.length}개
+                    </Text>
+                    <Text style={styles.searchResultHintText}>
+                      전세계 실시간 API 연동
+                    </Text>
+                  </View>
 
-              {/* 여행지 가로 스크롤 카드 목록 */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.presetScroll}
-                contentContainerStyle={{ paddingRight: 16 }}
-              >
-                {filteredDestinations.map((dest) => {
-                  const isSelected = selectedPreset.id === dest.id || destination === dest.name;
-                  return (
-                    <TouchableOpacity
-                      key={dest.id}
-                      activeOpacity={0.8}
-                      onPress={() => handleSelectDestination(dest)}
-                      style={[styles.presetItem, isSelected && styles.presetItemSelected]}
-                    >
-                      <Image
-                        source={{ uri: dest.coverImage }}
-                        style={styles.presetImage}
-                        resizeMode="cover"
-                      />
-                      <Text style={styles.presetText} numberOfLines={1}>
-                        {dest.flag} {dest.name.split('/')[0]}
-                      </Text>
-                      <Text style={styles.presetCountryText} numberOfLines={1}>
-                        {dest.country}
-                      </Text>
-                      {isSelected && (
-                        <View style={styles.checkBadge}>
-                          <Check size={11} color="#FFF" />
+                  {searchResults.slice(0, 6).map((item) => {
+                    const isSelected = destination === item.name || selectedDestination.id === item.id;
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        activeOpacity={0.75}
+                        onPress={() => handleSelectDestination(item)}
+                        style={[
+                          styles.searchResultRow,
+                          isSelected && styles.searchResultRowSelected,
+                        ]}
+                      >
+                        <Text style={styles.searchResultFlag}>{item.flag}</Text>
+                        <View style={styles.searchResultInfo}>
+                          <Text
+                            style={[
+                              styles.searchResultName,
+                              isSelected && styles.searchResultNameSelected,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {item.name}
+                          </Text>
+                          <Text style={styles.searchResultSub} numberOfLines={1}>
+                            {item.country} {item.admin1 ? `· ${item.admin1}` : ''}
+                          </Text>
                         </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                        {isSelected ? (
+                          <View style={styles.selectedCheckCircle}>
+                            <Check size={12} color="#FFFFFF" />
+                          </View>
+                        ) : (
+                          <Text style={styles.searchResultCoordBadge}>
+                            {item.latitude.toFixed(1)}°, {item.longitude.toFixed(1)}°
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  {/* 검색어 직접 등록 옵션 */}
+                  <TouchableOpacity
+                    onPress={handleUseCustomDestination}
+                    activeOpacity={0.8}
+                    style={styles.customDestBanner}
+                  >
+                    <Plus size={14} color="#E11D48" style={{ marginRight: 6 }} />
+                    <Text style={styles.customDestText}>
+                      '<Text style={{ fontWeight: '800' }}>{searchQuery.trim()}</Text>'(으)로 직접 등록하기
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                /* 기본 추천 모드 (검색어 없을 때 인기 추천 여행지 캐러셀) */
+                <View>
+                  <Text style={styles.presetSectionSubLabel}>🔥 추천 인기 여행지</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.presetScroll}
+                    contentContainerStyle={{ paddingRight: 16 }}
+                  >
+                    {POPULAR_RECOMMENDED_DESTINATIONS.map((dest) => {
+                      const isSelected = destination === dest.name || selectedDestination.id === dest.id;
+                      return (
+                        <TouchableOpacity
+                          key={dest.id}
+                          activeOpacity={0.8}
+                          onPress={() => handleSelectDestination(dest)}
+                          style={[styles.presetItem, isSelected && styles.presetItemSelected]}
+                        >
+                          <Image
+                            source={{ uri: dest.coverImage }}
+                            style={styles.presetImage}
+                            resizeMode="cover"
+                          />
+                          <Text style={styles.presetText} numberOfLines={1}>
+                            {dest.flag} {dest.name.split('(')[0].trim()}
+                          </Text>
+                          <Text style={styles.presetCountryText} numberOfLines={1}>
+                            {dest.country}
+                          </Text>
+                          {isSelected && (
+                            <View style={styles.checkBadge}>
+                              <Check size={11} color="#FFF" />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
 
               {/* 2. 여행 제목 */}
               <View style={styles.inputGroup}>
@@ -690,6 +570,86 @@ const styles = StyleSheet.create({
   customDestText: {
     fontSize: 12,
     color: '#E11D48',
+  },
+  searchResultsContainer: {
+    marginBottom: 14,
+  },
+  searchResultHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  searchResultCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  searchResultHintText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  searchResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    marginBottom: 6,
+  },
+  searchResultRowSelected: {
+    borderColor: '#FF6B6B',
+    backgroundColor: '#FFF5F5',
+  },
+  searchResultFlag: {
+    fontSize: 22,
+    marginRight: 10,
+  },
+  searchResultInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  searchResultName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  searchResultNameSelected: {
+    color: '#FF6B6B',
+    fontWeight: '800',
+  },
+  searchResultSub: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  selectedCheckCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FF6B6B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchResultCoordBadge: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94A3B8',
+    backgroundColor: '#EEF2F6',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  presetSectionSubLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 8,
   },
   presetScroll: {
     flexDirection: 'row',
