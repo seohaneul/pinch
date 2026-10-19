@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   StyleSheet,
   TouchableWithoutFeedback,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '../../src/components/common/Header';
@@ -20,6 +21,16 @@ import { useTripStore } from '../../src/store/useTripStore';
 import { useWalletStore } from '../../src/store/useWalletStore';
 import { useAuthStore } from '../../src/store/useAuthStore';
 import { AuthModal } from '../../src/components/auth/AuthModal';
+import {
+  isSupabaseConfigured,
+  getSupabaseCredentials,
+  saveSupabaseCredentials,
+} from '../../src/utils/supabase';
+import {
+  syncToCloud,
+  syncFromCloud,
+  getLastSyncTime,
+} from '../../src/services/cloudSyncService';
 import {
   User,
   Shield,
@@ -37,6 +48,12 @@ import {
   X,
   KeyRound,
   Edit3,
+  Cloud,
+  UploadCloud,
+  DownloadCloud,
+  Database,
+  Sliders,
+  CheckCircle2,
 } from 'lucide-react-native';
 
 export default function ProfileScreen() {
@@ -44,6 +61,17 @@ export default function ProfileScreen() {
   const [authModalVisible, setAuthModalVisible] = useState(false);
   const [editNicknameModalVisible, setEditNicknameModalVisible] = useState(false);
   const [changePasswordModalVisible, setChangePasswordModalVisible] = useState(false);
+  const [supabaseModalVisible, setSupabaseModalVisible] = useState(false);
+
+  // Cloud Sync state
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [lastSyncText, setLastSyncText] = useState('동기화 기록 없음');
+  const [isConfigured, setIsConfigured] = useState(false);
+
+  // Supabase Config form
+  const [supabaseUrlInput, setSupabaseUrlInput] = useState('');
+  const [supabaseKeyInput, setSupabaseKeyInput] = useState('');
 
   // Form states
   const [newNicknameInput, setNewNicknameInput] = useState('');
@@ -62,9 +90,107 @@ export default function ProfileScreen() {
     changePassword,
   } = useAuthStore();
 
-  const { places, resetToDefaults: resetPlaces } = usePlaceStore();
-  const { trips, resetToDefaults: resetTrips } = useTripStore();
-  const { expenses, resetToDefaults: resetWallet } = useWalletStore();
+  const { places, resetToDefaults: resetPlaces, restorePlaces } = usePlaceStore();
+  const { trips, scheduleItems, resetToDefaults: resetTrips, restoreTripsData } = useTripStore();
+  const { expenses, resetToDefaults: resetWallet, restoreExpenses } = useWalletStore();
+
+  const refreshSyncInfo = async () => {
+    const time = await getLastSyncTime();
+    setLastSyncText(time);
+    setIsConfigured(isSupabaseConfigured());
+  };
+
+  useEffect(() => {
+    refreshSyncInfo();
+  }, []);
+
+  const handleSyncToCloud = async () => {
+    setIsSyncing(true);
+    try {
+      const result = await syncToCloud({
+        userId: user?.id,
+        trips,
+        places,
+        scheduleItems: scheduleItems || [],
+        expenses: expenses || [],
+      });
+      await refreshSyncInfo();
+      Alert.alert(
+        result.isRemote ? '클라우드 백업 완료 ☁️' : '로컬 스냅샷 저장 완료 💾',
+        result.message
+      );
+    } catch (err: any) {
+      Alert.alert('동기화 실패', err?.message || '클라우드 백업 중 오류가 발생했습니다.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleRestoreFromCloud = () => {
+    Alert.alert(
+      '클라우드 데이터 복원',
+      '클라우드에 백업된 최신 여행 일정, 보관함 핫플, 가계부 지출을 기기로 복원하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '복원하기',
+          style: 'default',
+          onPress: async () => {
+            setIsRestoring(true);
+            try {
+              const result = await syncFromCloud(user?.id);
+              if (result.success && result.data) {
+                if (result.data.trips) {
+                  restoreTripsData(result.data.trips, result.data.scheduleItems);
+                }
+                if (result.data.places) {
+                  restorePlaces(result.data.places);
+                }
+                if (result.data.expenses) {
+                  restoreExpenses(result.data.expenses);
+                }
+                await refreshSyncInfo();
+                Alert.alert('복원 완료 🎉', result.message);
+              } else {
+                Alert.alert('복원 실패', result.message);
+              }
+            } catch (err: any) {
+              Alert.alert('복원 오류', err?.message || '데이터를 복원하는 중 문제가 발생했습니다.');
+            } finally {
+              setIsRestoring(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleOpenSupabaseModal = () => {
+    const creds = getSupabaseCredentials();
+    setSupabaseUrlInput(creds.url.includes('placeholder') ? '' : creds.url);
+    setSupabaseKeyInput(creds.anonKey.includes('placeholder') ? '' : creds.anonKey);
+    setSupabaseModalVisible(true);
+  };
+
+  const handleSaveSupabaseConfig = async () => {
+    if (!supabaseUrlInput.trim().startsWith('http')) {
+      Alert.alert('입력 확인', '유효한 Supabase Project URL을 입력해 주세요. (예: https://xyz.supabase.co)');
+      return;
+    }
+    if (supabaseKeyInput.trim().length < 20) {
+      Alert.alert('입력 확인', '유효한 Supabase anon public key를 입력해 주세요.');
+      return;
+    }
+
+    const success = await saveSupabaseCredentials(supabaseUrlInput, supabaseKeyInput);
+    if (success) {
+      setIsConfigured(isSupabaseConfigured());
+      setSupabaseModalVisible(false);
+      Alert.alert('연결 완료 🚀', 'Supabase 프로젝트가 성공적으로 연결되었습니다! 이제 실시간 클라우드 백업을 사용할 수 있습니다.');
+    } else {
+      Alert.alert('오류', '설정을 저장하지 못했습니다.');
+    }
+  };
 
   const handleOpenEditNickname = () => {
     setNewNicknameInput(user?.nickname || '여행자');
@@ -264,6 +390,79 @@ export default function ProfileScreen() {
             <Coins size={18} color="#F77F00" />
             <Text style={styles.statCount}>{expenses.length}</Text>
             <Text style={styles.statLabel}>기록 지출</Text>
+          </View>
+        </View>
+
+        {/* Cloud Sync & Backup Section (Supabase Cloud Central DB) */}
+        <View style={styles.sectionWrap}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeaderTitle}>클라우드 데이터 동기화</Text>
+            <View style={[styles.statusChip, isConfigured ? styles.statusChipConnected : styles.statusChipLocal]}>
+              <View style={[styles.statusDot, { backgroundColor: isConfigured ? '#10B981' : '#F59E0B' }]} />
+              <Text style={[styles.statusChipText, { color: isConfigured ? '#047857' : '#B45309' }]}>
+                {isConfigured ? 'Supabase 연동됨' : '로컬 백업 모드'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.cloudCard}>
+            <View style={styles.cloudInfoRow}>
+              <View style={styles.cloudIconWrap}>
+                <Cloud size={22} color="#FF6B6B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cloudCardTitle}>중앙 클라우드 실시간 백업</Text>
+                <Text style={styles.cloudCardSubtitle} numberOfLines={1}>
+                  마지막 백업: {lastSyncText}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.cloudActionGrid}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={isSyncing}
+                onPress={handleSyncToCloud}
+                style={[styles.cloudActionBtn, { backgroundColor: '#FF6B6B' }]}
+              >
+                {isSyncing ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <UploadCloud size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={styles.cloudActionBtnText}>지금 백업하기</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={isRestoring}
+                onPress={handleRestoreFromCloud}
+                style={[styles.cloudActionBtn, { backgroundColor: '#2A9D8F' }]}
+              >
+                {isRestoring ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <DownloadCloud size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={styles.cloudActionBtnText}>데이터 복원</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleOpenSupabaseModal}
+              style={styles.supabaseConfigLink}
+            >
+              <Database size={14} color="#64748B" style={{ marginRight: 6 }} />
+              <Text style={styles.supabaseConfigLinkText}>
+                {isConfigured ? 'Supabase 프로젝트 설정 변경' : '내 Supabase 프로젝트 연결하기 (URL/Key)'}
+              </Text>
+              <ChevronRight size={14} color="#94A3B8" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -637,6 +836,87 @@ export default function ProfileScreen() {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Supabase Config Modal (Zero Bottom Gap with SafeAreaInsets) */}
+      <Modal
+        visible={supabaseModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setSupabaseModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+              {/* Header */}
+              <View style={styles.modalHeader}>
+                <View style={styles.modalHeaderLeft}>
+                  <View style={[styles.iconCircle, { backgroundColor: 'rgba(42, 157, 143, 0.12)' }]}>
+                    <Database size={18} color="#2A9D8F" />
+                  </View>
+                  <Text style={styles.modalTitle}>Supabase Cloud 설정 ☁️</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setSupabaseModalVisible(false)}
+                  style={styles.modalCloseBtn}
+                >
+                  <X size={18} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.modalSubtitle}>
+                본인의 Supabase 프로젝트 URL과 anon public key를 입력하면 중앙 클라우드 DB에 전체 여행 데이터가 실시간으로 백업 및 복원됩니다.
+              </Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Supabase Project URL</Text>
+                <View style={styles.inputWrap}>
+                  <TextInput
+                    value={supabaseUrlInput}
+                    onChangeText={setSupabaseUrlInput}
+                    placeholder="https://xyzcompany.supabase.co"
+                    placeholderTextColor="#9CA3AF"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    style={styles.textInput}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Anon Public API Key</Text>
+                <View style={styles.inputWrap}>
+                  <TextInput
+                    value={supabaseKeyInput}
+                    onChangeText={setSupabaseKeyInput}
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+                    placeholderTextColor="#9CA3AF"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    style={styles.textInput}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.modalBtnRow}>
+                <Button
+                  title="닫기"
+                  variant="outline"
+                  size="md"
+                  onPress={() => setSupabaseModalVisible(false)}
+                  style={{ flex: 1, marginRight: 8 }}
+                />
+                <Button
+                  title="저장 및 연결 🚀"
+                  variant="primary"
+                  size="md"
+                  onPress={handleSaveSupabaseConfig}
+                  style={{ flex: 1.5 }}
+                />
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 }
@@ -938,5 +1218,114 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 10,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    marginHorizontal: 4,
+  },
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  statusChipConnected: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  statusChipLocal: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 5,
+  },
+  statusChipText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  cloudCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+  },
+  cloudInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  cloudIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  cloudCardTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1E293B',
+    marginBottom: 3,
+  },
+  cloudCardSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748B',
+  },
+  cloudActionGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  cloudActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 14,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+  },
+  cloudActionBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  supabaseConfigLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderColor: '#F1F5F9',
+    marginTop: 4,
+  },
+  supabaseConfigLinkText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    flex: 1,
   },
 });

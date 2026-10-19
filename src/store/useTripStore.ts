@@ -62,6 +62,7 @@ interface TripState {
   applyRecommendedItinerary: (tripId: string, items: ScheduleItem[], dayStartTimes?: Record<number, string>) => void;
   addExpense: (expense: Omit<Expense, 'id'>) => void;
   deleteExpense: (expenseId: string) => void;
+  restoreTripsData: (trips: Trip[], scheduleItems?: ScheduleItem[]) => void;
   resetToDefaults: () => void;
 }
 
@@ -935,6 +936,18 @@ export const useTripStore = create<TripState>()(
     for (let d = 1; d <= maxDays; d++) {
       recalculateTimes(d);
     }
+  },
+
+  restoreTripsData: (trips: Trip[], scheduleItems?: ScheduleItem[]) => {
+    if (!trips || trips.length === 0) return;
+    const current = trips[0];
+    set({
+      trips,
+      currentTrip: current,
+      activeTripId: current.id,
+      scheduleItems: scheduleItems || [],
+      selectedDay: 1,
+    });
   },
 
   resetToDefaults: () => {

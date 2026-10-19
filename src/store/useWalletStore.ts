@@ -55,6 +55,7 @@ export interface WalletState {
   getTransactions: (tripId?: string, customMembers?: WalletMember[]) => SettlementTransaction[];
   getTotalKrw: (tripId?: string) => number;
   generateShareText: (tripTitle?: string, tripId?: string, customMembers?: WalletMember[]) => string;
+  restoreExpenses: (expenses: any[]) => void;
   resetToDefaults: () => void;
 }
 
@@ -498,6 +499,10 @@ export const useWalletStore = create<WalletState>()(
     }));
 
     return formatSettlementShareText(tripTitle, totalKrw, memberBalances, txns);
+  },
+
+  restoreExpenses: (expenses: any[]) => {
+    set({ expenses: expenses || [] });
   },
 
   resetToDefaults: () => {

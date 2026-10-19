@@ -8,6 +8,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -25,7 +26,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
 
-  const { login, signup, continueAsGuest } = useAuthStore();
+  const { login, signup, continueAsGuest, isLoading } = useAuthStore();
 
   const handleLogin = async () => {
     const success = await login(email, password);
@@ -142,13 +143,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
             {/* Submit Action */}
             <TouchableOpacity
               activeOpacity={0.85}
+              disabled={isLoading}
               onPress={tab === 'login' ? handleLogin : handleSignup}
-              style={styles.primaryBtn}
+              style={[styles.primaryBtn, isLoading && { opacity: 0.7 }]}
             >
-              <Text style={styles.primaryBtnText}>
-                {tab === 'login' ? '로그인하기' : '회원가입 완료하기'}
-              </Text>
-              <ArrowRight size={16} color="#FFF" style={{ marginLeft: 6 }} />
+              {isLoading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.primaryBtnText}>
+                    {tab === 'login' ? '로그인하기' : '회원가입 완료하기'}
+                  </Text>
+                  <ArrowRight size={16} color="#FFF" style={{ marginLeft: 6 }} />
+                </>
+              )}
             </TouchableOpacity>
 
             {/* Guest Mode Action */}

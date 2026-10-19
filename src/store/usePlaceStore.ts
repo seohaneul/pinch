@@ -26,6 +26,7 @@ interface PlaceState {
   extractFromUrl: (url: string, tripId?: string) => Promise<Place | null>;
   checkIsDuplicate: (name: string, url?: string, tripId?: string) => Place | null;
   getPlacesByTrip: (tripId: string) => Place[];
+  restorePlaces: (places: Place[]) => void;
   resetToDefaults: () => void;
 }
 
@@ -225,6 +226,10 @@ export const usePlaceStore = create<PlaceState>()(
           set({ isParsing: false, isExtracting: false });
           return null;
         }
+      },
+
+      restorePlaces: (places: Place[]) => {
+        set({ places: places || [] });
       },
 
       resetToDefaults: () => {
