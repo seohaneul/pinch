@@ -25,9 +25,12 @@ import {
 interface CustomTransportModalProps {
   visible: boolean;
   onClose: () => void;
-  fromPlaceName: string;
-  toPlaceName: string;
+  fromPlaceName?: string;
+  fromName?: string;
+  toPlaceName?: string;
+  toName?: string;
   initialTransportName?: string;
+  initialModeName?: string;
   initialMinutes?: number;
   onSave: (customName: string, minutes: number) => void;
 }
@@ -47,21 +50,27 @@ export const CustomTransportModal: React.FC<CustomTransportModalProps> = ({
   visible,
   onClose,
   fromPlaceName,
+  fromName,
   toPlaceName,
+  toName,
   initialTransportName,
+  initialModeName,
   initialMinutes,
   onSave,
 }) => {
   const insets = useSafeAreaInsets();
-  const [transportName, setTransportName] = useState(initialTransportName || '신칸센');
+  const effectiveFromName = fromPlaceName || fromName || '출발지';
+  const effectiveToName = toPlaceName || toName || '도착지';
+  const defaultMode = initialTransportName || initialModeName || '신칸센';
+  const [transportName, setTransportName] = useState(defaultMode);
   const [travelMinutes, setTravelMinutes] = useState(String(initialMinutes || 45));
 
   useEffect(() => {
     if (visible) {
-      setTransportName(initialTransportName || '신칸센');
+      setTransportName(defaultMode);
       setTravelMinutes(String(initialMinutes || 45));
     }
-  }, [initialTransportName, initialMinutes, visible]);
+  }, [defaultMode, initialMinutes, visible]);
 
   const handleSave = () => {
     if (!transportName.trim()) {
@@ -88,7 +97,7 @@ export const CustomTransportModal: React.FC<CustomTransportModalProps> = ({
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
         <TouchableOpacity
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           activeOpacity={1}
           onPress={onClose}
         />
@@ -102,7 +111,7 @@ export const CustomTransportModal: React.FC<CustomTransportModalProps> = ({
               <View style={{ flex: 1 }}>
                 <Text style={styles.title}>이동수단 직접 입력 🚅</Text>
                 <Text style={styles.subtitle} numberOfLines={1}>
-                  {fromPlaceName} ➔ {toPlaceName}
+                  {effectiveFromName} ➔ {effectiveToName}
                 </Text>
               </View>
             </View>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Trip, ScheduleItem, Place, Member, Expense, LodgingInfo, FlightInfo } from '../types';
+import type { Trip, DaySchedule, ScheduleItem, Place, Member, Expense, LodgingInfo, FlightInfo } from '../types';
 import type { TransportMode } from '../utils/routeUtils';
 import {
   calculateDistance,
@@ -57,6 +57,7 @@ interface TripState {
   setDayLodging: (dayNumber: number, lodging: LodgingInfo) => void;
   getDayLodging: (dayNumber: number) => LodgingInfo | null;
   applyFlightStartTime: (dayNumber: number, flightTimeStr: string, bufferMinutes?: number) => string;
+  applyRecommendedItinerary: (tripId: string, items: ScheduleItem[], dayStartTimes?: Record<number, string>) => void;
   addExpense: (expense: Omit<Expense, 'id'>) => void;
   deleteExpense: (expenseId: string) => void;
   resetToDefaults: () => void;
@@ -906,6 +907,30 @@ export const useTripStore = create<TripState>()(
 
   deleteExpense: (expenseId) => {
     set({ expenses: get().expenses.filter((e) => e.id !== expenseId) });
+  },
+
+  applyRecommendedItinerary: (tripId: string, items: ScheduleItem[], dayStartTimes?: Record<number, string>) => {
+    const { scheduleItems, recalculateTimes, trips } = get();
+    const trip = trips.find((t) => t.id === tripId) || get().currentTrip;
+    const nonTripItems = scheduleItems.filter((s) => s.trip_id && s.trip_id !== tripId);
+
+    // Update day start times if provided
+    const updatedStartTimes = { ...(get().dayStartTimes || {}) };
+    if (dayStartTimes) {
+      Object.entries(dayStartTimes).forEach(([day, time]) => {
+        updatedStartTimes[`${tripId}_day_${day}`] = time;
+      });
+    }
+
+    set({
+      scheduleItems: [...nonTripItems, ...items],
+      dayStartTimes: updatedStartTimes,
+    });
+
+    const maxDays = trip?.schedules?.length || 3;
+    for (let d = 1; d <= maxDays; d++) {
+      recalculateTimes(d);
+    }
   },
 
   resetToDefaults: () => {

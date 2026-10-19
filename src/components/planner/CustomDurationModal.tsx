@@ -14,8 +14,10 @@ import { X, Clock, Check, Plus, Sparkles } from 'lucide-react-native';
 interface CustomDurationModalProps {
   visible: boolean;
   onClose: () => void;
-  placeName: string;
-  currentDurationMinutes: number;
+  placeName?: string;
+  stopName?: string;
+  currentDurationMinutes?: number;
+  currentMinutes?: number;
   onSave: (minutes: number) => void;
 }
 
@@ -23,17 +25,21 @@ export const CustomDurationModal: React.FC<CustomDurationModalProps> = ({
   visible,
   onClose,
   placeName,
+  stopName,
   currentDurationMinutes,
+  currentMinutes,
   onSave,
 }) => {
   const insets = useSafeAreaInsets();
-  const [durationStr, setDurationStr] = useState(String(currentDurationMinutes || 60));
+  const effectivePlaceName = placeName || stopName || '선택한 장소';
+  const effectiveDuration = currentDurationMinutes ?? currentMinutes ?? 60;
+  const [durationStr, setDurationStr] = useState(String(effectiveDuration));
 
   useEffect(() => {
     if (visible) {
-      setDurationStr(String(currentDurationMinutes || 60));
+      setDurationStr(String(effectiveDuration));
     }
-  }, [currentDurationMinutes, visible]);
+  }, [effectiveDuration, visible]);
 
   const handleSave = () => {
     const mins = parseInt(durationStr.replace(/[^0-9]/g, ''), 10);
@@ -60,7 +66,7 @@ export const CustomDurationModal: React.FC<CustomDurationModalProps> = ({
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
         <TouchableOpacity
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           activeOpacity={1}
           onPress={onClose}
         />
@@ -74,7 +80,7 @@ export const CustomDurationModal: React.FC<CustomDurationModalProps> = ({
               <View>
                 <Text style={styles.title}>체류 시간 직접 입력 ⏱️</Text>
                 <Text style={styles.subtitle} numberOfLines={1}>
-                  [{placeName}] 장소에서 얼마나 머무를 예정인가요?
+                  [{effectivePlaceName}] 장소에서 얼마나 머무를 예정인가요?
                 </Text>
               </View>
             </View>

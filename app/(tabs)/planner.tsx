@@ -848,7 +848,7 @@ export default function PlannerScreen() {
       >
         <View className="flex-1 justify-end bg-black/40">
           <TouchableOpacity
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             activeOpacity={1}
             onPress={() => setExpenseModalVisible(false)}
           />

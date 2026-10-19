@@ -24,8 +24,11 @@ import {
   Search,
   Plus,
 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import type { Trip } from '../../types';
 import { useTripStore } from '../../store/useTripStore';
 import { CalendarRangePicker } from '../common/CalendarRangePicker';
+import { PStyleCourseModal } from './PStyleCourseModal';
 
 interface CreateTripModalProps {
   visible: boolean;
@@ -255,6 +258,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
   onCreated,
 }) => {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { createTrip } = useTripStore();
 
   const [selectedPreset, setSelectedPreset] = useState<DestinationItem>(POPULAR_DESTINATIONS[0]);
@@ -266,6 +270,10 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
   const [startDate, setStartDate] = useState('2026-12-01');
   const [endDate, setEndDate] = useState('2026-12-04');
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
+
+  // P형 맞춤 추천 코스 모달 상태
+  const [createdTrip, setCreatedTrip] = useState<Trip | null>(null);
+  const [showPStyleModal, setShowPStyleModal] = useState(false);
 
   const [memberInput, setMemberInput] = useState('나, 지은, 민혁');
 
@@ -302,6 +310,25 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     setEndDate(end);
   };
 
+  // P형 맞춤 코스 모달 닫기
+  const handlePStyleClose = () => {
+    const tripId = createdTrip?.id;
+    setShowPStyleModal(false);
+    setCreatedTrip(null);
+    onClose();
+    if (tripId && onCreated) onCreated(tripId);
+  };
+
+  // P형 맞춤 코스 모달 생성 완료
+  const handlePStyleCompleted = () => {
+    const tripId = createdTrip?.id;
+    setShowPStyleModal(false);
+    setCreatedTrip(null);
+    onClose();
+    if (tripId && onCreated) onCreated(tripId);
+    router.push('/(tabs)/planner');
+  };
+
   // 여행 생성 제출
   const handleCreate = () => {
     if (!title.trim()) {
@@ -332,9 +359,9 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
       memberNames: members.length > 0 ? members : ['나 (민지)', '수현'],
     });
 
-    Alert.alert('새 여행 생성 완료! ✈️', `"${newTrip.title}" 일정이 추가되었습니다.`);
-    onClose();
-    if (onCreated) onCreated(newTrip.id);
+    // P형 맞춤 코스 온보딩 팝업 실행 (2번 UX 단독 적용)
+    setCreatedTrip(newTrip);
+    setShowPStyleModal(true);
   };
 
   // 여행 기간 계산 (N박 M일)
@@ -354,7 +381,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
 
   return (
     <>
-      <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+      <Modal visible={visible && !showPStyleModal} animationType="slide" transparent={true} onRequestClose={onClose}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={[styles.keyboardContainer, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}
@@ -549,6 +576,14 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
         initialEndDate={endDate}
         onClose={() => setIsCalendarVisible(false)}
         onConfirm={handleConfirmDates}
+      />
+
+      {/* P형 맞춤 코스 추천 모달 (새 여행 생성 직후 온보딩) */}
+      <PStyleCourseModal
+        visible={showPStyleModal}
+        trip={createdTrip}
+        onClose={handlePStyleClose}
+        onCompleted={handlePStyleCompleted}
       />
     </>
   );

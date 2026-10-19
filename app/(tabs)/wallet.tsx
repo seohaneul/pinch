@@ -1251,7 +1251,7 @@ export default function WalletScreen() {
       >
         <View className="flex-1 justify-end bg-black/45">
           <TouchableOpacity
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             activeOpacity={1}
             onPress={() => setModalVisible(false)}
           />

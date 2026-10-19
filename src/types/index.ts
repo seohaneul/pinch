@@ -111,6 +111,8 @@ export interface Trip {
     bufferMinutes?: number;
     flightNumber?: string;
   };
+  centerLat?: number;
+  centerLng?: number;
 }
 
 export interface SingleFlightLeg {

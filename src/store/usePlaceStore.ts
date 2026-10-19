@@ -19,6 +19,7 @@ interface PlaceState {
   setCategory: (category: CategoryFilter) => void;
   setSearchQuery: (query: string) => void;
   addPlace: (place: Place, tripId?: string) => boolean;
+  addPlacesBulk: (newPlaces: Place[]) => void;
   removePlace: (id: string) => void;
   togglePin: (id: string) => void;
   updatePlaceImage: (id: string, imageUrl: string) => void;
@@ -153,6 +154,16 @@ export const usePlaceStore = create<PlaceState>()(
           places: [placeWithTrip, ...state.places],
         }));
         return true;
+      },
+
+      addPlacesBulk: (newPlaces) => {
+        set((state) => {
+          const existingIds = new Set(state.places.map((p) => p.id));
+          const filtered = newPlaces.filter((p) => !existingIds.has(p.id));
+          return {
+            places: [...filtered, ...state.places],
+          };
+        });
       },
 
       removePlace: (id) => {

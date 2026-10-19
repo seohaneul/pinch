@@ -166,7 +166,7 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
       <View style={styles.backdrop}>
         {/* Backdrop touchable to dismiss */}
         <TouchableOpacity
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           activeOpacity={1}
           onPress={onClose}
         />

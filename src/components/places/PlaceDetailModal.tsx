@@ -296,7 +296,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
       <View style={styles.overlay}>
         {/* Backdrop touchable to dismiss */}
         <TouchableOpacity
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           activeOpacity={1}
           onPress={onClose}
         />
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.28)',
   },
   topFloatingBar: {
@@ -1175,7 +1175,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   imageLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
     alignItems: 'center',
     justifyContent: 'center',

@@ -8,5 +8,6 @@
       "@/*": ["./src/*"],
       "@app/*": ["./app/*"]
     }
-  }
+  },
+  "exclude": ["node_modules", "__tests__"]
 }

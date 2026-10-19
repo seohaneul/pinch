@@ -58,7 +58,7 @@ export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, o
       <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
         <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.45)' }]}>
           <TouchableOpacity
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             activeOpacity={1}
             onPress={onClose}
           />
