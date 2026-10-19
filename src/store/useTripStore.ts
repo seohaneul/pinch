@@ -2,13 +2,13 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Trip, DaySchedule, ScheduleItem, Place, Member, Expense, LodgingInfo, FlightInfo } from '../types';
-import type { TransportMode } from '../utils/routeUtils';
+import type { TransportMode } from '../utils/geoUtils';
 import {
   calculateDistance,
   estimateTravelTime,
   formatMinutesToTime,
   solveTSPNearestNeighbor,
-} from '../utils/routeUtils';
+} from '../utils/geoUtils';
 import { resolveAirportLocation } from '../services/airportService';
 
 interface TripState {
@@ -66,286 +66,25 @@ interface TripState {
   resetToDefaults: () => void;
 }
 
-const MOCK_MEMBERS: Member[] = [
-  { id: 'm1', name: '나 (민지)', color: '#FF6B6B' },
-  { id: 'm2', name: '수현', color: '#4ECDC4' },
-  { id: 'm3', name: '도윤', color: '#FFE66D' },
-];
+import {
+  DEMO_MEMBERS,
+  DEMO_SCHEDULE_ITEMS,
+  DEMO_DEFAULT_TRIP,
+  DEMO_TRIPS,
+  DEMO_DAY_START_TIMES,
+  DEMO_DAY_LODGINGS,
+  DEMO_TRIP_FLIGHTS,
+  DEMO_TRIP_EXPENSES,
+} from '../data/mockDemoData';
 
-const INITIAL_SCHEDULE_ITEMS: ScheduleItem[] = [
-  // DAY 1 - Tokyo Shibuya & Harajuku
-  {
-    id: 's1',
-    trip_id: 't_tokyo',
-    place_id: 'p1',
-    place_name: '푸글렌 도쿄 (Fuglen Tokyo)',
-    category: 'CAFE',
-    latitude: 35.6664,
-    longitude: 139.6917,
-    day_number: 1,
-    order_index: 1,
-    stay_duration_minutes: 60,
-    transport_mode: 'WALK',
-    travel_duration_minutes: 0,
-    arrival_time: '10:00 AM',
-    address: '1 Chome-16-11 Tomigaya, Shibuya',
-    imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=1000&auto=format&fit=crop',
-    memo: '인스타 감성 브루잉 카페',
-  },
-  {
-    id: 's2',
-    trip_id: 't_tokyo',
-    place_id: 'p5',
-    place_name: '도쿄 빔즈 (BEAMS Harajuku)',
-    category: 'SHOPPING',
-    latitude: 35.6708,
-    longitude: 139.7067,
-    day_number: 1,
-    order_index: 2,
-    stay_duration_minutes: 90,
-    transport_mode: 'WALK',
-    travel_duration_minutes: 18,
-    arrival_time: '11:18 AM',
-    address: '3 Chome-24-7 Jingumae, Shibuya',
-    imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&auto=format&fit=crop',
-    memo: '하라도쿄 스트릿 브랜드 쇼핑',
-  },
-  {
-    id: 's3',
-    trip_id: 't_tokyo',
-    place_id: 'p6',
-    place_name: '파크 하얏트 도쿄',
-    category: 'LODGING',
-    latitude: 35.6858,
-    longitude: 139.6908,
-    day_number: 1,
-    order_index: 3,
-    stay_duration_minutes: 120,
-    transport_mode: 'TRANSIT',
-    travel_duration_minutes: 15,
-    arrival_time: '01:03 PM',
-    address: '3-7-1-2 Nishi-Shinjuku, Shinjuku',
-    imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop',
-    memo: '체크인 및 쉬어가기',
-  },
-
-  // DAY 2 - Kyoto / Fukuoka
-  {
-    id: 's4',
-    trip_id: 't_tokyo',
-    place_id: 'p2',
-    place_name: '후시미 이나리 신사',
-    category: 'ATTRACTION',
-    latitude: 34.9671,
-    longitude: 135.7727,
-    day_number: 2,
-    order_index: 1,
-    stay_duration_minutes: 90,
-    transport_mode: 'TRANSIT',
-    travel_duration_minutes: 0,
-    arrival_time: '10:00 AM',
-    address: '68 Fukakusa Yabunouchicho, Kyoto',
-    imageUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=1000&auto=format&fit=crop',
-    memo: '붉은 토리이 인생샷',
-  },
-  {
-    id: 's5',
-    trip_id: 't_tokyo',
-    place_id: 'p4',
-    place_name: '이치란 라멘 하카타 본점',
-    category: 'RESTAURANT',
-    latitude: 33.5932,
-    longitude: 130.4037,
-    day_number: 2,
-    order_index: 2,
-    stay_duration_minutes: 60,
-    transport_mode: 'DRIVE',
-    travel_duration_minutes: 25,
-    arrival_time: '11:55 AM',
-    address: '5 Chome-3-2 Nakasu, Fukuoka',
-    imageUrl: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=1000&auto=format&fit=crop',
-    memo: '돈코츠 라멘 전문점',
-  },
-];
-
-const DEFAULT_TRIP: Trip = {
-  id: 't_tokyo',
-  title: '도쿄 3박 4일 감성 여행 🗼',
-  destination: '일본 도쿄 / 신주쿠',
-  startDate: '2026-11-10',
-  endDate: '2026-11-13',
-  coverImage: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop',
-  status: 'ongoing',
-  budget: 0,
-  createdAt: '2026-10-01T00:00:00Z',
-  members: MOCK_MEMBERS,
-  places: [],
-  schedules: [
-    { dayNumber: 1, date: '2026-11-10', placeIds: ['p1', 'p5', 'p6'] },
-    { dayNumber: 2, date: '2026-11-11', placeIds: ['p2', 'p4'] },
-    { dayNumber: 3, date: '2026-11-12', placeIds: [] },
-    { dayNumber: 4, date: '2026-11-13', placeIds: [] },
-  ],
-};
-
-const INITIAL_EXPENSES: Expense[] = [
-  {
-    id: 'e1',
-    tripId: 't_tokyo',
-    amount: 32000,
-    category: 'food',
-    description: '푸글렌 도쿄 커피 & 디저트',
-    payerId: 'm1',
-    date: '11.10',
-    splitMemberIds: ['m1', 'm2', 'm3'],
-  },
-  {
-    id: 'e2',
-    tripId: 't_tokyo',
-    amount: 145000,
-    category: 'shopping',
-    description: '빔즈 하라주쿠 맨투맨 티셔츠',
-    payerId: 'm2',
-    date: '11.10',
-    splitMemberIds: ['m1', 'm2', 'm3'],
-  },
-  {
-    id: 'e3',
-    tripId: 't_tokyo',
-    amount: 18000,
-    category: 'transport',
-    description: '도쿄 메트로 패스 3일권',
-    payerId: 'm3',
-    date: '11.10',
-    splitMemberIds: ['m1', 'm2', 'm3'],
-  },
-];
-
-const OSAKA_TRIP: Trip = {
-  id: 't_osaka',
-  title: '오사카 식도락 2박 3일 🍢',
-  destination: '일본 오사카 / 도톤보리',
-  startDate: '2026-12-05',
-  endDate: '2026-12-07',
-  coverImage: 'https://images.unsplash.com/photo-1590559899731-a382839e5549?w=800&auto=format&fit=crop',
-  status: 'planning',
-  budget: 0,
-  createdAt: '2026-10-05T00:00:00Z',
-  members: [MOCK_MEMBERS[0], MOCK_MEMBERS[1]],
-  places: [],
-  schedules: [
-    { dayNumber: 1, date: '2026-12-05', placeIds: [] },
-    { dayNumber: 2, date: '2026-12-06', placeIds: [] },
-    { dayNumber: 3, date: '2026-12-07', placeIds: [] },
-  ],
-};
-
-const INITIAL_TRIPS: Trip[] = [DEFAULT_TRIP, OSAKA_TRIP];
-
-const INITIAL_DAY_START_TIMES: Record<string, string> = {
-  t_tokyo_day_1: '10:00',
-  t_tokyo_day_2: '10:00',
-};
-
-const INITIAL_DAY_LODGINGS: Record<string, LodgingInfo> = {
-  t_tokyo_day_1: {
-    name: '호텔 그레이서리 신주쿠 (Hotel Gracery Shinjuku)',
-    address: '1 Chome-19-1 Kabukicho, Shinjuku City, Tokyo',
-    checkInTime: '15:00',
-    checkOutTime: '11:00',
-    startDate: '2026-11-10',
-    endDate: '2026-11-13',
-    stayNights: 3,
-    startDay: 1,
-    endDay: 4,
-    memo: '고질라 헤드가 보이는 가부키초 중심 호텔. 아고다 예약 완료 (예약번호 #GRC-9281)',
-    phoneNumber: '+81 3-6833-1111',
-    imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1000&auto=format&fit=crop',
-  },
-};
-
-const INITIAL_TRIP_FLIGHTS: Record<string, FlightInfo> = {
-  t_tokyo: {
-    tripType: 'roundTrip',
-    flightNumber: 'KE703',
-    airline: '대한항공 (Korean Air)',
-    departureAirport: '인천 (ICN)',
-    arrivalAirport: '도쿄 나리타 (NRT)',
-    departureDate: '2026-11-10',
-    departureTime: '09:20',
-    arrivalDate: '2026-11-10',
-    arrivalTime: '12:40',
-    terminal: '제2터미널 탑승구 242',
-    bufferMinutes: 90,
-    memo: '모바일 체크인 완료 / 수하물 23kg 1개 무료',
-    autoAddToSchedule: true,
-    outbound: {
-      flightNumber: 'KE703',
-      airline: '대한항공',
-      departureAirport: '인천 (ICN)',
-      departureDate: '2026-11-10',
-      departureTime: '09:20',
-      arrivalAirport: '도쿄 나리타 (NRT)',
-      arrivalDate: '2026-11-10',
-      arrivalTime: '12:40',
-      terminal: '제2터미널',
-      bufferMinutes: 90,
-      memo: '모바일 체크인 완료',
-    },
-    returnFlight: {
-      flightNumber: 'KE704',
-      airline: '대한항공',
-      departureAirport: '도쿄 나리타 (NRT)',
-      departureDate: '2026-11-13',
-      departureTime: '14:00',
-      arrivalAirport: '인천 (ICN)',
-      arrivalDate: '2026-11-13',
-      arrivalTime: '17:15',
-      terminal: '제1터미널',
-      bufferMinutes: 60,
-      memo: '귀국편',
-    },
-  },
-  t_osaka: {
-    tripType: 'roundTrip',
-    flightNumber: 'OZ112',
-    airline: '아시아나항공',
-    departureAirport: '인천 (ICN)',
-    arrivalAirport: '오사카 간사이 (KIX)',
-    departureDate: '2026-12-05',
-    departureTime: '08:00',
-    arrivalDate: '2026-12-05',
-    arrivalTime: '09:50',
-    terminal: '제1터미널',
-    bufferMinutes: 60,
-    memo: '라피트 특급 열차 교환권 포함',
-    autoAddToSchedule: true,
-    outbound: {
-      flightNumber: 'OZ112',
-      airline: '아시아나항공',
-      departureAirport: '인천 (ICN)',
-      departureDate: '2026-12-05',
-      departureTime: '08:00',
-      arrivalAirport: '오사카 간사이 (KIX)',
-      arrivalDate: '2026-12-05',
-      arrivalTime: '09:50',
-      terminal: '제1터미널',
-      bufferMinutes: 60,
-    },
-    returnFlight: {
-      flightNumber: 'OZ113',
-      airline: '아시아나항공',
-      departureAirport: '오사카 간사이 (KIX)',
-      departureDate: '2026-12-07',
-      departureTime: '17:00',
-      arrivalAirport: '인천 (ICN)',
-      arrivalDate: '2026-12-07',
-      arrivalTime: '18:55',
-      terminal: '제1터미널',
-      bufferMinutes: 60,
-    },
-  },
-};
+const MOCK_MEMBERS = DEMO_MEMBERS;
+const INITIAL_SCHEDULE_ITEMS = DEMO_SCHEDULE_ITEMS;
+const DEFAULT_TRIP = DEMO_DEFAULT_TRIP;
+const INITIAL_TRIPS = DEMO_TRIPS;
+const INITIAL_EXPENSES = DEMO_TRIP_EXPENSES;
+const INITIAL_DAY_START_TIMES = DEMO_DAY_START_TIMES;
+const INITIAL_DAY_LODGINGS = DEMO_DAY_LODGINGS;
+const INITIAL_TRIP_FLIGHTS = DEMO_TRIP_FLIGHTS;
 
 export const useTripStore = create<TripState>()(
   persist(

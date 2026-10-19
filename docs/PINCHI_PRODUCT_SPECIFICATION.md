@@ -174,24 +174,38 @@ Pinchi/
 │   │   ├── places.tsx          # 2. 장소 & 링크 보관함
 │   │   ├── planner.tsx         # 3. 일정 & 동선 플래너
 │   │   ├── wallet.tsx          # 4. 여행 가계부 & 정산
-│   │   └── profile.tsx         # 5. 마이페이지
-│   ├── trip/create.tsx         # 새 여행 생성
-│   └── trip/[id].tsx           # 여행 상세
+│   │   └── profile.tsx         # 5. 마이 & Supabase 설정
+│   ├── _layout.tsx
+│   └── +not-found.tsx
 ├── src/
 │   ├── components/             # 모듈화된 UI 컴포넌트
-│   │   ├── planner/            # FlightModal, LodgingModal, AddSpotModal, PlannerMapView 등
+│   │   ├── auth/               # AuthModal (Supabase 로그인/회원가입)
+│   │   ├── common/             # Button, Header, Card, CalendarRangePicker
 │   │   ├── places/             # PlaceSearchModal, AddPlaceModal, LinkPlacesModal 등
-│   │   └── wallet/             # AddExpenseModal, BudgetSettingModal 등
+│   │   ├── planner/            # FlightModal, LodgingModal, AddSpotModal, PlannerMapView 등
+│   │   ├── trip/               # CreateTripModal, PStyleCourseModal, TripSwitcherModal
+│   │   └── wallet/             # CategoryBudgetModal 등
+│   ├── data/
+│   │   └── mockDemoData.ts     # 도쿄 공식 예시 데이터 모듈 (Demo Single Source of Truth)
 │   ├── services/               # 비즈니스 및 외부 연동 서비스
-│   │   ├── airportService.ts   # 공항 IATA 및 좌표 데이터베이스 / 리졸버
-│   │   ├── placeSearchService.ts # 장소 검색 및 OSM 지오코딩
-│   │   ├── routeOptimizer.ts   # TSP 최단 동선 최적화 알고리즘
-│   │   └── parserService.ts    # SNS 링크 메타데이터 파싱
-│   ├── store/                  # Zustand 상태 저장소 (로컬 스토리지 지속성)
+│   │   ├── airportService.ts   # 공항 IATA 및 전세계 공항 위치 좌표 리졸버
+│   │   ├── cloudSyncService.ts # Supabase 클라우드 실시간 동기화 & 복원
+│   │   ├── destinationSearchService.ts # Open-Meteo 전세계 도시 실시간 검색
+│   │   ├── geminiService.ts    # Gemini 2.5 Flash AI 여행 일정 생성
+│   │   ├── itineraryGeneratorService.ts # MBTI P형 맞춤 코스 추천 엔진
+│   │   ├── parserService.ts    # SNS 릴스/쇼츠/블로그 링크 파싱
+│   │   └── placeSearchService.ts # 장소 검색 및 OSM 지오코딩
+│   ├── store/                  # Zustand 상태 저장소 (AsyncStorage 지속성)
+│   │   ├── useAuthStore.ts     # Supabase Auth 및 사용자 프로필
 │   │   ├── useTripStore.ts     # 여행, 일정 스케줄, 항공/숙소 연동
 │   │   ├── usePlaceStore.ts    # 장소 보관함
 │   │   ├── useSavedLinkStore.ts# 링크 보관함
 │   │   └── useWalletStore.ts   # 예산, 지출, 정산
+│   ├── utils/
+│   │   ├── geoUtils.ts         # 하버사인 거리 및 TSP 최단 동선 최적화
+│   │   ├── mapUtils.ts         # Leaflet 웹뷰 지도 인터랙션
+│   │   ├── settlementUtils.ts  # 최소 거래 횟수 정산 알고리즘
+│   │   └── supabase.ts         # Supabase 클라이언트 세션 설정
 │   └── types/index.ts          # TypeScript 공통 타입 정의
 ```
 

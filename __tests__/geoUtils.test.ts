@@ -6,7 +6,7 @@ import {
   formatMinutesToTime,
   solveTSPNearestNeighbor,
   formatTravelSummary,
-} from '../src/utils/routeUtils';
+} from '../src/utils/geoUtils';
 
 describe('Geo & Routing Utils (FN-PLN)', () => {
   describe('calculateDistance (Haversine formula)', () => {

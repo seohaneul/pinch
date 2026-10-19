@@ -34,6 +34,8 @@ import {
   ChevronRight,
   ClipboardPaste,
   ArrowRight,
+  Plane,
+  Plus,
 } from 'lucide-react-native';
 
 export default function HomeScreen() {
@@ -206,7 +208,7 @@ export default function HomeScreen() {
         </View>
 
         {/* 3. Active Trip Card */}
-        {currentTrip && (
+        {currentTrip ? (
           <View style={styles.activeTripSection}>
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>진행 중인 여행 계획 🗺️</Text>
@@ -269,6 +271,27 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                 </View>
+              </View>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.activeTripSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>진행 중인 여행 계획 🗺️</Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setTripSwitcherVisible(true)}
+              style={styles.emptyTripCard}
+            >
+              <View style={styles.emptyTripIconWrap}>
+                <Plane size={24} color="#FF6B6B" />
+              </View>
+              <Text style={styles.emptyTripTitle}>아직 계획 중인 여행이 없어요</Text>
+              <Text style={styles.emptyTripSubtitle}>새로운 여행을 만들고 나만의 코스를 완성해보세요!</Text>
+              <View style={styles.emptyTripBtn}>
+                <Plus size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                <Text style={styles.emptyTripBtnText}>새 여행 만들기</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -551,6 +574,51 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
+  },
+  emptyTripCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#F1F5F9',
+    borderStyle: 'dashed',
+  },
+  emptyTripIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  emptyTripTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1E293B',
+    marginBottom: 4,
+  },
+  emptyTripSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#94A3B8',
+    marginBottom: 14,
+    textAlign: 'center',
+  },
+  emptyTripBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  emptyTripBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   tripCoverImage: {
     width: '100%',

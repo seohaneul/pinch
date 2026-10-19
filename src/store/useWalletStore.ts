@@ -60,97 +60,10 @@ export interface WalletState {
 }
 
 
-const MOCK_MEMBERS: WalletMember[] = [
-  { id: 'm1', name: '나 (민지)', color: '#FF6B6B' },
-  { id: 'm2', name: '수현', color: '#4ECDC4' },
-  { id: 'm3', name: '도윤', color: '#FFE66D' },
-];
+import { DEMO_WALLET_MEMBERS, DEMO_WALLET_EXPENSES } from '../data/mockDemoData';
 
-const INITIAL_EXPENSES: ExpenseItem[] = [
-  {
-    id: 'exp_1',
-    trip_id: 't_tokyo',
-    schedule_id: 's1',
-    place_name: '푸글렌 도쿄 (Fuglen Tokyo)',
-    title: '푸글렌 드립커피 & 시나몬롤',
-    paid_by: 'm1',
-    currency: 'JPY',
-    amount: 3200,
-    exchange_rate: 9.15,
-    krw_amount: Math.round(3200 * 9.15), // 29,280원
-    split_members: ['m1', 'm2', 'm3'],
-    category: 'FOOD',
-    created_at: '2026-11-10T10:30:00Z',
-  },
-  {
-    id: 'exp_2',
-    trip_id: 't_tokyo',
-    schedule_id: 's2',
-    place_name: '도쿄 빔즈 (BEAMS Harajuku)',
-    title: '하라주쿠 빔즈 의류 & 소품',
-    paid_by: 'm2',
-    currency: 'JPY',
-    amount: 15400,
-    exchange_rate: 9.15,
-    krw_amount: Math.round(15400 * 9.15), // 140,910원
-    split_members: ['m1', 'm2'],
-    category: 'SHOPPING',
-    created_at: '2026-11-10T12:30:00Z',
-  },
-  {
-    id: 'exp_3',
-    trip_id: 't_tokyo',
-    title: '도쿄 메트로 & 스이카 3인 충전',
-    paid_by: 'm3',
-    currency: 'JPY',
-    amount: 6000,
-    exchange_rate: 9.15,
-    krw_amount: Math.round(6000 * 9.15), // 54,900원
-    split_members: ['m1', 'm2', 'm3'],
-    category: 'TRANSPORT',
-    created_at: '2026-11-10T09:15:00Z',
-  },
-  {
-    id: 'exp_4',
-    trip_id: 't_tokyo',
-    place_name: '이치란 라멘 하카타 본점',
-    title: '이치란 돈코츠 라멘 & 맥주 세트',
-    paid_by: 'm1',
-    currency: 'JPY',
-    amount: 5800,
-    exchange_rate: 9.15,
-    krw_amount: Math.round(5800 * 9.15), // 53,070원
-    split_members: ['m1', 'm2', 'm3'],
-    category: 'FOOD',
-    created_at: '2026-11-11T13:00:00Z',
-  },
-  {
-    id: 'exp_5',
-    trip_id: 't_tokyo',
-    title: '신주쿠 드럭스토어 기념품 면세',
-    paid_by: 'm3',
-    currency: 'JPY',
-    amount: 12000,
-    exchange_rate: 9.15,
-    krw_amount: Math.round(12000 * 9.15), // 109,800원
-    split_members: ['m1', 'm2', 'm3'],
-    category: 'SHOPPING',
-    created_at: '2026-11-11T19:30:00Z',
-  },
-  {
-    id: 'exp_6',
-    trip_id: 't_tokyo',
-    title: '도쿄 나리타 익스프레스(N-EX) 왕복권',
-    paid_by: 'm2',
-    currency: 'KRW',
-    amount: 126000,
-    exchange_rate: 1.0,
-    krw_amount: 126000,
-    split_members: ['m1', 'm2', 'm3'],
-    category: 'TRANSPORT',
-    created_at: '2026-11-09T15:00:00Z',
-  },
-];
+const MOCK_MEMBERS: WalletMember[] = DEMO_WALLET_MEMBERS;
+const INITIAL_EXPENSES: ExpenseItem[] = DEMO_WALLET_EXPENSES;
 
 const INITIAL_CUSTOM_BUDGETS: Record<string, CustomBudgetItem[]> = {
   t_tokyo: [

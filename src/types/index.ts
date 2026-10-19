@@ -1,4 +1,4 @@
-import type { TransportMode } from '../utils/routeUtils';
+import type { TransportMode } from '../utils/geoUtils';
 
 export type PlaceCategory =
   | 'ALL'
