@@ -226,7 +226,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
 
   // 구글 지도 열기
   const handleOpenMap = () => {
-    openInGoogleMaps(place.name, place.latitude, place.longitude);
+    openInGoogleMaps(place.name, place.latitude, place.longitude, place.address);
   };
 
   // AI 심층 가이드 요청

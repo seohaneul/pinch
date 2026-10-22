@@ -395,7 +395,7 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'NAVIGATE') {
-        openInGoogleMaps(data.placeName, data.lat, data.lng);
+        openInGoogleMaps(data.placeName, data.lat, data.lng, data.address);
       } else if (data.type === 'VIEW_DETAIL' && onPressStop) {
         const target = validStops[data.index];
         if (target) onPressStop(target);
@@ -478,7 +478,8 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
                   openInGoogleMaps(
                     currentActiveStop.place_name,
                     currentActiveStop.latitude,
-                    currentActiveStop.longitude
+                    currentActiveStop.longitude,
+                    currentActiveStop.address
                   );
                 }
               }}

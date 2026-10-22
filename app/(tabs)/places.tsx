@@ -461,7 +461,7 @@ export default function PlacesScreen() {
 
                           <View className="flex-row items-center gap-1.5">
                             <TouchableOpacity
-                              onPress={() => openInGoogleMaps(place.name, place.latitude, place.longitude)}
+                              onPress={() => openInGoogleMaps(place.name, place.latitude, place.longitude, place.address)}
                               className="bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-row items-center"
                               accessibilityLabel="구글 지도 열기"
                             >

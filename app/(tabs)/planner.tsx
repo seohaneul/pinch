@@ -682,7 +682,7 @@ export default function PlannerScreen() {
 
                           <View className="flex-row items-center gap-1.5">
                             <TouchableOpacity
-                              onPress={() => openInGoogleMaps(stop.place_name, stop.latitude, stop.longitude)}
+                              onPress={() => openInGoogleMaps(stop.place_name, stop.latitude, stop.longitude, stop.address)}
                               className="bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-row items-center"
                               accessibilityLabel="구글 지도 열기"
                             >
@@ -721,7 +721,9 @@ export default function PlannerScreen() {
                                 stop.latitude,
                                 stop.longitude,
                                 stop.place_name,
-                                nextStop.transport_mode
+                                nextStop.transport_mode,
+                                nextStop.address,
+                                stop.address
                               )
                             }
                             className="flex-row items-center flex-1 mr-2"
