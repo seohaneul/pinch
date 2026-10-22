@@ -30,6 +30,35 @@ export interface Place {
   createdAt: string;
   tags?: string[];
   sourcePlatform?: 'instagram' | 'youtube' | 'naver' | 'tiktok' | 'manual';
+  // Google Places integration fields
+  description?: string; // 구글 공식 장소 설명
+  userRatingsTotal?: number; // 구글 총 리뷰 개수
+  photos?: string[]; // 구글맵 실제 사진들
+  reviews?: PlaceReview[]; // 구글맵 실제 방문자 후기
+  googleMapsUri?: string; // 구글맵 공식 링크
+}
+
+export interface PlaceReview {
+  id?: string;
+  authorName: string;
+  rating: number;
+  text: string;
+  relativeTime?: string;
+  authorPhotoUrl?: string;
+}
+
+export interface GooglePlaceDetails {
+  name: string;
+  rating: number;
+  userRatingsTotal?: number;
+  description?: string;
+  address?: string;
+  phoneNumber?: string;
+  website?: string;
+  regularOpeningHours?: string[];
+  photos: string[];
+  reviews: PlaceReview[];
+  googleMapsUri?: string;
 }
 
 export interface LodgingInfo {
@@ -191,6 +220,10 @@ export interface ExtractedPlaceItem {
   imageUrl?: string;
   rating?: number;
   tags?: string[];
+  description?: string;
+  userRatingsTotal?: number;
+  photos?: string[];
+  reviews?: PlaceReview[];
 }
 
 export interface SavedLink {
