@@ -1,6 +1,8 @@
 import type { PlaceCategory } from '../types';
 import { inferCategory } from './parserService';
 
+const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+
 export interface SearchPlaceResult {
   id: string;
   name: string;
@@ -22,6 +24,74 @@ const CATEGORY_IMAGES: Record<string, string> = {
   LODGING: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop',
   SHOPPING: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop',
 };
+
+/**
+ * Google Places API 실시간 텍스트 검색
+ * 전세계 모든 장소, 정확한 구글 GPS 좌표, 실제 도로명 주소, 별점, 실제 사진 일괄 수집
+ */
+async function fetchLivePlacesFromGoogle(
+  query: string,
+  categoryFilter?: PlaceCategory
+): Promise<SearchPlaceResult[]> {
+  if (!GOOGLE_API_KEY || GOOGLE_API_KEY.includes('placeholder')) {
+    return [];
+  }
+
+  try {
+    const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
+      query
+    )}&language=ko&key=${GOOGLE_API_KEY}`;
+
+    const res = await fetch(url);
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    if (data.status !== 'OK' || !Array.isArray(data.results)) {
+      return [];
+    }
+
+    return data.results.slice(0, 10).map((item: any, idx: number) => {
+      const lat = item.geometry?.location?.lat || 35.6895;
+      const lng = item.geometry?.location?.lng || 139.6917;
+      const name = item.name || query;
+      const address = item.formatted_address || '';
+
+      // 구글 타입 기반 카테고리 매핑
+      let cat: PlaceCategory = categoryFilter && categoryFilter !== 'ALL' ? categoryFilter : 'ATTRACTION';
+      const types = item.types || [];
+      if (types.includes('cafe') || types.includes('bakery')) {
+        cat = 'CAFE';
+      } else if (types.includes('restaurant') || types.includes('food')) {
+        cat = 'RESTAURANT';
+      } else if (types.includes('lodging')) {
+        cat = 'LODGING';
+      } else if (types.includes('shopping_mall') || types.includes('store') || types.includes('clothing_store')) {
+        cat = 'SHOPPING';
+      }
+
+      // 구글 실시간 사진 URL
+      let imageUrl = CATEGORY_IMAGES[cat];
+      if (item.photos && item.photos.length > 0 && item.photos[0].photo_reference) {
+        imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${item.photos[0].photo_reference}&key=${GOOGLE_API_KEY}`;
+      }
+
+      return {
+        id: `google_${item.place_id || Date.now()}_${idx}`,
+        name,
+        address,
+        category: cat,
+        latitude: lat,
+        longitude: lng,
+        rating: item.rating,
+        imageUrl,
+        memo: `구글 지도 공식 등록 장소 (${item.user_ratings_total ? `${item.user_ratings_total.toLocaleString()}개 리뷰` : '실시간 연동'})`,
+      };
+    });
+  } catch (err) {
+    console.log('[PlaceSearch] Google Places search error:', err);
+    return [];
+  }
+}
 
 // 유명 여행지 & 핫플 엄선 데이터베이스 (즉각적인 고품질 검색 지원)
 export const CURATED_PLACES: SearchPlaceResult[] = [
@@ -308,7 +378,17 @@ export const CURATED_PLACES: SearchPlaceResult[] = [
 export async function searchAccommodations(query: string): Promise<SearchPlaceResult[]> {
   const q = query.trim().toLowerCase();
 
-  // 1차: 큐레이션된 숙소 목록 매칭
+  // 1순위: Google Places API (실제 구글맵 전세계 숙소 검색)
+  if (GOOGLE_API_KEY && !GOOGLE_API_KEY.includes('placeholder') && q.length >= 2) {
+    try {
+      const googleResults = await fetchLivePlacesFromGoogle(`${query} hotel`, 'LODGING');
+      if (googleResults.length > 0) {
+        return googleResults;
+      }
+    } catch {}
+  }
+
+  // 2차: 큐레이션된 숙소 목록 매칭
   const curatedMatches = CURATED_PLACES.filter(
     (p) =>
       p.category === 'LODGING' &&
@@ -322,7 +402,7 @@ export async function searchAccommodations(query: string): Promise<SearchPlaceRe
     return curatedMatches;
   }
 
-  // 2차: Nominatim OpenStreetMap 실시간 지오코딩 검색
+  // 3차: Nominatim OpenStreetMap 실시간 지오코딩 검색
   if (q.length >= 2) {
     try {
       const liveResults = await fetchLivePlacesFromOsm(`${query} hotel`, 'LODGING');
@@ -349,12 +429,31 @@ export async function searchPlaces(
 ): Promise<SearchPlaceResult[]> {
   const q = query.trim().toLowerCase();
 
-  // 1차: 큐레이션된 장소에서 필터링
+  // 검색어가 없으면 추천 핫플 반환
+  if (!q) {
+    return CURATED_PLACES.filter((p) => {
+      if (categoryFilter && categoryFilter !== 'ALL' && p.category !== categoryFilter) {
+        return false;
+      }
+      return true;
+    }).slice(0, 10);
+  }
+
+  // 1순위: Google Places API (전세계 모든 장소 공식 검색)
+  if (GOOGLE_API_KEY && !GOOGLE_API_KEY.includes('placeholder') && q.length >= 2) {
+    try {
+      const googleResults = await fetchLivePlacesFromGoogle(query, categoryFilter);
+      if (googleResults.length > 0) {
+        return googleResults;
+      }
+    } catch {}
+  }
+
+  // 2차: 큐레이션된 장소에서 필터링
   const curatedMatches = CURATED_PLACES.filter((p) => {
     if (categoryFilter && categoryFilter !== 'ALL' && p.category !== categoryFilter) {
       return false;
     }
-    if (!q) return true;
     return (
       p.name.toLowerCase().includes(q) ||
       p.address.toLowerCase().includes(q) ||
@@ -362,12 +461,7 @@ export async function searchPlaces(
     );
   });
 
-  // 검색어가 없으면 추천 핫플 반환
-  if (!q) {
-    return curatedMatches.slice(0, 10);
-  }
-
-  // 2차: 실시간 OpenStreetMap 검색 결합
+  // 3차: 실시간 OpenStreetMap 검색 결합
   try {
     const liveResults = await fetchLivePlacesFromOsm(query, categoryFilter);
     const combined = [...curatedMatches];
