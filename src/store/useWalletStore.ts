@@ -65,52 +65,10 @@ import { DEMO_WALLET_MEMBERS, DEMO_WALLET_EXPENSES } from '../data/mockDemoData'
 const MOCK_MEMBERS: WalletMember[] = DEMO_WALLET_MEMBERS;
 const INITIAL_EXPENSES: ExpenseItem[] = DEMO_WALLET_EXPENSES;
 
-const INITIAL_CUSTOM_BUDGETS: Record<string, CustomBudgetItem[]> = {
-  t_tokyo: [
-    { id: 'cb_1', trip_id: 't_tokyo', name: 'eSIM 데이터 무제한', amount: 18000, color: '#06B6D4' },
-    { id: 'cb_2', trip_id: 't_tokyo', name: '여행자보험', amount: 15000, color: '#8B5CF6' },
-  ],
-  t_osaka: [
-    { id: 'cb_3', trip_id: 't_osaka', name: '간사이 와이파이 도시락', amount: 20000, color: '#06B6D4' },
-  ],
-};
-
-const INITIAL_TOUR_PACKAGES: Record<string, TourPackageItem[]> = {
-  t_tokyo: [
-    { id: 'tp_1', trip_id: 't_tokyo', name: '시부야 스카이 전망대 입장권', amount: 22000, memo: '17:00 일몰 시간대 예약권' },
-    { id: 'tp_2', trip_id: 't_tokyo', name: '도쿄 디즈니씨 1일 자유이용권', amount: 88000, memo: '공식 앱 DPA 예약 포함' },
-    { id: 'tp_3', trip_id: 't_tokyo', name: '팀랩 플래닛 도쿄 전시회', amount: 38000, memo: '토요스 모바일 QR' },
-  ],
-  t_osaka: [
-    { id: 'tp_4', trip_id: 't_osaka', name: '유니버셜 스튜디오 재팬 (USJ) 1일권', amount: 86000, memo: '슈퍼 닌텐도 월드 확약권' },
-  ],
-};
-
-const INITIAL_CATEGORY_BUDGETS: Record<string, Record<string, number>> = {
-  t_tokyo: {
-    FOOD: 400000,
-    LODGING: 600000,
-    FLIGHT: 450000,
-    TRANSPORT: 250000,
-    SHOPPING: 350000,
-    ACTIVITY: 150000,
-    OTHER: 100000,
-  },
-  t_osaka: {
-    FOOD: 300000,
-    LODGING: 350000,
-    FLIGHT: 350000,
-    TRANSPORT: 150000,
-    SHOPPING: 200000,
-    ACTIVITY: 100000,
-    OTHER: 50000,
-  },
-};
-
-const INITIAL_TRIP_CURRENCIES: Record<string, CurrencyCode> = {
-  t_tokyo: 'JPY',
-  t_osaka: 'JPY',
-};
+const INITIAL_CUSTOM_BUDGETS: Record<string, CustomBudgetItem[]> = {};
+const INITIAL_TOUR_PACKAGES: Record<string, TourPackageItem[]> = {};
+const INITIAL_CATEGORY_BUDGETS: Record<string, Record<string, number>> = {};
+const INITIAL_TRIP_CURRENCIES: Record<string, CurrencyCode> = {};
 
 export const DEFAULT_CATEGORY_BUDGET_MAP: Record<string, number> = {
   FOOD: 400000,

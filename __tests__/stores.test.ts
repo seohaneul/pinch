@@ -6,11 +6,153 @@ import { useWalletStore } from '../src/store/useWalletStore';
 import { useAuthStore } from '../src/store/useAuthStore';
 import { detectSnsPlatform, parseSnsUrl } from '../src/services/parserService';
 
+const TEST_PLACES = [
+  {
+    id: 'p1',
+    trip_id: 't_tokyo',
+    name: '푸글렌 도쿄 (Fuglen Tokyo)',
+    address: '1 Chome-16-11 Tomigaya, Shibuya City, Tokyo',
+    category: 'CAFE' as const,
+    latitude: 35.6664,
+    longitude: 139.6917,
+    memo: '인스타 핫플 카페',
+    snsUrl: 'https://instagram.com/p/fuglen_tokyo',
+    imageUrl: 'https://example.com/p1.jpg',
+    rating: 4.8,
+    isPinned: true,
+    createdAt: '2026-10-01',
+    tags: ['도쿄카페'],
+    sourcePlatform: 'instagram' as const,
+  },
+  {
+    id: 'p2',
+    trip_id: 't_tokyo',
+    name: '후시미 이나리 신사',
+    address: 'Kyoto, Fushimi',
+    category: 'ATTRACTION' as const,
+    latitude: 34.9671,
+    longitude: 135.7727,
+    isPinned: false,
+    createdAt: '2026-10-02',
+  },
+  {
+    id: 'p3',
+    trip_id: 't_tokyo',
+    name: '팀랩 플래닛 도쿄',
+    address: 'Tokyo Toyosu',
+    category: 'ATTRACTION' as const,
+    latitude: 35.6491,
+    longitude: 139.7898,
+    isPinned: false,
+    createdAt: '2026-10-03',
+  },
+  {
+    id: 'p_jeju',
+    trip_id: 't_jeju',
+    name: '어니언 성수',
+    address: '서울 성동구',
+    category: 'CAFE' as const,
+    latitude: 37.5458,
+    longitude: 127.0581,
+    isPinned: false,
+    createdAt: '2026-10-04',
+  },
+];
+
+const TEST_SCHEDULE_ITEMS = [
+  {
+    id: 's1',
+    trip_id: 't_tokyo',
+    place_id: 'p1',
+    place_name: '푸글렌 도쿄 (Fuglen Tokyo)',
+    category: 'CAFE' as const,
+    latitude: 35.6664,
+    longitude: 139.6917,
+    day_number: 1,
+    order_index: 1,
+    stay_duration_minutes: 60,
+    transport_mode: 'WALK' as const,
+    travel_duration_minutes: 0,
+    arrival_time: '10:00 AM',
+    address: 'Shibuya',
+  },
+  {
+    id: 's2',
+    trip_id: 't_tokyo',
+    place_id: 'p2',
+    place_name: '후시미 이나리 신사',
+    category: 'ATTRACTION' as const,
+    latitude: 34.9671,
+    longitude: 135.7727,
+    day_number: 1,
+    order_index: 2,
+    stay_duration_minutes: 90,
+    transport_mode: 'WALK' as const,
+    travel_duration_minutes: 18,
+    arrival_time: '11:18 AM',
+    address: 'Kyoto',
+  },
+  {
+    id: 's3',
+    trip_id: 't_tokyo',
+    place_id: 'p3',
+    place_name: '팀랩 플래닛 도쿄',
+    category: 'ATTRACTION' as const,
+    latitude: 35.6491,
+    longitude: 139.7898,
+    day_number: 1,
+    order_index: 3,
+    stay_duration_minutes: 120,
+    transport_mode: 'TRANSIT' as const,
+    travel_duration_minutes: 15,
+    arrival_time: '01:03 PM',
+    address: 'Toyosu',
+  },
+];
+
+const TEST_TRIP = {
+  id: 't_tokyo',
+  title: '도쿄 3박 4일 감성 여행',
+  destination: '도쿄',
+  startDate: '2026-11-10',
+  endDate: '2026-11-13',
+  coverImage: 'https://example.com/cover.jpg',
+  status: 'ongoing' as const,
+  budget: 1500000,
+  createdAt: '2026-10-01',
+  members: [
+    { id: 'm1', name: '나 (민지)', color: '#FF6B6B' },
+    { id: 'm2', name: '수현', color: '#4ECDC4' },
+    { id: 'm3', name: '도윤', color: '#FFE66D' },
+  ],
+  places: [],
+  schedules: [
+    { dayNumber: 1, date: '2026-11-10', placeIds: ['p1', 'p2', 'p3'] },
+    { dayNumber: 2, date: '2026-11-11', placeIds: [] },
+  ],
+};
+
 describe('Store Actions & Cross-Store Integration (FN-PLC, FN-PLN, FN-WAL)', () => {
   beforeEach(() => {
-    usePlaceStore.getState().resetToDefaults();
-    useTripStore.getState().resetToDefaults();
-    useWalletStore.getState().resetToDefaults();
+    usePlaceStore.setState({ places: [...TEST_PLACES], selectedCategory: 'ALL', searchQuery: '' });
+    useTripStore.setState({
+      trips: [TEST_TRIP],
+      currentTrip: TEST_TRIP,
+      activeTripId: 't_tokyo',
+      selectedDay: 1,
+      scheduleItems: [...TEST_SCHEDULE_ITEMS],
+      expenses: [],
+      dayStartTimes: { t_tokyo_day_1: '10:00' },
+      dayLodgings: {},
+      tripFlights: {},
+    });
+    useWalletStore.setState({
+      expenses: [],
+      members: TEST_TRIP.members,
+      customBudgets: {},
+      tourPackages: {},
+      categoryBudgets: {},
+    });
     useAuthStore.getState().logout();
   });
 

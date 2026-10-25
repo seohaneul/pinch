@@ -229,11 +229,32 @@ export default function PlannerScreen() {
     );
   };
 
-  // Show a simple loading placeholder during Zustand hydration
+  // Show a clean empty placeholder when no trip exists
   if (!currentTrip) {
     return (
-      <View className="flex-1 bg-background items-center justify-center">
-        <Text className="text-mutedText text-sm font-medium">일정을 불러오는 중...</Text>
+      <View className="flex-1 bg-background">
+        <Header title="동선 플래너 🗺️" subtitle="나만의 여행 일정과 최단 동선" />
+        <View className="flex-1 items-center justify-center p-6">
+          <View className="w-16 h-16 rounded-3xl bg-primary/10 items-center justify-center mb-4">
+            <Plane size={32} color="#FF6B6B" />
+          </View>
+          <Text className="text-base font-extrabold text-darkText mb-1.5">계획 중인 여행이 없습니다</Text>
+          <Text className="text-xs text-mutedText text-center mb-5 leading-5">
+            새로운 여행을 등록하고 핫플 장소들을 담아{'\n'}스마트한 동선 플래너를 시작해보세요!
+          </Text>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setTripSwitcherVisible(true)}
+            className="bg-primary px-5 py-3 rounded-2xl flex-row items-center shadow-sm"
+          >
+            <Plus size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text className="text-xs font-bold text-white">새 여행 만들기</Text>
+          </TouchableOpacity>
+        </View>
+        <TripSwitcherModal
+          visible={tripSwitcherVisible}
+          onClose={() => setTripSwitcherVisible(false)}
+        />
       </View>
     );
   }
