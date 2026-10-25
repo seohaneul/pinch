@@ -3,7 +3,7 @@
 > **버전**: v1.0  
 > **작성일자**: 2026년 10월  
 > **대상 플랫폼**: iOS, Android, Web (Cross-Platform Mobile App)  
-> **기술 스택**: React Native (Expo SDK 57), TypeScript, NativeWind, Zustand, Leaflet/WebView  
+> **기술 스택**: React Native (Expo SDK 58), TypeScript, NativeWind, Zustand, Leaflet/WebView  
 
 ---
 

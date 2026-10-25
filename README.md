@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Expo-SDK_57-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo SDK 57" />
-  <img src="https://img.shields.io/badge/React_Native-0.86-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React Native 0.86" />
+  <img src="https://img.shields.io/badge/Expo-SDK_58-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo SDK 58" />
+  <img src="https://img.shields.io/badge/React_Native-0.88-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React Native 0.88" />
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/TailwindCSS-NativeWind_v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="TailwindCSS" />
   <img src="https://img.shields.io/badge/Google_Gemini-2.5_Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini AI" />
@@ -96,7 +96,7 @@
 
 | 분류 | 기술 스택 | 설명 |
 |---|---|---|
-| **Core Framework** | React Native 0.86, Expo SDK 57 | 최신 React 19 및 New Architecture 기반 크로스 플랫폼 모바일 앱 |
+| **Core Framework** | React Native 0.88, Expo SDK 58 | 최신 React 19 및 New Architecture 기반 크로스 플랫폼 모바일 앱 |
 | **Routing** | Expo Router v4 | 파일 시스템 기반 타입 안전한 탭 & 모달 라우팅 |
 | **Language** | TypeScript 6.0 | 엄격한 타입 안정성 및 자동 완성 지원 |
 | **Styling** | NativeWind v4, TailwindCSS 3.4 | 유틸리티 기반 고성능 네이티브 스타일링 |
