@@ -42,7 +42,8 @@ async function fetchLivePlacesFromGoogle(
     return [];
   }
 
-  console.log('[PlaceSearch] 🔍 Google Places live search for:', query, 'using key prefix:', GOOGLE_API_KEY.slice(0, 8));
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
 
   try {
     const url = 'https://places.googleapis.com/v1/places:searchText';
@@ -59,6 +60,7 @@ async function fetchLivePlacesFromGoogle(
 
     const res = await fetch(url, {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': GOOGLE_API_KEY,
@@ -70,6 +72,7 @@ async function fetchLivePlacesFromGoogle(
         pageSize: 20,
       }),
     });
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       console.log('[PlaceSearch] Google Places response error:', res.status);
@@ -119,6 +122,7 @@ async function fetchLivePlacesFromGoogle(
       };
     });
   } catch (err) {
+    clearTimeout(timeoutId);
     console.log('[PlaceSearch] Google Places (New) search error:', err);
     return [];
   }

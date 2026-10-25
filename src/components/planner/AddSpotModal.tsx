@@ -193,6 +193,20 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
     onClose();
   };
 
+  // Direct online search executor
+  const handleExecuteSearchOnline = async (queryText?: string) => {
+    const q = (queryText !== undefined ? queryText : searchQueryOnline).trim();
+    setIsSearchingOnline(true);
+    try {
+      const res = await searchPlaces(q);
+      setSearchResultsOnline(res);
+    } catch {
+      setSearchResultsOnline([]);
+    } finally {
+      setIsSearchingOnline(false);
+    }
+  };
+
   // Online search effect
   useEffect(() => {
     if (tab !== 'search') return;
@@ -208,7 +222,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
         if (!isCancelled) setIsSearchingOnline(false);
       }
     };
-    const timer = setTimeout(doSearch, 200);
+    const timer = setTimeout(doSearch, 250);
     return () => {
       isCancelled = true;
       clearTimeout(timer);
@@ -530,12 +544,12 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                                 {catUpper === 'CAFE'
                                   ? '☕ 카페'
                                   : catUpper === 'RESTAURANT'
-                                  ? '🍴 맛집'
-                                  : catUpper === 'SHOPPING'
-                                  ? '🛍️ 쇼핑'
-                                  : isLodging
-                                  ? '🏨 숙소'
-                                  : '📸 명소'}
+                                    ? '🍴 맛집'
+                                    : catUpper === 'SHOPPING'
+                                      ? '🛍️ 쇼핑'
+                                      : isLodging
+                                        ? '🏨 숙소'
+                                        : '📸 명소'}
                               </Text>
                             </View>
                             {isAlreadyAdded && (
@@ -626,16 +640,38 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                 <TextInput
                   value={searchQueryOnline}
                   onChangeText={setSearchQueryOnline}
+                  onSubmitEditing={() => handleExecuteSearchOnline()}
                   placeholder="장소명, 맛집, 카페, 명소 검색 (예: 투몬 비치, 이치란)"
                   placeholderTextColor="#9CA3AF"
                   style={styles.searchInput}
                   returnKeyType="search"
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
                 {searchQueryOnline.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearchQueryOnline('')} style={{ padding: 4 }}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSearchQueryOnline('');
+                      handleExecuteSearchOnline('');
+                    }}
+                    style={{ padding: 4, marginRight: 4 }}
+                  >
                     <X size={14} color="#9CA3AF" />
                   </TouchableOpacity>
                 )}
+                <TouchableOpacity
+                  onPress={() => handleExecuteSearchOnline()}
+                  style={{
+                    backgroundColor: '#FF6B6B',
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 8,
+                    marginLeft: 2,
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#FFFFFF' }}>검색</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Suggestions */}
@@ -644,17 +680,26 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                   <Text style={{ fontSize: 11, fontWeight: '700', color: '#E11D48', marginBottom: 6 }}>
                     인기 스팟 추천:
                   </Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 6 }}
+                    keyboardShouldPersistTaps="handled"
+                  >
                     {['투몬 비치', '사랑의 절벽', '이치란', '블루보틀', '돈키호테', '도쿄타워'].map((chip) => (
                       <TouchableOpacity
                         key={chip}
-                        onPress={() => setSearchQueryOnline(chip)}
+                        onPress={() => {
+                          setSearchQueryOnline(chip);
+                          handleExecuteSearchOnline(chip);
+                        }}
                         style={{
                           paddingHorizontal: 9,
                           paddingVertical: 4,
                           borderRadius: 10,
                           backgroundColor: '#FFF1F2',
                         }}
+                        activeOpacity={0.7}
                       >
                         <Text style={{ fontSize: 11, color: '#9F1239', fontWeight: '600' }}>{chip}</Text>
                       </TouchableOpacity>

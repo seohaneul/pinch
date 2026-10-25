@@ -88,7 +88,7 @@ export default function PlacesScreen() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalInitialTab, setModalInitialTab] = useState<'search' | 'link'>('search');
-  const [searchModalVisible, setSearchModalVisible] = useState(false);
+  const [modalInitialSearchQuery, setModalInitialSearchQuery] = useState('');
   const [plannerModalVisible, setPlannerModalVisible] = useState(false);
   const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
   const [failedLinkThumbnails, setFailedLinkThumbnails] = useState<Record<string, boolean>>({});
@@ -355,43 +355,6 @@ export default function PlacesScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* 한눈에 보이는 주요 추가 액션 바 (장소 검색 & SNS 링크) */}
-          <View style={styles.quickAddRow}>
-            <TouchableOpacity
-              onPress={() => {
-                setModalInitialTab('search');
-                setModalVisible(true);
-              }}
-              style={styles.quickAddCard}
-              activeOpacity={0.85}
-            >
-              <View style={styles.quickAddIconWrap}>
-                <Search size={16} color="#FF6B6B" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.quickAddTitle}>장소 검색 & 직접 저장</Text>
-                <Text style={styles.quickAddSub}>구글 지도 전세계 스팟 검색</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                setModalInitialTab('link');
-                setModalVisible(true);
-              }}
-              style={[styles.quickAddCard, { borderColor: '#E0E7FF' }]}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.quickAddIconWrap, { backgroundColor: '#EEF2FF' }]}>
-                <Sparkles size={16} color="#4F46E5" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.quickAddTitle, { color: '#312E81' }]}>SNS 링크 핀치</Text>
-                <Text style={styles.quickAddSub}>릴스/쇼츠/블로그 추출</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
           {/* 검색 및 카테고리 필터 */}
           <View style={styles.filterSection}>
             <View style={styles.searchBar}>
@@ -399,9 +362,19 @@ export default function PlacesScreen() {
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+                onSubmitEditing={() => {
+                  if (searchQuery.trim().length > 0) {
+                    setModalInitialTab('search');
+                    setModalInitialSearchQuery(searchQuery.trim());
+                    setModalVisible(true);
+                  }
+                }}
                 placeholder="장소명, 지역, 태그, 메모 검색..."
                 placeholderTextColor="#A0AEC0"
                 style={styles.searchInput}
+                returnKeyType="search"
+                autoCapitalize="none"
+                autoCorrect={false}
               />
               {searchQuery ? (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -415,6 +388,7 @@ export default function PlacesScreen() {
               <TouchableOpacity
                 onPress={() => {
                   setModalInitialTab('search');
+                  setModalInitialSearchQuery(searchQuery.trim());
                   setModalVisible(true);
                 }}
                 style={styles.searchOnlinePrompt}
@@ -605,13 +579,21 @@ export default function PlacesScreen() {
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
                   <Button
                     title="장소 이름 검색"
-                    onPress={() => setSearchModalVisible(true)}
+                    onPress={() => {
+                      setModalInitialTab('search');
+                      setModalInitialSearchQuery(searchQuery.trim());
+                      setModalVisible(true);
+                    }}
                     size="sm"
                     icon={<Search size={14} color="#FFF" />}
                   />
                   <Button
                     title="링크 핀치"
-                    onPress={() => setModalVisible(true)}
+                    onPress={() => {
+                      setModalInitialTab('link');
+                      setModalInitialSearchQuery('');
+                      setModalVisible(true);
+                    }}
                     size="sm"
                     variant="outline"
                     icon={<Sparkles size={14} color="#FF6B6B" />}
@@ -726,6 +708,7 @@ export default function PlacesScreen() {
         onExtract={handleExtractUrl}
         loading={isExtractingLink}
         defaultTab={modalInitialTab}
+        initialSearchQuery={modalInitialSearchQuery}
       />
 
       {/* 링크 속 장소 확인 및 골라 담기 모달 (LinkPlacesModal) */}
@@ -856,6 +839,7 @@ export default function PlacesScreen() {
       <TouchableOpacity
         onPress={() => {
           setModalInitialTab('search');
+          setModalInitialSearchQuery('');
           setModalVisible(true);
         }}
         style={[styles.floatingActionBtn, { bottom: Math.max(insets.bottom, 16) + 12 }]}

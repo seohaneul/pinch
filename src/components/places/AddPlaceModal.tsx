@@ -38,6 +38,7 @@ interface AddPlaceModalProps {
   onExtract: (url: string) => Promise<void>;
   loading: boolean;
   defaultTab?: 'search' | 'link';
+  initialSearchQuery?: string;
 }
 
 const CATEGORIES: { label: string; value: PlaceCategory | 'ALL' }[] = [
@@ -72,6 +73,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
   onExtract,
   loading,
   defaultTab = 'search',
+  initialSearchQuery = '',
 }) => {
   const insets = useSafeAreaInsets();
   const { currentTrip, addPlaceToSchedule } = useTripStore();
@@ -83,7 +85,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
   const [urlInput, setUrlInput] = useState('');
 
   // Search Mode State
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [selectedCategory, setSelectedCategory] = useState<PlaceCategory | 'ALL'>('ALL');
   const [searchResults, setSearchResults] = useState<SearchPlaceResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -93,13 +95,18 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
   const activeTripId = currentTrip?.id || 't_tokyo';
   const activeTripTitle = currentTrip?.title || '여행';
 
+  // Open modal with fresh state or passed search query
   useEffect(() => {
     if (visible) {
       setActiveTab(defaultTab);
       setUrlInput('');
-      setSearchQuery('');
+      setSearchQuery(initialSearchQuery || '');
+      // If an initial search query was provided, trigger search right away
+      if (initialSearchQuery && initialSearchQuery.trim().length > 0) {
+        handleExecuteSearch(initialSearchQuery.trim());
+      }
     }
-  }, [visible, defaultTab]);
+  }, [visible, defaultTab, initialSearchQuery]);
 
   // Sync saved place names for current trip
   useEffect(() => {
@@ -112,7 +119,24 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
     setSavedPlaceNames(map);
   }, [places, activeTripId, visible]);
 
-  // Live search execution
+  // Direct search executor
+  const handleExecuteSearch = async (overrideQuery?: string, overrideCategory?: PlaceCategory | 'ALL') => {
+    const q = (overrideQuery !== undefined ? overrideQuery : searchQuery).trim();
+    const cat = overrideCategory !== undefined ? overrideCategory : selectedCategory;
+    const catFilter = cat === 'ALL' ? undefined : cat;
+
+    setIsSearching(true);
+    try {
+      const res = await searchPlaces(q, catFilter);
+      setSearchResults(res);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Live search execution on debounce
   useEffect(() => {
     if (!visible || activeTab !== 'search') return;
 
@@ -132,7 +156,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
       }
     };
 
-    const timer = setTimeout(executeSearch, 200);
+    const timer = setTimeout(executeSearch, 250);
     return () => {
       isCancelled = true;
       clearTimeout(timer);
@@ -145,7 +169,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
       if (text) {
         setUrlInput(text.trim());
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleSubmitLink = async () => {
@@ -233,128 +257,165 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.backdrop}>
-          <View
-            style={[
-              styles.sheetContainer,
-              { paddingBottom: Math.max(insets.bottom, 16) },
-            ]}
-          >
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.headerLeft}>
-                <View style={styles.iconCircle}>
-                  <Sparkles size={18} color="#FF6B6B" />
-                </View>
-                <Text style={styles.headerTitle}>새 장소 보관하기</Text>
+      <View style={styles.backdrop}>
+        {/* Backdrop touch to dismiss */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={() => {
+            Keyboard.dismiss();
+            onClose();
+          }}
+        />
+
+        <View
+          style={[
+            styles.sheetContainer,
+            { paddingBottom: Math.max(insets.bottom, 16) },
+          ]}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <View style={styles.iconCircle}>
+                <Sparkles size={18} color="#FF6B6B" />
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
-                <X size={18} color="#8D99AE" />
-              </TouchableOpacity>
+              <Text style={styles.headerTitle}>새 장소 보관하기</Text>
             </View>
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
+              <X size={18} color="#8D99AE" />
+            </TouchableOpacity>
+          </View>
 
-            {/* 2단 세그먼트 탭: [ 🔍 장소 이름 검색 ] vs [ 🔗 SNS 링크 분석 ] */}
-            <View style={styles.tabContainer}>
-              <TouchableOpacity
-                onPress={() => setActiveTab('search')}
-                style={[styles.tabBtn, activeTab === 'search' && styles.tabBtnActive]}
-                activeOpacity={0.8}
-              >
-                <Search
-                  size={14}
-                  color={activeTab === 'search' ? '#FF6B6B' : '#64748B'}
-                  style={{ marginRight: 6 }}
+          {/* 2단 세그먼트 탭: [ 🔍 장소 이름 검색 ] vs [ 🔗 SNS 링크 분석 ] */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              onPress={() => setActiveTab('search')}
+              style={[styles.tabBtn, activeTab === 'search' && styles.tabBtnActive]}
+              activeOpacity={0.8}
+            >
+              <Search
+                size={14}
+                color={activeTab === 'search' ? '#FF6B6B' : '#64748B'}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.tabBtnText, activeTab === 'search' && styles.tabBtnTextActive]}>
+                장소 이름 검색
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setActiveTab('link')}
+              style={[styles.tabBtn, activeTab === 'link' && styles.tabBtnActive]}
+              activeOpacity={0.8}
+            >
+              <LinkIcon
+                size={14}
+                color={activeTab === 'link' ? '#FF6B6B' : '#64748B'}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.tabBtnText, activeTab === 'link' && styles.tabBtnTextActive]}>
+                SNS 링크 붙여넣기
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* TAB 1: 장소 이름 직접 검색 */}
+          {activeTab === 'search' && (
+            <View style={{ flex: 1 }}>
+              <Text style={styles.subtitle}>
+                원하는 핫플, 맛집, 숙소 이름을 검색하면 위치와 주소가 자동으로 조회되어 보관함에 바로 담깁니다.
+              </Text>
+
+              {/* Search Bar */}
+              <View style={styles.searchBar}>
+                <Search size={16} color="#FF6B6B" style={{ marginRight: 8 }} />
+                <TextInput
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  onSubmitEditing={() => handleExecuteSearch()}
+                  placeholder="장소명, 맛집, 카페, 명소 검색 (예: 투몬 비치)"
+                  placeholderTextColor="#94A3B8"
+                  style={styles.searchInput}
+                  returnKeyType="search"
+                  autoCorrect={false}
+                  autoCapitalize="none"
                 />
-                <Text style={[styles.tabBtnText, activeTab === 'search' && styles.tabBtnTextActive]}>
-                  장소 이름 검색
-                </Text>
-              </TouchableOpacity>
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSearchQuery('');
+                      handleExecuteSearch('');
+                    }}
+                    style={{ padding: 4, marginRight: 6 }}
+                  >
+                    <X size={14} color="#94A3B8" />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={() => handleExecuteSearch()}
+                  style={styles.searchSubmitBtn}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.searchSubmitBtnText}>검색</Text>
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity
-                onPress={() => setActiveTab('link')}
-                style={[styles.tabBtn, activeTab === 'link' && styles.tabBtnActive]}
-                activeOpacity={0.8}
-              >
-                <LinkIcon
-                  size={14}
-                  color={activeTab === 'link' ? '#FF6B6B' : '#64748B'}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={[styles.tabBtnText, activeTab === 'link' && styles.tabBtnTextActive]}>
-                  SNS 링크 붙여넣기
-                </Text>
-              </TouchableOpacity>
-            </View>
+              {/* Category Chips */}
+              <View style={{ marginBottom: 8 }}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryScroll}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {CATEGORIES.map((cat) => {
+                    const selected = selectedCategory === cat.value;
+                    return (
+                      <TouchableOpacity
+                        key={cat.value}
+                        onPress={() => {
+                          setSelectedCategory(cat.value);
+                          handleExecuteSearch(searchQuery, cat.value);
+                        }}
+                        style={[styles.catChip, selected && styles.catChipActive]}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={[styles.catChipText, selected && styles.catChipTextActive]}>
+                          {cat.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
 
-            {/* TAB 1: 장소 이름 직접 검색 */}
-            {activeTab === 'search' && (
-              <View style={{ flex: 1 }}>
-                <Text style={styles.subtitle}>
-                  원하는 핫플, 맛집, 숙소 이름을 검색하면 위치와 주소가 자동으로 조회되어 보관함에 바로 담깁니다.
-                </Text>
-
-                {/* Search Bar */}
-                <View style={styles.searchBar}>
-                  <Search size={16} color="#FF6B6B" style={{ marginRight: 8 }} />
-                  <TextInput
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="장소명, 맛집, 카페, 명소 검색 (예: 투몬 비치)"
-                    placeholderTextColor="#94A3B8"
-                    style={styles.searchInput}
-                    returnKeyType="search"
-                  />
-                  {searchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
-                      <X size={14} color="#94A3B8" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Category Chips */}
-                <View style={{ marginBottom: 8 }}>
+              {/* Popular Keywords when empty */}
+              {searchQuery.trim().length === 0 && (
+                <View style={styles.popularRow}>
+                  <Text style={styles.popularLabel}>인기 검색어:</Text>
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.categoryScroll}
+                    contentContainerStyle={{ gap: 6 }}
+                    keyboardShouldPersistTaps="handled"
                   >
-                    {CATEGORIES.map((cat) => {
-                      const selected = selectedCategory === cat.value;
-                      return (
-                        <TouchableOpacity
-                          key={cat.value}
-                          onPress={() => setSelectedCategory(cat.value)}
-                          style={[styles.catChip, selected && styles.catChipActive]}
-                          activeOpacity={0.75}
-                        >
-                          <Text style={[styles.catChipText, selected && styles.catChipTextActive]}>
-                            {cat.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+                    {POPULAR_SEARCH_CHIPS.map((chip) => (
+                      <TouchableOpacity
+                        key={chip}
+                        onPress={() => {
+                          setSearchQuery(chip);
+                          handleExecuteSearch(chip);
+                        }}
+                        style={styles.popularChip}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.popularChipText}>{chip}</Text>
+                      </TouchableOpacity>
+                    ))}
                   </ScrollView>
                 </View>
-
-                {/* Popular Keywords when empty */}
-                {searchQuery.trim().length === 0 && (
-                  <View style={styles.popularRow}>
-                    <Text style={styles.popularLabel}>인기 검색어:</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-                      {POPULAR_SEARCH_CHIPS.map((chip) => (
-                        <TouchableOpacity
-                          key={chip}
-                          onPress={() => setSearchQuery(chip)}
-                          style={styles.popularChip}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.popularChipText}>{chip}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
+              )}
 
                 {/* Status */}
                 <View style={styles.statusRow}>
@@ -558,7 +619,6 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
             )}
           </View>
         </View>
-      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -663,6 +723,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#1E293B',
     padding: 0,
+  },
+  searchSubmitBtn: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginLeft: 4,
+  },
+  searchSubmitBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   categoryScroll: {
     gap: 6,

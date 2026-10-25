@@ -94,11 +94,11 @@ export default function PlannerScreen() {
   // Active trip members fallback
   const tripMembers = (currentTrip?.members && currentTrip.members.length > 0)
     ? currentTrip.members.map((m, idx) => ({
-        id: m.id,
-        name: m.name,
-        avatarUrl: m.avatarUrl,
-        color: m.color || ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A06CD5', '#20BF55'][idx % 5],
-      }))
+      id: m.id,
+      name: m.name,
+      avatarUrl: m.avatarUrl,
+      color: m.color || ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A06CD5', '#20BF55'][idx % 5],
+    }))
     : members;
 
   // Expense modal for stop
@@ -155,10 +155,10 @@ export default function PlannerScreen() {
       stop.category === 'CAFE' || stop.category === 'RESTAURANT'
         ? 'FOOD'
         : stop.category === 'SHOPPING'
-        ? 'SHOPPING'
-        : stop.category === 'LODGING'
-        ? 'LODGING'
-        : 'ACTIVITY';
+          ? 'SHOPPING'
+          : stop.category === 'LODGING'
+            ? 'LODGING'
+            : 'ACTIVITY';
     setExpenseCategory(defaultCat);
     setExpensePaidBy(tripMembers[0]?.id || 'm1');
     setExpenseSplitMembers(tripMembers.map((m) => m.id));
@@ -551,11 +551,11 @@ export default function PlannerScreen() {
                 const nextStop = !isLast ? dayStops[index + 1] : null;
                 const nextDist = nextStop
                   ? calculateDistance(
-                      stop.latitude,
-                      stop.longitude,
-                      nextStop.latitude,
-                      nextStop.longitude
-                    )
+                    stop.latitude,
+                    stop.longitude,
+                    nextStop.latitude,
+                    nextStop.longitude
+                  )
                   : 0;
 
                 return (
@@ -644,14 +644,12 @@ export default function PlannerScreen() {
                                 <TouchableOpacity
                                   key={mins}
                                   onPress={() => updateStayDuration(stop.id, mins)}
-                                  className={`px-1.5 py-0.5 rounded-md mr-1 ${
-                                    isSelected ? 'bg-darkText' : 'bg-gray-100'
-                                  }`}
+                                  className={`px-1.5 py-0.5 rounded-md mr-1 ${isSelected ? 'bg-darkText' : 'bg-gray-100'
+                                    }`}
                                 >
                                   <Text
-                                    className={`text-[10px] font-bold ${
-                                      isSelected ? 'text-white' : 'text-gray-600'
-                                    }`}
+                                    className={`text-[10px] font-bold ${isSelected ? 'text-white' : 'text-gray-600'
+                                      }`}
                                   >
                                     {mins}분
                                   </Text>
@@ -746,9 +744,8 @@ export default function PlannerScreen() {
                                 updateTransportMode(nextStop.id, 'WALK');
                                 updateCustomTransport(nextStop.id, '', 0);
                               }}
-                              className={`p-1.5 rounded-lg mr-1 ${
-                                nextStop.transport_mode === 'WALK' && !nextStop.custom_transport_name ? 'bg-secondary' : ''
-                              }`}
+                              className={`p-1.5 rounded-lg mr-1 ${nextStop.transport_mode === 'WALK' && !nextStop.custom_transport_name ? 'bg-secondary' : ''
+                                }`}
                             >
                               <Footprints
                                 size={13}
@@ -761,9 +758,8 @@ export default function PlannerScreen() {
                                 updateTransportMode(nextStop.id, 'TRANSIT');
                                 updateCustomTransport(nextStop.id, '', 0);
                               }}
-                              className={`p-1.5 rounded-lg mr-1 ${
-                                nextStop.transport_mode === 'TRANSIT' && !nextStop.custom_transport_name ? 'bg-secondary' : ''
-                              }`}
+                              className={`p-1.5 rounded-lg mr-1 ${nextStop.transport_mode === 'TRANSIT' && !nextStop.custom_transport_name ? 'bg-secondary' : ''
+                                }`}
                             >
                               <Bus
                                 size={13}
@@ -776,9 +772,8 @@ export default function PlannerScreen() {
                                 updateTransportMode(nextStop.id, 'DRIVE');
                                 updateCustomTransport(nextStop.id, '', 0);
                               }}
-                              className={`p-1.5 rounded-lg mr-1 ${
-                                nextStop.transport_mode === 'DRIVE' && !nextStop.custom_transport_name ? 'bg-secondary' : ''
-                              }`}
+                              className={`p-1.5 rounded-lg mr-1 ${nextStop.transport_mode === 'DRIVE' && !nextStop.custom_transport_name ? 'bg-secondary' : ''
+                                }`}
                             >
                               <Car
                                 size={13}
@@ -789,18 +784,16 @@ export default function PlannerScreen() {
                             {/* Custom Transport Direct Input */}
                             <TouchableOpacity
                               onPress={() => setCustomTransportPair({ stop, nextStop })}
-                              className={`px-1.5 py-1 rounded-lg flex-row items-center ${
-                                nextStop.custom_transport_name ? 'bg-secondary' : 'bg-gray-50'
-                              }`}
+                              className={`px-1.5 py-1 rounded-lg flex-row items-center ${nextStop.custom_transport_name ? 'bg-secondary' : 'bg-gray-50'
+                                }`}
                             >
                               <Edit3
                                 size={11}
                                 color={nextStop.custom_transport_name ? '#FFF' : '#8D99AE'}
                               />
                               <Text
-                                className={`text-[10px] font-bold ml-0.5 ${
-                                  nextStop.custom_transport_name ? 'text-white' : 'text-gray-500'
-                                }`}
+                                className={`text-[10px] font-bold ml-0.5 ${nextStop.custom_transport_name ? 'text-white' : 'text-gray-500'
+                                  }`}
                               >
                                 직접
                               </Text>
@@ -820,7 +813,7 @@ export default function PlannerScreen() {
                 className="mt-3 flex-row items-center justify-center bg-primary/10 border border-primary/25 rounded-2xl py-3.5"
               >
                 <Plus size={16} color="#FF6B6B" className="mr-1.5" />
-                <Text className="text-sm font-extrabold text-primary">+ 스팟 추가하기</Text>
+                <Text className="text-sm font-extrabold text-primary">스팟 추가하기</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -830,7 +823,7 @@ export default function PlannerScreen() {
               description="보관함에서 핫플을 추가하거나 새 장소를 직접 등록해보세요."
               actionButton={
                 <Button
-                  title="+ 스팟 추가하기"
+                  title="스팟 추가하기"
                   onPress={() => setAddSpotModalVisible(true)}
                   size="sm"
                   icon={<Plus size={14} color="#FFF" />}
@@ -894,16 +887,14 @@ export default function PlannerScreen() {
                     <TouchableOpacity
                       key={cur}
                       onPress={() => setExpenseCurrency(cur)}
-                      className={`flex-1 py-2 rounded-xl items-center border ${
-                        expenseCurrency === cur
-                          ? 'bg-primary border-primary'
-                          : 'bg-white border-borderLine'
-                      }`}
+                      className={`flex-1 py-2 rounded-xl items-center border ${expenseCurrency === cur
+                        ? 'bg-primary border-primary'
+                        : 'bg-white border-borderLine'
+                        }`}
                     >
                       <Text
-                        className={`text-xs font-extrabold ${
-                          expenseCurrency === cur ? 'text-white' : 'text-darkText'
-                        }`}
+                        className={`text-xs font-extrabold ${expenseCurrency === cur ? 'text-white' : 'text-darkText'
+                          }`}
                       >
                         {CURRENCY_SYMBOLS[cur]} {cur}
                       </Text>
@@ -957,16 +948,14 @@ export default function PlannerScreen() {
                       <TouchableOpacity
                         key={m.id}
                         onPress={() => setExpensePaidBy(m.id)}
-                        className={`flex-1 py-2 rounded-xl border flex-row items-center justify-center ${
-                          isSelected
-                            ? 'bg-darkText border-darkText'
-                            : 'bg-white border-borderLine'
-                        }`}
+                        className={`flex-1 py-2 rounded-xl border flex-row items-center justify-center ${isSelected
+                          ? 'bg-darkText border-darkText'
+                          : 'bg-white border-borderLine'
+                          }`}
                       >
                         <Text
-                          className={`text-xs font-bold ${
-                            isSelected ? 'text-white' : 'text-darkText'
-                          }`}
+                          className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-darkText'
+                            }`}
                         >
                           {m.name}
                         </Text>

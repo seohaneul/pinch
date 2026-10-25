@@ -126,11 +126,11 @@ export default function WalletScreen() {
   // Active trip members fallback
   const tripMembers: WalletMember[] = (currentTrip?.members && currentTrip.members.length > 0)
     ? currentTrip.members.map((m, idx) => ({
-        id: m.id,
-        name: m.name,
-        avatarUrl: m.avatarUrl,
-        color: m.color || ['#FF6B6B', '#4ECDC4', '#FFE66D', '#1A535C', '#4D96FF'][idx % 5],
-      }))
+      id: m.id,
+      name: m.name,
+      avatarUrl: m.avatarUrl,
+      color: m.color || ['#FF6B6B', '#4ECDC4', '#FFE66D', '#1A535C', '#4D96FF'][idx % 5],
+    }))
     : members;
 
   // Modal State for Adding Expense
@@ -474,14 +474,12 @@ export default function WalletScreen() {
                     <TouchableOpacity
                       key={cur}
                       onPress={() => setTripCurrency(currentTrip?.id || 't_tokyo', cur)}
-                      className={`px-2 py-0.5 rounded-full ${
-                        activeTripCurrency === cur ? 'bg-primary' : 'bg-transparent'
-                      }`}
+                      className={`px-2 py-0.5 rounded-full ${activeTripCurrency === cur ? 'bg-primary' : 'bg-transparent'
+                        }`}
                     >
                       <Text
-                        className={`text-[10px] font-extrabold ${
-                          activeTripCurrency === cur ? 'text-white' : 'text-gray-500'
-                        }`}
+                        className={`text-[10px] font-extrabold ${activeTripCurrency === cur ? 'text-white' : 'text-gray-500'
+                          }`}
                       >
                         {CURRENCY_SYMBOLS[cur]} {cur}
                       </Text>
@@ -580,9 +578,8 @@ export default function WalletScreen() {
                           {catSpent.toLocaleString()}원 / {catBudget.toLocaleString()}원
                         </Text>
                         <Text
-                          className={`text-[10px] font-semibold ${
-                            isOverBudget ? 'text-rose-500 font-bold' : 'text-mutedText'
-                          }`}
+                          className={`text-[10px] font-semibold ${isOverBudget ? 'text-rose-500 font-bold' : 'text-mutedText'
+                            }`}
                         >
                           {isOverBudget
                             ? `${(catSpent - catBudget).toLocaleString()}원 초과 ⚠️`
@@ -600,8 +597,8 @@ export default function WalletScreen() {
                           backgroundColor: isOverBudget
                             ? '#EF4444'
                             : catPercent > 80
-                            ? '#F59E0B'
-                            : cat.color,
+                              ? '#F59E0B'
+                              : cat.color,
                         }}
                       />
                     </View>
@@ -704,7 +701,7 @@ export default function WalletScreen() {
                   className="bg-cyan-50 px-2.5 py-1 rounded-lg flex-row items-center"
                 >
                   <Plus size={12} color="#0891B2" className="mr-0.5" />
-                  <Text className="text-xs font-extrabold text-cyan-700">+ 직접 추가</Text>
+                  <Text className="text-xs font-extrabold text-cyan-700">직접 추가</Text>
                 </TouchableOpacity>
               </View>
 
@@ -796,14 +793,12 @@ export default function WalletScreen() {
                     <TouchableOpacity
                       key={cur}
                       onPress={() => setTripCurrency(currentTrip?.id || 't_tokyo', cur)}
-                      className={`px-2 py-0.5 rounded-full ${
-                        activeTripCurrency === cur ? 'bg-primary' : 'bg-transparent'
-                      }`}
+                      className={`px-2 py-0.5 rounded-full ${activeTripCurrency === cur ? 'bg-primary' : 'bg-transparent'
+                        }`}
                     >
                       <Text
-                        className={`text-[10px] font-extrabold ${
-                          activeTripCurrency === cur ? 'text-white' : 'text-gray-500'
-                        }`}
+                        className={`text-[10px] font-extrabold ${activeTripCurrency === cur ? 'text-white' : 'text-gray-500'
+                          }`}
                       >
                         {CURRENCY_SYMBOLS[cur]} {cur}
                       </Text>
@@ -874,166 +869,161 @@ export default function WalletScreen() {
             <View className="px-4 mt-5">
               {/* Category Filter Chips */}
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              className="mb-4"
-              contentContainerStyle={{ gap: 6 }}
-            >
-              <TouchableOpacity
-                onPress={() => setSelectedCategoryFilter('ALL')}
-                className={`px-3.5 py-1.5 rounded-full border ${
-                  selectedCategoryFilter === 'ALL'
-                    ? 'bg-darkText border-darkText'
-                    : 'bg-white border-borderLine'
-                }`}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                className="mb-4"
+                contentContainerStyle={{ gap: 6 }}
               >
-                <Text
-                  className={`text-xs font-bold ${
-                    selectedCategoryFilter === 'ALL' ? 'text-white' : 'text-mutedText'
-                  }`}
-                >
-                  전체 ({tripExpenses.length})
-                </Text>
-              </TouchableOpacity>
-
-              {CATEGORIES.map((cat) => {
-                const count = tripExpenses.filter((e) => e.category === cat.key).length;
-                const isSelected = selectedCategoryFilter === cat.key;
-                return (
-                  <TouchableOpacity
-                    key={cat.key}
-                    onPress={() => setSelectedCategoryFilter(cat.key)}
-                    className={`px-3 py-1.5 rounded-full border flex-row items-center ${
-                      isSelected
-                        ? 'bg-primary border-primary'
-                        : 'bg-white border-borderLine'
+                <TouchableOpacity
+                  onPress={() => setSelectedCategoryFilter('ALL')}
+                  className={`px-3.5 py-1.5 rounded-full border ${selectedCategoryFilter === 'ALL'
+                      ? 'bg-darkText border-darkText'
+                      : 'bg-white border-borderLine'
                     }`}
-                  >
-                    <Text
-                      className={`text-xs font-bold ${
-                        isSelected ? 'text-white' : 'text-darkText'
+                >
+                  <Text
+                    className={`text-xs font-bold ${selectedCategoryFilter === 'ALL' ? 'text-white' : 'text-mutedText'
                       }`}
+                  >
+                    전체 ({tripExpenses.length})
+                  </Text>
+                </TouchableOpacity>
+
+                {CATEGORIES.map((cat) => {
+                  const count = tripExpenses.filter((e) => e.category === cat.key).length;
+                  const isSelected = selectedCategoryFilter === cat.key;
+                  return (
+                    <TouchableOpacity
+                      key={cat.key}
+                      onPress={() => setSelectedCategoryFilter(cat.key)}
+                      className={`px-3 py-1.5 rounded-full border flex-row items-center ${isSelected
+                          ? 'bg-primary border-primary'
+                          : 'bg-white border-borderLine'
+                        }`}
                     >
-                      {cat.label} ({count})
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {/* Expense Cards */}
-            {filteredExpenses.length > 0 ? (
-              filteredExpenses.map((expense) => {
-                const payer = tripMembers.find((m) => m.id === expense.paid_by);
-                const categoryObj = CATEGORIES.find((c) => c.key === expense.category);
-
-                return (
-                  <Card key={expense.id} className="mb-3 p-3.5">
-                    <View className="flex-row items-start justify-between">
-                      {/* Left: Category Icon + Details */}
-                      <View className="flex-row items-start flex-1 mr-2">
-                        <View
-                          className={`w-11 h-11 rounded-2xl items-center justify-center mr-3 ${
-                            categoryObj?.bg || 'bg-gray-100'
+                      <Text
+                        className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-darkText'
                           }`}
-                        >
-                          {renderCategoryIcon(expense.category, 20)}
-                        </View>
+                      >
+                        {cat.label} ({count})
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
 
-                        <View className="flex-1">
-                          <Text
-                            className="text-sm font-bold text-darkText mb-0.5 leading-snug"
-                            numberOfLines={1}
+              {/* Expense Cards */}
+              {filteredExpenses.length > 0 ? (
+                filteredExpenses.map((expense) => {
+                  const payer = tripMembers.find((m) => m.id === expense.paid_by);
+                  const categoryObj = CATEGORIES.find((c) => c.key === expense.category);
+
+                  return (
+                    <Card key={expense.id} className="mb-3 p-3.5">
+                      <View className="flex-row items-start justify-between">
+                        {/* Left: Category Icon + Details */}
+                        <View className="flex-row items-start flex-1 mr-2">
+                          <View
+                            className={`w-11 h-11 rounded-2xl items-center justify-center mr-3 ${categoryObj?.bg || 'bg-gray-100'
+                              }`}
                           >
-                            {expense.title}
-                          </Text>
+                            {renderCategoryIcon(expense.category, 20)}
+                          </View>
 
-                          {/* Itinerary Place Link Badge */}
-                          {expense.place_name && (
-                            <View className="flex-row items-center mb-1">
-                              <MapPin size={11} color="#FF6B6B" />
-                              <Text
-                                className="text-[11px] font-bold text-primary ml-0.5"
-                                numberOfLines={1}
-                              >
-                                {expense.place_name}
-                              </Text>
-                            </View>
-                          )}
+                          <View className="flex-1">
+                            <Text
+                              className="text-sm font-bold text-darkText mb-0.5 leading-snug"
+                              numberOfLines={1}
+                            >
+                              {expense.title}
+                            </Text>
 
-                          {/* Payer & Split info */}
-                          <View className="flex-row items-center flex-wrap gap-1.5 mt-0.5">
-                            <View className="flex-row items-center bg-gray-100 px-2 py-0.5 rounded-md">
-                              <View
-                                className="w-3.5 h-3.5 rounded-full items-center justify-center mr-1"
-                                style={{ backgroundColor: payer?.color || '#FF6B6B' }}
-                              >
-                                <Text className="text-[9px] font-bold text-white">
-                                  {payer?.name[0] || 'P'}
+                            {/* Itinerary Place Link Badge */}
+                            {expense.place_name && (
+                              <View className="flex-row items-center mb-1">
+                                <MapPin size={11} color="#FF6B6B" />
+                                <Text
+                                  className="text-[11px] font-bold text-primary ml-0.5"
+                                  numberOfLines={1}
+                                >
+                                  {expense.place_name}
                                 </Text>
                               </View>
-                              <Text className="text-[10px] font-bold text-darkText">
-                                {payer?.name || '멤버'} 결제
+                            )}
+
+                            {/* Payer & Split info */}
+                            <View className="flex-row items-center flex-wrap gap-1.5 mt-0.5">
+                              <View className="flex-row items-center bg-gray-100 px-2 py-0.5 rounded-md">
+                                <View
+                                  className="w-3.5 h-3.5 rounded-full items-center justify-center mr-1"
+                                  style={{ backgroundColor: payer?.color || '#FF6B6B' }}
+                                >
+                                  <Text className="text-[9px] font-bold text-white">
+                                    {payer?.name[0] || 'P'}
+                                  </Text>
+                                </View>
+                                <Text className="text-[10px] font-bold text-darkText">
+                                  {payer?.name || '멤버'} 결제
+                                </Text>
+                              </View>
+
+                              <Text className="text-[10px] text-mutedText">
+                                {expense.split_members.length}명 분할
                               </Text>
                             </View>
-
-                            <Text className="text-[10px] text-mutedText">
-                              {expense.split_members.length}명 분할
-                            </Text>
                           </View>
                         </View>
-                      </View>
 
-                      {/* Right: Dual Currency Amounts & Delete */}
-                      <View className="items-end">
-                        <Text className="text-base font-extrabold text-darkText">
-                          {formatCurrency(expense.amount, expense.currency)}
-                        </Text>
-                        {expense.currency !== 'KRW' && (
-                          <Text className="text-[11px] font-bold text-mutedText mt-0.5">
-                            ≈ {expense.krw_amount.toLocaleString()}원
+                        {/* Right: Dual Currency Amounts & Delete */}
+                        <View className="items-end">
+                          <Text className="text-base font-extrabold text-darkText">
+                            {formatCurrency(expense.amount, expense.currency)}
                           </Text>
-                        )}
-                        <TouchableOpacity
-                          onPress={() => {
-                            Alert.alert('지출 삭제', `"${expense.title}" 항목을 삭제할까요?`, [
-                              { text: '취소', style: 'cancel' },
-                              {
-                                text: '삭제',
-                                style: 'destructive',
-                                onPress: () => deleteExpense(expense.id),
-                              },
-                            ]);
-                          }}
-                          className="mt-2 p-1"
-                          accessibilityLabel="지출 삭제"
-                        >
-                          <Trash2 size={14} color="#D1D5DB" />
-                        </TouchableOpacity>
+                          {expense.currency !== 'KRW' && (
+                            <Text className="text-[11px] font-bold text-mutedText mt-0.5">
+                              ≈ {expense.krw_amount.toLocaleString()}원
+                            </Text>
+                          )}
+                          <TouchableOpacity
+                            onPress={() => {
+                              Alert.alert('지출 삭제', `"${expense.title}" 항목을 삭제할까요?`, [
+                                { text: '취소', style: 'cancel' },
+                                {
+                                  text: '삭제',
+                                  style: 'destructive',
+                                  onPress: () => deleteExpense(expense.id),
+                                },
+                              ]);
+                            }}
+                            className="mt-2 p-1"
+                            accessibilityLabel="지출 삭제"
+                          >
+                            <Trash2 size={14} color="#D1D5DB" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                    </View>
-                  </Card>
-                );
-              })
-            ) : (
-              <EmptyState
-                icon={<Receipt size={32} color="#FF6B6B" />}
-                title="지출 내역이 없습니다"
-                description="여행 중 사용한 금액을 등록하면 실시간 환율과 1/N 정산이 자동으로 계산됩니다."
-                actionButton={
-                  <Button
-                    title="지출 등록하기"
-                    onPress={() => setModalVisible(true)}
-                    size="sm"
-                    icon={<Plus size={14} color="#FFF" />}
-                  />
-                }
-              />
-            )}
+                    </Card>
+                  );
+                })
+              ) : (
+                <EmptyState
+                  icon={<Receipt size={32} color="#FF6B6B" />}
+                  title="지출 내역이 없습니다"
+                  description="여행 중 사용한 금액을 등록하면 실시간 환율과 1/N 정산이 자동으로 계산됩니다."
+                  actionButton={
+                    <Button
+                      title="지출 등록하기"
+                      onPress={() => setModalVisible(true)}
+                      size="sm"
+                      icon={<Plus size={14} color="#FFF" />}
+                    />
+                  }
+                />
+              )}
+            </View>
           </View>
-        </View>
-      )}
+        )}
 
 
         {/* TAB 3: 1/N SETTLEMENT */}
@@ -1080,9 +1070,8 @@ export default function WalletScreen() {
                   return (
                     <Card
                       key={tx.id}
-                      className={`mb-2.5 p-3.5 ${
-                        tx.is_settled ? 'bg-gray-50 border-gray-200 opacity-60' : ''
-                      }`}
+                      className={`mb-2.5 p-3.5 ${tx.is_settled ? 'bg-gray-50 border-gray-200 opacity-60' : ''
+                        }`}
                     >
                       <View className="flex-row items-center justify-between">
                         {/* From Member */}
@@ -1102,9 +1091,8 @@ export default function WalletScreen() {
                         {/* Middle Arrow with Amount */}
                         <View className="items-center px-2">
                           <Text
-                            className={`text-sm font-extrabold ${
-                              tx.is_settled ? 'text-gray-400 line-through' : 'text-primary'
-                            }`}
+                            className={`text-sm font-extrabold ${tx.is_settled ? 'text-gray-400 line-through' : 'text-primary'
+                              }`}
                           >
                             {tx.amount_krw.toLocaleString()}원
                           </Text>
@@ -1140,9 +1128,8 @@ export default function WalletScreen() {
                           color={tx.is_settled ? '#10B981' : '#D1D5DB'}
                         />
                         <Text
-                          className={`text-xs ml-1 font-bold ${
-                            tx.is_settled ? 'text-emerald-600' : 'text-mutedText'
-                          }`}
+                          className={`text-xs ml-1 font-bold ${tx.is_settled ? 'text-emerald-600' : 'text-mutedText'
+                            }`}
                         >
                           {tx.is_settled ? '송금 완료됨' : '송금 완료 표시하기'}
                         </Text>
@@ -1174,9 +1161,8 @@ export default function WalletScreen() {
                 {memberBalances.map((mb, idx) => (
                   <View
                     key={mb.member.id}
-                    className={`flex-row items-center justify-between py-2.5 ${
-                      idx < memberBalances.length - 1 ? 'border-b border-gray-100' : ''
-                    }`}
+                    className={`flex-row items-center justify-between py-2.5 ${idx < memberBalances.length - 1 ? 'border-b border-gray-100' : ''
+                      }`}
                   >
                     <View className="flex-row items-center">
                       <View
@@ -1281,16 +1267,14 @@ export default function WalletScreen() {
                   <TouchableOpacity
                     key={cur}
                     onPress={() => setCurrency(cur)}
-                    className={`flex-1 py-2 rounded-xl items-center border ${
-                      currency === cur
+                    className={`flex-1 py-2 rounded-xl items-center border ${currency === cur
                         ? 'bg-primary border-primary'
                         : 'bg-white border-borderLine'
-                    }`}
+                      }`}
                   >
                     <Text
-                      className={`text-xs font-extrabold ${
-                        currency === cur ? 'text-white' : 'text-darkText'
-                      }`}
+                      className={`text-xs font-extrabold ${currency === cur ? 'text-white' : 'text-darkText'
+                        }`}
                     >
                       {CURRENCY_SYMBOLS[cur]} {cur}
                     </Text>
@@ -1343,16 +1327,14 @@ export default function WalletScreen() {
                   >
                     <TouchableOpacity
                       onPress={() => setSelectedPlaceName('')}
-                      className={`px-3 py-1.5 rounded-full border ${
-                        !selectedPlaceName
+                      className={`px-3 py-1.5 rounded-full border ${!selectedPlaceName
                           ? 'bg-darkText border-darkText'
                           : 'bg-white border-borderLine'
-                      }`}
+                        }`}
                     >
                       <Text
-                        className={`text-xs font-bold ${
-                          !selectedPlaceName ? 'text-white' : 'text-mutedText'
-                        }`}
+                        className={`text-xs font-bold ${!selectedPlaceName ? 'text-white' : 'text-mutedText'
+                          }`}
                       >
                         선택 안함
                       </Text>
@@ -1362,11 +1344,10 @@ export default function WalletScreen() {
                       <TouchableOpacity
                         key={item.id}
                         onPress={() => setSelectedPlaceName(item.place_name)}
-                        className={`px-3 py-1.5 rounded-full border flex-row items-center ${
-                          selectedPlaceName === item.place_name
+                        className={`px-3 py-1.5 rounded-full border flex-row items-center ${selectedPlaceName === item.place_name
                             ? 'bg-primary border-primary'
                             : 'bg-white border-borderLine'
-                        }`}
+                          }`}
                       >
                         <MapPin
                           size={11}
@@ -1374,9 +1355,8 @@ export default function WalletScreen() {
                           className="mr-1"
                         />
                         <Text
-                          className={`text-xs font-bold ${
-                            selectedPlaceName === item.place_name ? 'text-white' : 'text-darkText'
-                          }`}
+                          className={`text-xs font-bold ${selectedPlaceName === item.place_name ? 'text-white' : 'text-darkText'
+                            }`}
                         >
                           {item.place_name}
                         </Text>
@@ -1396,11 +1376,10 @@ export default function WalletScreen() {
                     <TouchableOpacity
                       key={cat.key}
                       onPress={() => setCategory(cat.key)}
-                      className={`px-3 py-2 rounded-2xl border flex-row items-center ${
-                        isSelected
+                      className={`px-3 py-2 rounded-2xl border flex-row items-center ${isSelected
                           ? 'bg-primary border-primary'
                           : 'bg-white border-borderLine'
-                      }`}
+                        }`}
                     >
                       <IconComp
                         size={14}
@@ -1408,9 +1387,8 @@ export default function WalletScreen() {
                         className="mr-1.5"
                       />
                       <Text
-                        className={`text-xs font-bold ${
-                          isSelected ? 'text-white' : 'text-darkText'
-                        }`}
+                        className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-darkText'
+                          }`}
                       >
                         {cat.label}
                       </Text>
@@ -1428,11 +1406,10 @@ export default function WalletScreen() {
                     <TouchableOpacity
                       key={m.id}
                       onPress={() => setPaidBy(m.id)}
-                      className={`flex-1 py-2 px-3 rounded-2xl border flex-row items-center justify-center ${
-                        isSelected
+                      className={`flex-1 py-2 px-3 rounded-2xl border flex-row items-center justify-center ${isSelected
                           ? 'bg-darkText border-darkText'
                           : 'bg-white border-borderLine'
-                      }`}
+                        }`}
                     >
                       <View
                         className="w-4 h-4 rounded-full items-center justify-center mr-1.5"
@@ -1441,9 +1418,8 @@ export default function WalletScreen() {
                         <Text className="text-[9px] font-bold text-white">{m.name[0]}</Text>
                       </View>
                       <Text
-                        className={`text-xs font-bold ${
-                          isSelected ? 'text-white' : 'text-darkText'
-                        }`}
+                        className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-darkText'
+                          }`}
                       >
                         {m.name}
                       </Text>
@@ -1471,11 +1447,10 @@ export default function WalletScreen() {
                     <TouchableOpacity
                       key={m.id}
                       onPress={() => handleToggleSplitMember(m.id)}
-                      className={`flex-1 py-2.5 px-3 rounded-2xl border items-center justify-center ${
-                        isChecked
+                      className={`flex-1 py-2.5 px-3 rounded-2xl border items-center justify-center ${isChecked
                           ? 'bg-primary/10 border-primary'
                           : 'bg-white border-borderLine'
-                      }`}
+                        }`}
                     >
                       <View className="flex-row items-center">
                         <View
@@ -1485,9 +1460,8 @@ export default function WalletScreen() {
                           <Text className="text-[9px] font-bold text-white">{m.name[0]}</Text>
                         </View>
                         <Text
-                          className={`text-xs font-bold ${
-                            isChecked ? 'text-primary' : 'text-mutedText'
-                          }`}
+                          className={`text-xs font-bold ${isChecked ? 'text-primary' : 'text-mutedText'
+                            }`}
                         >
                           {m.name}
                         </Text>
@@ -1495,9 +1469,9 @@ export default function WalletScreen() {
                       <Text className="text-[10px] text-mutedText mt-0.5">
                         {isChecked && enteredAmount > 0
                           ? `1인 ${formatCurrency(
-                              enteredAmount / splitMembers.length,
-                              currency
-                            )}`
+                            enteredAmount / splitMembers.length,
+                            currency
+                          )}`
                           : ''}
                       </Text>
                     </TouchableOpacity>
