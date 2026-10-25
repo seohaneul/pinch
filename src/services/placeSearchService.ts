@@ -26,7 +26,7 @@ const CATEGORY_IMAGES: Record<string, string> = {
 };
 
 /**
- * Google Places API 실시간 텍스트 검색
+ * Google Places API (New) 실시간 텍스트 검색
  * 전세계 모든 장소, 정확한 구글 GPS 좌표, 실제 도로명 주소, 별점, 실제 사진 일괄 수집
  */
 async function fetchLivePlacesFromGoogle(
@@ -38,45 +38,65 @@ async function fetchLivePlacesFromGoogle(
   }
 
   try {
-    const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
-      query
-    )}&language=ko&key=${GOOGLE_API_KEY}`;
+    const url = 'https://places.googleapis.com/v1/places:searchText';
+    const fieldMask = [
+      'places.id',
+      'places.displayName',
+      'places.formattedAddress',
+      'places.location',
+      'places.rating',
+      'places.userRatingCount',
+      'places.photos',
+      'places.types',
+    ].join(',');
 
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': GOOGLE_API_KEY,
+        'X-Goog-FieldMask': fieldMask,
+      },
+      body: JSON.stringify({
+        textQuery: query,
+        languageCode: 'ko',
+      }),
+    });
+
     if (!res.ok) return [];
 
     const data = await res.json();
-    if (data.status !== 'OK' || !Array.isArray(data.results)) {
+    if (!Array.isArray(data.places) || data.places.length === 0) {
       return [];
     }
 
-    return data.results.slice(0, 10).map((item: any, idx: number) => {
-      const lat = item.geometry?.location?.lat || 35.6895;
-      const lng = item.geometry?.location?.lng || 139.6917;
-      const name = item.name || query;
-      const address = item.formatted_address || '';
+    return data.places.slice(0, 10).map((item: any, idx: number) => {
+      const lat = item.location?.latitude || 35.6895;
+      const lng = item.location?.longitude || 139.6917;
+      const name = item.displayName?.text || query;
+      const address = item.formattedAddress || '';
 
       // 구글 타입 기반 카테고리 매핑
       let cat: PlaceCategory = categoryFilter && categoryFilter !== 'ALL' ? categoryFilter : 'ATTRACTION';
       const types = item.types || [];
-      if (types.includes('cafe') || types.includes('bakery')) {
+      if (types.includes('cafe') || types.includes('bakery') || types.includes('coffee_shop')) {
         cat = 'CAFE';
-      } else if (types.includes('restaurant') || types.includes('food')) {
+      } else if (types.includes('restaurant') || types.includes('food') || types.includes('meal_takeaway')) {
         cat = 'RESTAURANT';
-      } else if (types.includes('lodging')) {
+      } else if (types.includes('lodging') || types.includes('hotel') || types.includes('resort_hotel')) {
         cat = 'LODGING';
       } else if (types.includes('shopping_mall') || types.includes('store') || types.includes('clothing_store')) {
         cat = 'SHOPPING';
       }
 
-      // 구글 실시간 사진 URL
+      // 구글 실시간 고화질 사진 URL
       let imageUrl = CATEGORY_IMAGES[cat];
-      if (item.photos && item.photos.length > 0 && item.photos[0].photo_reference) {
-        imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${item.photos[0].photo_reference}&key=${GOOGLE_API_KEY}`;
+      if (item.photos && item.photos.length > 0 && item.photos[0].name) {
+        imageUrl = `https://places.googleapis.com/v1/${item.photos[0].name}/media?maxHeightPx=600&maxWidthPx=600&key=${GOOGLE_API_KEY}`;
       }
 
       return {
-        id: `google_${item.place_id || Date.now()}_${idx}`,
+        id: `google_${item.id || Date.now()}_${idx}`,
         name,
         address,
         category: cat,
@@ -84,11 +104,11 @@ async function fetchLivePlacesFromGoogle(
         longitude: lng,
         rating: item.rating,
         imageUrl,
-        memo: `구글 지도 공식 등록 장소 (${item.user_ratings_total ? `${item.user_ratings_total.toLocaleString()}개 리뷰` : '실시간 연동'})`,
+        memo: `구글 지도 공식 등록 장소 (${item.userRatingCount ? `${item.userRatingCount.toLocaleString()}개 리뷰` : '실시간 연동'})`,
       };
     });
   } catch (err) {
-    console.log('[PlaceSearch] Google Places search error:', err);
+    console.log('[PlaceSearch] Google Places (New) search error:', err);
     return [];
   }
 }

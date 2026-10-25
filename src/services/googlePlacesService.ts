@@ -116,74 +116,102 @@ async function fetchFromGooglePlacesApi(
 ): Promise<GooglePlaceDetails | null> {
   const query = `${placeName} ${address || ''}`.trim();
 
-  // Step 1: Find Place Candidate
-  let findUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(
-    query
-  )}&inputtype=textquery&fields=place_id,name,formatted_address&key=${GOOGLE_API_KEY}`;
+  // Google Places API (New) searchText 호출
+  const url = 'https://places.googleapis.com/v1/places:searchText';
+  const fieldMask = [
+    'places.id',
+    'places.displayName',
+    'places.formattedAddress',
+    'places.location',
+    'places.rating',
+    'places.userRatingCount',
+    'places.photos',
+    'places.types',
+    'places.editorialSummary',
+    'places.reviews',
+    'places.regularOpeningHours',
+    'places.websiteUri',
+    'places.nationalPhoneNumber',
+    'places.googleMapsUri',
+  ].join(',');
+
+  const bodyPayload: any = {
+    textQuery: query,
+    languageCode: 'ko',
+  };
 
   if (location && location.lat && location.lng) {
-    findUrl += `&locationbias=point:${location.lat},${location.lng}`;
+    bodyPayload.locationBias = {
+      circle: {
+        center: {
+          latitude: location.lat,
+          longitude: location.lng,
+        },
+        radius: 50000.0, // 50km 반경
+      },
+    };
   }
 
-  const findRes = await fetch(findUrl);
-  const findData = await findRes.json();
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_API_KEY,
+      'X-Goog-FieldMask': fieldMask,
+    },
+    body: JSON.stringify(bodyPayload),
+  });
 
-  if (!findData.candidates || findData.candidates.length === 0) {
+  if (!response.ok) {
+    console.log('[GooglePlaces] Places API (New) error status:', response.status);
     return null;
   }
 
-  const placeId = findData.candidates[0].place_id;
-
-  // Step 2: Fetch Place Details (reviews, photos, editorial_summary)
-  const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,rating,user_ratings_total,editorial_summary,reviews,photos,formatted_phone_number,website,opening_hours,url&language=ko&key=${GOOGLE_API_KEY}`;
-
-  const detailsRes = await fetch(detailsUrl);
-  const detailsData = await detailsRes.json();
-
-  if (detailsData.status !== 'OK' || !detailsData.result) {
+  const data = await response.json();
+  if (!data.places || data.places.length === 0) {
     return null;
   }
 
-  const res = detailsData.result;
+  const p = data.places[0];
 
-  // Photos 변환 (Google Place Photo URL)
+  // Photos 변환 (Places API New Photo Media URL)
   const photos: string[] = [];
-  if (res.photos && Array.isArray(res.photos)) {
-    for (const p of res.photos.slice(0, 8)) {
-      if (p.photo_reference) {
+  if (p.photos && Array.isArray(p.photos)) {
+    for (const photo of p.photos.slice(0, 8)) {
+      if (photo.name) {
         photos.push(
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${p.photo_reference}&key=${GOOGLE_API_KEY}`
+          `https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=800&maxWidthPx=800&key=${GOOGLE_API_KEY}`
         );
       }
     }
   }
 
-  // Reviews 변환 (실제 구글맵 방문객 후기)
+  // Reviews 변환 (실제 구글맵 방문객 생생 리뷰)
   const reviews: PlaceReview[] = [];
-  if (res.reviews && Array.isArray(res.reviews)) {
-    for (const r of res.reviews.slice(0, 5)) {
+  if (p.reviews && Array.isArray(p.reviews)) {
+    for (const r of p.reviews.slice(0, 5)) {
       reviews.push({
-        authorName: r.author_name || '구글 지도 방문자',
+        authorName: r.authorAttribution?.displayName || '구글 지도 방문자',
         rating: r.rating || 5,
-        text: r.text || '',
-        relativeTime: r.relative_time_description || '최근',
-        authorPhotoUrl: r.profile_photo_url,
+        text: r.text?.text || '',
+        relativeTime: r.relativePublishTimeDescription || '최근',
+        authorPhotoUrl: r.authorAttribution?.photoUri,
       });
     }
   }
 
   return {
-    name: res.name || placeName,
-    rating: res.rating,
-    userRatingsTotal: res.user_ratings_total,
-    description: res.editorial_summary?.overview || `${placeName}의 구글맵 공식 장소 정보입니다.`,
-    address: res.formatted_address || address,
-    phoneNumber: res.formatted_phone_number,
-    website: res.website,
-    regularOpeningHours: res.opening_hours?.weekday_text || [],
+    name: p.displayName?.text || placeName,
+    rating: p.rating,
+    userRatingsTotal: p.userRatingCount,
+    description: p.editorialSummary?.text || `${p.displayName?.text || placeName}의 구글맵 공식 장소 정보입니다.`,
+    address: p.formattedAddress || address,
+    phoneNumber: p.nationalPhoneNumber,
+    website: p.websiteUri,
+    regularOpeningHours: p.regularOpeningHours?.weekdayDescriptions || [],
     photos,
     reviews,
-    googleMapsUri: res.url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`,
+    googleMapsUri: p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`,
   };
 }
 
