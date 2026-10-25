@@ -415,15 +415,19 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                 </Text>
               </View>
 
-              <View style={styles.ratingBadge}>
-                <Star size={12} color="#F59E0B" fill="#F59E0B" style={{ marginRight: 3 }} />
-                <Text style={styles.ratingBadgeText}>
-                  {googleDetails?.rating || place.rating || 4.8}
-                </Text>
-                <Text style={styles.ratingSubText}>
-                  ({googleDetails?.userRatingsTotal ? `${googleDetails.userRatingsTotal.toLocaleString()}개` : '구글맵'})
-                </Text>
-              </View>
+              {(googleDetails?.rating || place.rating) ? (
+                <View style={styles.ratingBadge}>
+                  <Star size={12} color="#F59E0B" fill="#F59E0B" style={{ marginRight: 3 }} />
+                  <Text style={styles.ratingBadgeText}>
+                    {googleDetails?.rating || place.rating}
+                  </Text>
+                  {googleDetails?.userRatingsTotal ? (
+                    <Text style={styles.ratingSubText}>
+                      ({googleDetails.userRatingsTotal.toLocaleString()}개)
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
 
               {/* Real Photo Pill with Refresh Action */}
               <TouchableOpacity
@@ -510,25 +514,31 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
               ) : null}
 
               {/* Google Maps Real-time Rating & Stats Bar */}
-              <View style={styles.googleRatingBar}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleOpenMap}
+                style={styles.googleRatingBar}
+              >
                 <View style={styles.googleRatingLeft}>
                   <View style={styles.googleStarRow}>
                     <Star size={15} color="#F59E0B" fill="#F59E0B" style={{ marginRight: 4 }} />
                     <Text style={styles.googleRatingNum}>
-                      {googleDetails?.rating || place.rating || 4.8}
+                      {googleDetails?.rating || place.rating || '-'}
                     </Text>
                     <Text style={styles.googleRatingMax}>/ 5.0</Text>
                   </View>
                   <Text style={styles.googleReviewCountText}>
-                    구글 리뷰 {(googleDetails?.userRatingsTotal || 500).toLocaleString()}개
+                    {googleDetails?.userRatingsTotal
+                      ? `구글 리뷰 ${googleDetails.userRatingsTotal.toLocaleString()}개`
+                      : '구글맵 리뷰 확인'}
                   </Text>
                 </View>
 
                 <View style={styles.googleVerifyBadge}>
                   <Navigation size={11} color="#0284C7" style={{ marginRight: 3 }} />
-                  <Text style={styles.googleVerifyBadgeText}>구글맵 실시간 연동</Text>
+                  <Text style={styles.googleVerifyBadgeText}>구글 지도 보기</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             </View>
 
             {/* Tags */}

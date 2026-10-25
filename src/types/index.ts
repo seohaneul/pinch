@@ -49,7 +49,7 @@ export interface PlaceReview {
 
 export interface GooglePlaceDetails {
   name: string;
-  rating: number;
+  rating?: number;
   userRatingsTotal?: number;
   description?: string;
   address?: string;
