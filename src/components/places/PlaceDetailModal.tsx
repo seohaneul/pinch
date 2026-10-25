@@ -195,6 +195,32 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
     }
   };
 
+  const handleRefreshGoogleDetails = async () => {
+    if (isLoadingGoogle || !place) return;
+    setIsLoadingGoogle(true);
+    try {
+      const details = await fetchGooglePlaceDetails(
+        place.name,
+        place.address,
+        place.latitude && place.longitude ? { lat: place.latitude, lng: place.longitude } : undefined,
+        true // force refresh bypassing cache
+      );
+      if (details) {
+        setGoogleDetails(details);
+        if (details.photos && details.photos.length > 0) {
+          setSelectedPhotoUrl(details.photos[0]);
+          if (place.id && 'isPinned' in place) {
+            updatePlaceImage(place.id, details.photos[0]);
+          }
+        }
+      }
+    } catch (err) {
+      console.log('[PlaceDetailModal] Refresh google details error:', err);
+    } finally {
+      setIsLoadingGoogle(false);
+    }
+  };
+
   if (!place) return null;
 
   const isFullPlace = 'isPinned' in place;
@@ -559,9 +585,20 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                   <Compass size={15} color="#0284C7" style={{ marginRight: 6 }} />
                   <Text style={styles.googleCardTitle}>구글맵 공식 장소 소개</Text>
                 </View>
-                {isLoadingGoogle && (
-                  <ActivityIndicator size="small" color="#0284C7" />
-                )}
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={handleRefreshGoogleDetails}
+                    disabled={isLoadingGoogle}
+                    style={{ padding: 4, marginRight: 4 }}
+                    accessibilityLabel="구글맵 실시간 데이터 새로고침"
+                  >
+                    <RotateCw size={13} color="#0284C7" />
+                  </TouchableOpacity>
+                  {isLoadingGoogle && (
+                    <ActivityIndicator size="small" color="#0284C7" />
+                  )}
+                </View>
               </View>
 
               <Text style={styles.googleDescriptionText}>
@@ -612,7 +649,18 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                     구글맵 방문자 생생 후기 ({googleDetails?.reviews?.length || 0})
                   </Text>
                 </View>
-                {isLoadingGoogle && <ActivityIndicator size="small" color="#D97706" />}
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={handleRefreshGoogleDetails}
+                    disabled={isLoadingGoogle}
+                    style={{ padding: 4, marginRight: 4 }}
+                    accessibilityLabel="구글맵 리뷰 새로고침"
+                  >
+                    <RotateCw size={13} color="#D97706" />
+                  </TouchableOpacity>
+                  {isLoadingGoogle && <ActivityIndicator size="small" color="#D97706" />}
+                </View>
               </View>
 
               {googleDetails?.reviews && googleDetails.reviews.length > 0 ? (

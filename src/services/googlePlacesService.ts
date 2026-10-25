@@ -1,8 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { GooglePlaceDetails, PlaceReview } from '../types';
 
-const CACHE_PREFIX = 'pinch_real_place_cache_v2_';
-const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+const CACHE_PREFIX = 'pinch_real_place_cache_v8_';
+const LIVE_GOOGLE_MAPS_KEY = 'AIzaSyC1SGJjPTvl-Ovr4dJ4jGB-qXgMMLPk0FI';
+const GOOGLE_API_KEY =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY &&
+  !process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY.includes('placeholder')
+    ? process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+    : LIVE_GOOGLE_MAPS_KEY;
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 
 /**
@@ -19,28 +24,40 @@ const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 export async function fetchGooglePlaceDetails(
   placeName: string,
   address?: string,
-  location?: { lat: number; lng: number }
+  location?: { lat: number; lng: number },
+  forceRefresh: boolean = false
 ): Promise<GooglePlaceDetails | null> {
   if (!placeName || !placeName.trim()) return null;
 
   const normalizedKey = placeName.trim().toLowerCase();
   const cacheKey = `${CACHE_PREFIX}${encodeURIComponent(normalizedKey)}`;
 
-  // 1. 로컬 캐시 확인
-  try {
-    const cached = await AsyncStorage.getItem(cacheKey);
-    if (cached) {
-      const parsed = JSON.parse(cached) as GooglePlaceDetails;
-      return parsed;
-    }
-  } catch {}
+  // 1. 로컬 캐시 확인 (forceRefresh가 아닐 때만)
+  if (!forceRefresh) {
+    try {
+      const cached = await AsyncStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached) as GooglePlaceDetails;
+        console.log('[GooglePlaces] 📦 Loaded from cache:', placeName);
+        return parsed;
+      }
+    } catch {}
+  }
 
+  console.log('[GooglePlaces] 🌐 Fetching live details for:', placeName, 'Using Key Prefix:', GOOGLE_API_KEY.slice(0, 8));
   let realDetails: GooglePlaceDetails | null = null;
 
   // 2. 공식 Google Places API 호출 (API 키가 설정된 경우)
   if (GOOGLE_API_KEY && !GOOGLE_API_KEY.includes('placeholder')) {
     try {
       realDetails = await fetchFromGooglePlacesApi(placeName, address, location);
+      if (realDetails) {
+        console.log('[GooglePlaces] ✅ Successfully loaded Google Places (New) data for:', placeName, {
+          rating: realDetails.rating,
+          reviewCount: realDetails.reviews?.length,
+          photosCount: realDetails.photos?.length,
+        });
+      }
     } catch (err) {
       console.log('[GooglePlaces] Official API call failed:', err);
     }
@@ -152,7 +169,7 @@ async function fetchFromGooglePlacesApi(
     };
   }
 
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -167,8 +184,37 @@ async function fetchFromGooglePlacesApi(
     return null;
   }
 
-  const data = await response.json();
+  let data = await response.json();
+
+  // 만약 결과가 없고 장소명에 특수문자나 괄호가 포함되어 있다면 정제된 이름으로 2차 재시도
+  if ((!data.places || data.places.length === 0)) {
+    const cleaned = placeName
+      .replace(/[☕🍴📸🏨🛍️📍✨🗼🍜🏮🇯🇵✈️🍰🍮🎉⭐🔥❤️]/g, '')
+      .replace(/\(.*?\)/g, '')
+      .replace(/\[.*?\]/g, '')
+      .trim();
+
+    if (cleaned && cleaned !== placeName) {
+      console.log('[GooglePlaces] 🔄 Retrying search with cleaned name:', cleaned);
+      bodyPayload.textQuery = cleaned;
+      const retryRes = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_API_KEY,
+          'X-Goog-FieldMask': fieldMask,
+        },
+        body: JSON.stringify(bodyPayload),
+      });
+
+      if (retryRes.ok) {
+        data = await retryRes.json();
+      }
+    }
+  }
+
   if (!data.places || data.places.length === 0) {
+    console.log('[GooglePlaces] ⚠️ No places found on Google Maps for:', placeName);
     return null;
   }
 

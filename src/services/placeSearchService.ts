@@ -1,7 +1,12 @@
 import type { PlaceCategory } from '../types';
 import { inferCategory } from './parserService';
 
-const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+const LIVE_GOOGLE_MAPS_KEY = 'AIzaSyC1SGJjPTvl-Ovr4dJ4jGB-qXgMMLPk0FI';
+const GOOGLE_API_KEY =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY &&
+  !process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY.includes('placeholder')
+    ? process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+    : LIVE_GOOGLE_MAPS_KEY;
 
 export interface SearchPlaceResult {
   id: string;
@@ -37,6 +42,8 @@ async function fetchLivePlacesFromGoogle(
     return [];
   }
 
+  console.log('[PlaceSearch] 🔍 Google Places live search for:', query, 'using key prefix:', GOOGLE_API_KEY.slice(0, 8));
+
   try {
     const url = 'https://places.googleapis.com/v1/places:searchText';
     const fieldMask = [
@@ -63,7 +70,10 @@ async function fetchLivePlacesFromGoogle(
       }),
     });
 
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.log('[PlaceSearch] Google Places response error:', res.status);
+      return [];
+    }
 
     const data = await res.json();
     if (!Array.isArray(data.places) || data.places.length === 0) {
