@@ -79,14 +79,19 @@ export default function PlacesScreen() {
   } = useSavedLinkStore();
 
   const { currentTrip, activeTripId, addPlaceToSchedule } = useTripStore();
+  const { addPlace } = usePlaceStore();
 
   // 세그먼트 탭: 'PLACES' (저장한 장소) vs 'LINKS' (링크 보관함)
   const [activeTab, setActiveTab] = useState<'PLACES' | 'LINKS'>('PLACES');
+  // 보관함 범위: 'TRIP' (현재 여행 보관함) vs 'ALL' (내 전체 장소 보관함)
+  const [pocketScope, setPocketScope] = useState<'TRIP' | 'ALL'>('TRIP');
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [modalInitialTab, setModalInitialTab] = useState<'search' | 'link'>('search');
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [plannerModalVisible, setPlannerModalVisible] = useState(false);
   const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
+  const [failedLinkThumbnails, setFailedLinkThumbnails] = useState<Record<string, boolean>>({});
 
   // 링크 속 장소 확인 모달 상태
   const [selectedLinkForPlaces, setSelectedLinkForPlaces] = useState<SavedLink | null>(null);
@@ -115,6 +120,67 @@ export default function PlacesScreen() {
     setSelectedPlaceForPlanner(null);
   };
 
+  // 여행별 엄격한 격리 필터링
+  const currentTripId = activeTripId || currentTrip?.id || 't_tokyo';
+
+  const tripPlaces = places.filter((place) => {
+    if (currentTripId === 't_tokyo') {
+      return !place.trip_id || place.trip_id === 't_tokyo';
+    }
+    return place.trip_id === currentTripId;
+  });
+
+  const tripLinks = savedLinks.filter((link) => {
+    if (currentTripId === 't_tokyo') {
+      return !link.trip_id || link.trip_id === 't_tokyo';
+    }
+    return link.trip_id === currentTripId;
+  });
+
+  // 전체 보관함 장소를 현재 여행으로 복사/추가
+  const handleCopyPlaceToCurrentTrip = (place: Place) => {
+    const newPlace: Place = {
+      ...place,
+      id: `place_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      trip_id: currentTripId,
+      isPinned: true,
+      createdAt: new Date().toISOString(),
+    };
+    const success = addPlace(newPlace, currentTripId);
+    if (success) {
+      Alert.alert(
+        '현재 여행에 담기 완료! 📌',
+        `"${place.name}" 장소를 ${currentTrip?.title || '현재 여행'} 보관함에 추가했습니다.`
+      );
+    }
+  };
+
+  // 선택된 범위(현재 여행 vs 전체 보관함)에 따른 장소 목록
+  const basePlaces = pocketScope === 'TRIP' ? tripPlaces : places;
+
+  const filteredPlaces = basePlaces.filter((place) => {
+    const matchesCategory =
+      selectedCategory === 'ALL' ||
+      place.category === selectedCategory ||
+      place.category.toUpperCase() === selectedCategory;
+
+    const query = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !query ||
+      place.name.toLowerCase().includes(query) ||
+      place.address.toLowerCase().includes(query) ||
+      (place.memo && place.memo.toLowerCase().includes(query)) ||
+      (place.tags && place.tags.some((t) => t.toLowerCase().includes(query)));
+
+    return matchesCategory && matchesSearch;
+  });
+
+  // 영문 키워드(LODGING, ATTRACTION 등) 필터링 함수
+  const isEnglishCategoryTag = (tag: string) => {
+    const upper = tag.toUpperCase().trim();
+    return ['LODGING', 'ATTRACTION', 'CAFE', 'RESTAURANT', 'SHOPPING', 'HOTEL', 'STAY', 'SPOT'].includes(upper);
+  };
+
   // 링크 핀치 핸들러: 링크 보관함에 먼저 추가하고, 장소 선택 모달을 띄움
   const handleExtractUrl = async (url: string) => {
     const activeId = activeTripId || currentTrip?.id || 't_tokyo';
@@ -122,7 +188,6 @@ export default function PlacesScreen() {
 
     if (newSavedLink) {
       dismissDetectedUrl();
-      // 링크 속 장소 모달을 즉시 열어줌!
       setSelectedLinkForPlaces(newSavedLink);
       Alert.alert(
         '링크 핀치 성공! ✈️',
@@ -142,40 +207,6 @@ export default function PlacesScreen() {
       Alert.alert('알림', '링크를 열 수 없습니다.');
     }
   };
-
-  // 여행별 엄격한 격리 필터링
-  const currentTripId = activeTripId || currentTrip?.id || 't_tokyo';
-
-  const tripPlaces = places.filter((place) => {
-    if (currentTripId === 't_tokyo') {
-      return !place.trip_id || place.trip_id === 't_tokyo';
-    }
-    return place.trip_id === currentTripId;
-  });
-
-  const tripLinks = savedLinks.filter((link) => {
-    if (currentTripId === 't_tokyo') {
-      return !link.trip_id || link.trip_id === 't_tokyo';
-    }
-    return link.trip_id === currentTripId;
-  });
-
-  const filteredPlaces = tripPlaces.filter((place) => {
-    const matchesCategory =
-      selectedCategory === 'ALL' ||
-      place.category === selectedCategory ||
-      place.category.toUpperCase() === selectedCategory;
-
-    const query = searchQuery.toLowerCase().trim();
-    const matchesSearch =
-      !query ||
-      place.name.toLowerCase().includes(query) ||
-      place.address.toLowerCase().includes(query) ||
-      (place.memo && place.memo.toLowerCase().includes(query)) ||
-      (place.tags && place.tags.some((t) => t.toLowerCase().includes(query)));
-
-    return matchesCategory && matchesSearch;
-  });
 
   const getCategoryBadgeLabel = (cat: string) => {
     const upper = cat.toUpperCase();
@@ -216,24 +247,18 @@ export default function PlacesScreen() {
         title="장소 & 링크 보관함 📌"
         subtitle={`${currentTrip?.title || '여행'} · 핫플 ${tripPlaces.length}개 · 링크 ${tripLinks.length}개`}
         rightAction={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <TouchableOpacity
-              onPress={() => setSearchModalVisible(true)}
-              style={[styles.addHeaderBtn, { backgroundColor: '#FFF0F0', borderColor: '#FECDD3', borderWidth: 1 }]}
-              activeOpacity={0.8}
-              accessibilityLabel="장소 이름 검색하여 저장"
-            >
-              <Search size={18} color="#FF6B6B" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setModalVisible(true)}
-              style={styles.addHeaderBtn}
-              activeOpacity={0.8}
-              accessibilityLabel="장소 및 링크 추가"
-            >
-              <Plus size={20} color="#FF6B6B" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={() => {
+              setModalInitialTab('search');
+              setModalVisible(true);
+            }}
+            style={styles.addHeaderBtnUnified}
+            activeOpacity={0.85}
+            accessibilityLabel="장소 및 링크 추가"
+          >
+            <Plus size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
+            <Text style={styles.addHeaderBtnText}>스팟 추가</Text>
+          </TouchableOpacity>
         }
       />
 
@@ -307,6 +332,66 @@ export default function PlacesScreen() {
       {/* 1. 저장한 장소 뷰 (PLACES) */}
       {activeTab === 'PLACES' ? (
         <>
+          {/* 전체 보관함 연동 토글 바 (현재 여행 장소 vs 내 전체 보관함) */}
+          <View style={styles.scopeBar}>
+            <TouchableOpacity
+              onPress={() => setPocketScope('TRIP')}
+              style={[styles.scopePill, pocketScope === 'TRIP' && styles.scopePillActive]}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.scopePillText, pocketScope === 'TRIP' && styles.scopePillTextActive]}>
+                📍 현재 여행 장소 ({tripPlaces.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setPocketScope('ALL')}
+              style={[styles.scopePill, pocketScope === 'ALL' && styles.scopePillActive]}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.scopePillText, pocketScope === 'ALL' && styles.scopePillTextActive]}>
+                🗂️ 전체 보관함 ({places.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 한눈에 보이는 주요 추가 액션 바 (장소 검색 & SNS 링크) */}
+          <View style={styles.quickAddRow}>
+            <TouchableOpacity
+              onPress={() => {
+                setModalInitialTab('search');
+                setModalVisible(true);
+              }}
+              style={styles.quickAddCard}
+              activeOpacity={0.85}
+            >
+              <View style={styles.quickAddIconWrap}>
+                <Search size={16} color="#FF6B6B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.quickAddTitle}>장소 검색 & 직접 저장</Text>
+                <Text style={styles.quickAddSub}>구글 지도 전세계 스팟 검색</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setModalInitialTab('link');
+                setModalVisible(true);
+              }}
+              style={[styles.quickAddCard, { borderColor: '#E0E7FF' }]}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.quickAddIconWrap, { backgroundColor: '#EEF2FF' }]}>
+                <Sparkles size={16} color="#4F46E5" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.quickAddTitle, { color: '#312E81' }]}>SNS 링크 핀치</Text>
+                <Text style={styles.quickAddSub}>릴스/쇼츠/블로그 추출</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
           {/* 검색 및 카테고리 필터 */}
           <View style={styles.filterSection}>
             <View style={styles.searchBar}>
@@ -328,13 +413,16 @@ export default function PlacesScreen() {
             {/* Online search prompt when search query entered */}
             {searchQuery.trim().length > 0 && (
               <TouchableOpacity
-                onPress={() => setSearchModalVisible(true)}
+                onPress={() => {
+                  setModalInitialTab('search');
+                  setModalVisible(true);
+                }}
                 style={styles.searchOnlinePrompt}
                 activeOpacity={0.8}
               >
                 <Search size={13} color="#E11D48" style={{ marginRight: 6 }} />
                 <Text style={styles.searchOnlinePromptText} numberOfLines={1}>
-                  "{searchQuery}" 장소를 전체 데이터베이스에서 검색 및 저장 ↗
+                  "{searchQuery}" 장소를 전체 구글맵에서 검색 및 저장 ↗
                 </Text>
               </TouchableOpacity>
             )}
@@ -344,8 +432,8 @@ export default function PlacesScreen() {
                 const isSelected = selectedCategory === cat.value;
                 const count =
                   cat.value === 'ALL'
-                    ? tripPlaces.length
-                    : tripPlaces.filter(
+                    ? basePlaces.length
+                    : basePlaces.filter(
                         (p) => p.category === cat.value || p.category.toUpperCase() === cat.value
                       ).length;
 
@@ -438,11 +526,13 @@ export default function PlacesScreen() {
 
                           {place.tags && place.tags.length > 0 && (
                             <View className="flex-row flex-wrap mb-1">
-                              {place.tags.map((t, idx) => (
-                                <Text key={idx} className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-md mr-1 mb-1">
-                                  #{t}
-                                </Text>
-                              ))}
+                              {place.tags
+                                .filter((t) => !isEnglishCategoryTag(t))
+                                .map((t, idx) => (
+                                  <Text key={idx} className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-md mr-1 mb-1">
+                                    #{t}
+                                  </Text>
+                                ))}
                             </View>
                           )}
                         </View>
@@ -460,6 +550,20 @@ export default function PlacesScreen() {
                           )}
 
                           <View className="flex-row items-center gap-1.5">
+                            {/* 전체 보관함 모드에서 현재 여행에 없는 장소인 경우: 현재 여행에 담기 버튼 */}
+                            {pocketScope === 'ALL' && place.trip_id && place.trip_id !== currentTripId && (
+                              <TouchableOpacity
+                                onPress={() => handleCopyPlaceToCurrentTrip(place)}
+                                className="bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full flex-row items-center"
+                                accessibilityLabel="현재 여행 보관함에 담기"
+                              >
+                                <Plus size={11} color="#E11D48" />
+                                <Text className="text-[11px] font-bold text-rose-600 ml-1">
+                                  이 여행에 담기
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+
                             <TouchableOpacity
                               onPress={() => openInGoogleMaps(place.name, place.latitude, place.longitude, place.address)}
                               className="bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-row items-center"
@@ -540,9 +644,16 @@ export default function PlacesScreen() {
                 style={styles.linkCard}
               >
                 <Image
-                  source={{ uri: link.thumbnailUrl }}
+                  source={{
+                    uri:
+                      !failedLinkThumbnails[link.id] && link.thumbnailUrl
+                        ? link.thumbnailUrl
+                        : link.extractedPlaces[0]?.imageUrl ||
+                          'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop',
+                  }}
                   style={styles.linkThumb}
                   resizeMode="cover"
+                  onError={() => setFailedLinkThumbnails((p) => ({ ...p, [link.id]: true }))}
                 />
                 <View style={styles.linkContent}>
                   <View style={styles.linkHeaderRow}>
@@ -608,18 +719,13 @@ export default function PlacesScreen() {
         </ScrollView>
       )}
 
-      {/* 장소 직접 검색 & 저장 모달 (PlaceSearchModal) */}
-      <PlaceSearchModal
-        visible={searchModalVisible}
-        onClose={() => setSearchModalVisible(false)}
-      />
-
-      {/* 링크 추가 모달 (AddPlaceModal) */}
+      {/* 링크 & 장소 추가 통합 모달 (AddPlaceModal) */}
       <AddPlaceModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         onExtract={handleExtractUrl}
         loading={isExtractingLink}
+        defaultTab={modalInitialTab}
       />
 
       {/* 링크 속 장소 확인 및 골라 담기 모달 (LinkPlacesModal) */}
@@ -745,6 +851,20 @@ export default function PlacesScreen() {
           );
         }}
       />
+
+      {/* 화면 우측 하단 플로팅 액션 버튼 (FAB) */}
+      <TouchableOpacity
+        onPress={() => {
+          setModalInitialTab('search');
+          setModalVisible(true);
+        }}
+        style={[styles.floatingActionBtn, { bottom: Math.max(insets.bottom, 16) + 12 }]}
+        activeOpacity={0.88}
+        accessibilityLabel="스팟 추가"
+      >
+        <Plus size={18} color="#FFFFFF" style={{ marginRight: 5 }} />
+        <Text style={styles.floatingActionBtnText}>스팟 추가</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -1017,5 +1137,109 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#E11D48',
     flex: 1,
+  },
+  addHeaderBtnUnified: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    elevation: 2,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  addHeaderBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  scopeBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 6,
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  scopePill: {
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+  },
+  scopePillActive: {
+    backgroundColor: '#0F172A',
+  },
+  scopePillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  scopePillTextActive: {
+    color: '#FFFFFF',
+  },
+  quickAddRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 10,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  quickAddCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F5',
+    borderWidth: 1,
+    borderColor: '#FFE4E6',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  quickAddIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: '#FFE4E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  quickAddTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#9F1239',
+  },
+  quickAddSub: {
+    fontSize: 10,
+    color: '#BE123C',
+    marginTop: 1,
+  },
+  floatingActionBtn: {
+    position: 'absolute',
+    right: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 28,
+    elevation: 6,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    zIndex: 99,
+  },
+  floatingActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

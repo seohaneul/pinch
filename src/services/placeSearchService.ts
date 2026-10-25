@@ -67,6 +67,7 @@ async function fetchLivePlacesFromGoogle(
       body: JSON.stringify({
         textQuery: query,
         languageCode: 'ko',
+        pageSize: 20,
       }),
     });
 
@@ -80,7 +81,7 @@ async function fetchLivePlacesFromGoogle(
       return [];
     }
 
-    return data.places.slice(0, 10).map((item: any, idx: number) => {
+    return data.places.slice(0, 20).map((item: any, idx: number) => {
       const lat = item.location?.latitude || 35.6895;
       const lng = item.location?.longitude || 139.6917;
       const name = item.displayName?.text || query;
@@ -114,7 +115,7 @@ async function fetchLivePlacesFromGoogle(
         longitude: lng,
         rating: item.rating,
         imageUrl,
-        memo: `구글 지도 공식 등록 장소 (${item.userRatingCount ? `${item.userRatingCount.toLocaleString()}개 리뷰` : '실시간 연동'})`,
+        memo: item.userRatingCount ? `구글 지도 평점 ${item.rating || '4.5'} (${item.userRatingCount.toLocaleString()}개 리뷰)` : '구글 지도 공식 등록 장소',
       };
     });
   } catch (err) {
@@ -470,7 +471,7 @@ export async function searchPlaces(
   }
 
   // 1순위: Google Places API (전세계 모든 장소 공식 검색)
-  if (GOOGLE_API_KEY && !GOOGLE_API_KEY.includes('placeholder') && q.length >= 2) {
+  if (GOOGLE_API_KEY && !GOOGLE_API_KEY.includes('placeholder') && q.length >= 1) {
     try {
       const googleResults = await fetchLivePlacesFromGoogle(query, categoryFilter);
       if (googleResults.length > 0) {

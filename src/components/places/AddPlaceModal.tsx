@@ -574,7 +574,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: '90%',
-    minHeight: '75%',
     paddingTop: 18,
     paddingHorizontal: 16,
   },

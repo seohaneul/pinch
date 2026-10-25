@@ -22,6 +22,7 @@ import { ClipboardToast } from '../../src/components/places/ClipboardToast';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import { LinkPlacesModal } from '../../src/components/places/LinkPlacesModal';
 import type { SavedLink } from '../../src/types';
+import { resolveDestinationCoverImage } from '../../src/services/destinationSearchService';
 import {
   Sparkles,
   Link as LinkIcon,
@@ -44,6 +45,7 @@ export default function HomeScreen() {
   const [urlInput, setUrlInput] = useState('');
   const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
   const [selectedLinkForPlaces, setSelectedLinkForPlaces] = useState<SavedLink | null>(null);
+  const [coverImageError, setCoverImageError] = useState(false);
 
   const { user } = useAuthStore();
   const { currentTrip, scheduleItems } = useTripStore();
@@ -229,11 +231,13 @@ export default function HomeScreen() {
               <Image
                 source={{
                   uri:
-                    currentTrip.coverImage ||
-                    'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&auto=format&fit=crop',
+                    !coverImageError && currentTrip.coverImage
+                      ? currentTrip.coverImage
+                      : resolveDestinationCoverImage(currentTrip.destination, currentTrip.title),
                 }}
                 style={styles.tripCoverImage}
                 resizeMode="cover"
+                onError={() => setCoverImageError(true)}
               />
               <View style={styles.imageOverlay} />
 

@@ -567,14 +567,28 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* Tags */}
+            {/* Tags (영문 LODGING, ATTRACTION 등 날것 노출 제거) */}
             {place.tags && place.tags.length > 0 && (
               <View style={styles.tagWrap}>
-                {place.tags.map((tag, idx) => (
-                  <View key={idx} style={styles.tagPill}>
-                    <Text style={styles.tagText}>#{tag}</Text>
-                  </View>
-                ))}
+                {place.tags
+                  .filter(
+                    (tag) =>
+                      ![
+                        'LODGING',
+                        'ATTRACTION',
+                        'CAFE',
+                        'RESTAURANT',
+                        'SHOPPING',
+                        'HOTEL',
+                        'STAY',
+                        'SPOT',
+                      ].includes(tag.toUpperCase().trim())
+                  )
+                  .map((tag, idx) => (
+                    <View key={idx} style={styles.tagPill}>
+                      <Text style={styles.tagText}>#{tag}</Text>
+                    </View>
+                  ))}
               </View>
             )}
 

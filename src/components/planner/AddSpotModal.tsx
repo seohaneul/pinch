@@ -70,40 +70,20 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
 
   const dayLodging = getDayLodging(dayNumber);
 
-  // Synchronize ALL saved pocket places: both usePlaceStore and useSavedLinkStore extractedPlaces
+  // 카테고리 한국어 라벨 변환 (영문 LODGING, ATTRACTION 날것 노출 제거)
+  const getKoreanCategory = (cat?: string) => {
+    const u = (cat || '').toUpperCase();
+    if (u === 'CAFE') return '☕ 카페';
+    if (u === 'RESTAURANT') return '🍴 맛집';
+    if (u === 'LODGING' || u === 'STAY') return '🏨 숙소';
+    if (u === 'SHOPPING') return '🛍️ 쇼핑';
+    return '📸 명소';
+  };
+
+  // 실제로 장소 보관함(places)에 저장된 장소들만 동기화 (미보관 릴스 장소 자동 포함 버그 완전 제거)
   const allPocketPlaces = useMemo(() => {
-    const combined: Place[] = [...places];
-
-    savedLinks.forEach((link) => {
-      link.extractedPlaces.forEach((ep) => {
-        const alreadyExists = combined.some(
-          (p) =>
-            p.id === ep.id ||
-            p.name.trim().toLowerCase() === ep.name.trim().toLowerCase()
-        );
-        if (!alreadyExists) {
-          combined.push({
-            id: ep.id,
-            trip_id: link.trip_id,
-            name: ep.name,
-            address: ep.address,
-            category: ep.category,
-            latitude: ep.latitude,
-            longitude: ep.longitude,
-            memo: ep.memo || `${link.title}에서 보관된 장소`,
-            imageUrl: ep.imageUrl,
-            rating: ep.rating || 4.8,
-            isPinned: true,
-            createdAt: link.createdAt,
-            tags: ep.tags,
-            sourcePlatform: link.platform,
-          });
-        }
-      });
-    });
-
-    return combined;
-  }, [places, savedLinks]);
+    return places;
+  }, [places]);
 
   const activeTripId = currentTrip?.id || 't_tokyo';
 
@@ -456,8 +436,8 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                style={{ marginBottom: 10, maxHeight: 32 }}
-                contentContainerStyle={{ gap: 6 }}
+                style={{ marginBottom: 12 }}
+                contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
               >
                 {CATEGORY_TABS.map((cat) => {
                   const isSelected = selectedCategory === cat.key;
@@ -469,6 +449,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                         styles.catFilterChip,
                         isSelected && styles.catFilterChipActive,
                       ]}
+                      activeOpacity={0.75}
                     >
                       <Text
                         style={[
@@ -713,9 +694,11 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                       }}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#64748B' }}>
-                          {item.category}
-                        </Text>
+                        <View style={{ backgroundColor: '#FFF1F2', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '800', color: '#E11D48' }}>
+                            {getKoreanCategory(item.category)}
+                          </Text>
+                        </View>
                         {item.rating && (
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Star size={10} color="#EAB308" fill="#EAB308" style={{ marginRight: 2 }} />
@@ -865,10 +848,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 18,
     paddingBottom: 0,
-    maxHeight: '90%',
-    minHeight: 480,
+    maxHeight: '88%',
   },
   header: {
     flexDirection: 'row',
@@ -1001,18 +983,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    borderRadius: 18,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   catFilterChipActive: {
-    backgroundColor: '#0F172A',
-    borderColor: '#0F172A',
+    backgroundColor: '#FF6B6B',
+    borderColor: '#FF6B6B',
   },
   catFilterChipText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#475569',
   },
   catFilterChipTextActive: {
     color: '#FFFFFF',
