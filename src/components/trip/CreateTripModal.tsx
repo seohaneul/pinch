@@ -32,6 +32,7 @@ import { useTripStore } from '../../store/useTripStore';
 import { useWalletStore } from '../../store/useWalletStore';
 import { CalendarRangePicker } from '../common/CalendarRangePicker';
 import { PStyleCourseModal } from './PStyleCourseModal';
+import { PlaceSearchModal } from '../places/PlaceSearchModal';
 import {
   searchWorldwideDestinations,
   POPULAR_RECOMMENDED_DESTINATIONS,
@@ -127,6 +128,9 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
   // Step 4: 숙소 & 동행자 & 통화 (나중에 설정 가능)
   const [lodgingName, setLodgingName] = useState('');
   const [lodgingAddress, setLodgingAddress] = useState('');
+  const [lodgingLat, setLodgingLat] = useState<number | undefined>(undefined);
+  const [lodgingLng, setLodgingLng] = useState<number | undefined>(undefined);
+  const [isLodgingSearchVisible, setIsLodgingSearchVisible] = useState(false);
   const [memberInput, setMemberInput] = useState('나');
   const [currency, setCurrency] = useState<'JPY' | 'USD' | 'EUR' | 'KRW'>('JPY');
 
@@ -366,8 +370,8 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
         endDay: daysCount,
         checkInTime: '15:00',
         checkOutTime: '11:00',
-        latitude: selectedDestination.latitude,
-        longitude: selectedDestination.longitude,
+        latitude: lodgingLat || selectedDestination.latitude,
+        longitude: lodgingLng || selectedDestination.longitude,
       };
       setRangeLodging(targetTripId, lodgingObj, 1, daysCount);
       updateTrip(targetTripId, { lodging: lodgingObj });
@@ -930,9 +934,29 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                 </Text>
 
                 <View style={styles.formCard}>
-                  <View style={styles.formCardHeader}>
-                    <Hotel size={18} color="#1B2A4A" />
-                    <Text style={styles.formCardHeaderTitle}>숙소 정보 (나중에 설정 가능)</Text>
+                  <View style={[styles.formCardHeader, { justifyContent: 'space-between' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Hotel size={18} color="#1B2A4A" />
+                      <Text style={styles.formCardHeaderTitle}>숙소 정보 (나중에 설정 가능)</Text>
+                    </View>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => setIsLodgingSearchVisible(true)}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: '#1B2A4A',
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        borderRadius: 8,
+                        gap: 4,
+                      }}
+                    >
+                      <Search size={12} color="#FFFFFF" />
+                      <Text style={{ color: '#FFFFFF', fontSize: 11.5, fontWeight: '700' }}>
+                        지도에서 검색
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                   <TextInput
                     value={lodgingName}
@@ -1040,6 +1064,20 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
         trip={createdTrip}
         onClose={handlePStyleClose}
         onCompleted={handlePStyleCompleted}
+      />
+
+      {/* 레퍼런스 5번 스타일 풀스크린 지도 숙소 검색 */}
+      <PlaceSearchModal
+        visible={isLodgingSearchVisible}
+        onClose={() => setIsLodgingSearchVisible(false)}
+        defaultCategory="LODGING"
+        ctaLabel="이 위치로 숙소 설정하기"
+        onSelectResult={(item) => {
+          setLodgingName(item.name);
+          setLodgingAddress(item.address);
+          setLodgingLat(item.latitude);
+          setLodgingLng(item.longitude);
+        }}
       />
     </>
   );

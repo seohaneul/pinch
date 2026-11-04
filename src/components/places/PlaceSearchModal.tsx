@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -6,69 +6,71 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Image,
   ActivityIndicator,
   Alert,
   StyleSheet,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Search,
-  X,
-  MapPin,
-  Star,
-  Bookmark,
-  Check,
-  Plus,
-} from '@/components/common/CustomIcons';
+import { Search, X, MapPin } from '@/components/common/CustomIcons';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import { useTripStore } from '../../store/useTripStore';
 import { searchPlaces, SearchPlaceResult } from '../../services/placeSearchService';
 import type { Place, PlaceCategory } from '../../types';
 
-interface PlaceSearchModalProps {
+export interface PlaceSearchModalProps {
   visible: boolean;
   onClose: () => void;
   tripId?: string;
   tripTitle?: string;
+  initialQuery?: string;
+  defaultCategory?: PlaceCategory;
+  targetDayNumber?: number;
+  ctaLabel?: string;
   onPlaceSaved?: (place: Place) => void;
   onAddToSchedule?: (dayNumber: number, place: Place) => void;
+  onSelectResult?: (result: SearchPlaceResult) => void;
 }
-
-const CATEGORIES: { label: string; value: PlaceCategory | 'ALL' }[] = [
-  { label: '전체', value: 'ALL' },
-  { label: '카페', value: 'CAFE' },
-  { label: '맛집', value: 'RESTAURANT' },
-  { label: '명소', value: 'ATTRACTION' },
-  { label: '숙소', value: 'LODGING' },
-  { label: '쇼핑', value: 'SHOPPING' },
-];
 
 export const PlaceSearchModal: React.FC<PlaceSearchModalProps> = ({
   visible,
   onClose,
   tripId,
   tripTitle,
+  initialQuery = '',
+  defaultCategory,
+  targetDayNumber,
+  ctaLabel,
   onPlaceSaved,
   onAddToSchedule,
+  onSelectResult,
 }) => {
   const insets = useSafeAreaInsets();
+  const webViewRef = useRef<any>(null);
   const { currentTrip, addPlaceToSchedule } = useTripStore();
   const { places, addPlace } = usePlaceStore();
 
   const activeTripId = tripId || currentTrip?.id || 't_first';
   const activeTripTitle = tripTitle || currentTrip?.title || '여행';
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<PlaceCategory | 'ALL'>('ALL');
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchPlaceResult[]>([]);
   const [selectedItem, setSelectedItem] = useState<SearchPlaceResult | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [savedPlaceIds, setSavedPlaceIds] = useState<Record<string, boolean>>({});
-  const [selectedPlaceForSchedule, setSelectedPlaceForSchedule] = useState<SearchPlaceResult | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [savedPlaceNames, setSavedPlaceNames] = useState<Record<string, boolean>>({});
 
+  // 모달 열릴 때 초기 검색어 동기화
+  useEffect(() => {
+    if (visible) {
+      setSearchQuery(initialQuery || '');
+      setShowDropdown(false);
+    }
+  }, [visible, initialQuery]);
+
+  // 현재 여행에 이미 저장된 장소 이름 맵 동기화
   useEffect(() => {
     const map: Record<string, boolean> = {};
     places.forEach((p) => {
@@ -76,18 +78,22 @@ export const PlaceSearchModal: React.FC<PlaceSearchModalProps> = ({
         map[p.name.trim().toLowerCase()] = true;
       }
     });
-    setSavedPlaceIds(map);
+    setSavedPlaceNames(map);
   }, [places, activeTripId, visible]);
 
+  // 디바운스 실시간 검색
   useEffect(() => {
     if (!visible) return;
 
     let isCancelled = false;
-    const executeSearch = async () => {
+    const runSearch = async () => {
       setIsSearching(true);
       try {
-        const catFilter = selectedCategory === 'ALL' ? undefined : selectedCategory;
-        const searchRes = await searchPlaces(searchQuery, catFilter);
+        const bias =
+          currentTrip?.centerLat && currentTrip?.centerLng
+            ? { latitude: currentTrip.centerLat, longitude: currentTrip.centerLng }
+            : undefined;
+        const searchRes = await searchPlaces(searchQuery, defaultCategory, bias);
         if (!isCancelled) {
           setResults(searchRes);
           if (searchRes.length > 0) {
@@ -106,12 +112,54 @@ export const PlaceSearchModal: React.FC<PlaceSearchModalProps> = ({
       }
     };
 
-    const timer = setTimeout(executeSearch, 200);
+    const timer = setTimeout(runSearch, 280);
     return () => {
       isCancelled = true;
       clearTimeout(timer);
     };
-  }, [searchQuery, selectedCategory, visible]);
+  }, [searchQuery, defaultCategory, visible]);
+
+  const activePlace = selectedItem || results[0] || null;
+  const mapLat = activePlace?.latitude || currentTrip?.centerLat || 37.4973307;
+  const mapLng = activePlace?.longitude || currentTrip?.centerLng || 127.0551532;
+
+  // 선택된 장소가 바뀔 때 네이티브 WebView 지도 부드럽게 이동 (깜빡임 방지)
+  useEffect(() => {
+    if (Platform.OS !== 'web' && webViewRef.current && activePlace) {
+      const js = `
+        if (window.updatePinLocation) {
+          window.updatePinLocation(${activePlace.latitude}, ${activePlace.longitude});
+        }
+        true;
+      `;
+      webViewRef.current.injectJavaScript(js);
+    }
+  }, [activePlace?.id, activePlace?.latitude, activePlace?.longitude]);
+
+  const handleSelectDropdownItem = (item: SearchPlaceResult) => {
+    setSelectedItem(item);
+    setShowDropdown(false);
+    Keyboard.dismiss();
+  };
+
+  const handleSubmitSearch = async () => {
+    setShowDropdown(false);
+    Keyboard.dismiss();
+    setIsSearching(true);
+    try {
+      const bias =
+        currentTrip?.centerLat && currentTrip?.centerLng
+          ? { latitude: currentTrip.centerLat, longitude: currentTrip.centerLng }
+          : undefined;
+      const searchRes = await searchPlaces(searchQuery, defaultCategory, bias);
+      setResults(searchRes);
+      if (searchRes.length > 0) {
+        setSelectedItem(searchRes[0]);
+      }
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const convertToPlace = (item: SearchPlaceResult): Place => ({
     id: `p_search_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -121,7 +169,7 @@ export const PlaceSearchModal: React.FC<PlaceSearchModalProps> = ({
     category: item.category,
     latitude: item.latitude,
     longitude: item.longitude,
-    memo: item.memo || '검색하여 추가한 장소',
+    memo: item.roadAddress || item.memo || '검색하여 추가한 장소',
     imageUrl: item.imageUrl,
     rating: item.rating || 4.8,
     isPinned: true,
@@ -129,11 +177,43 @@ export const PlaceSearchModal: React.FC<PlaceSearchModalProps> = ({
     tags: [item.category],
   });
 
-  const handleSaveToPocket = (item: SearchPlaceResult) => {
+  const handleAddLocationAction = (item: SearchPlaceResult) => {
+    // 1. 외부 커스텀 선택 콜백이 있는 경우 (예: 숙소 설정 등)
+    if (onSelectResult) {
+      onSelectResult(item);
+      onClose();
+      return;
+    }
+
     const place = convertToPlace(item);
+
+    // 2. 특정 일차(targetDayNumber) 일정 추가로 열린 경우
+    if (targetDayNumber) {
+      addPlace(place, activeTripId);
+      setSavedPlaceNames((prev) => ({
+        ...prev,
+        [item.name.trim().toLowerCase()]: true,
+      }));
+      if (onAddToSchedule) {
+        onAddToSchedule(targetDayNumber, place);
+      } else {
+        addPlaceToSchedule(targetDayNumber, place);
+      }
+      if (onPlaceSaved) {
+        onPlaceSaved(place);
+      }
+      Alert.alert(
+        '위치 추가 완료',
+        `"${item.name}" 위치를 DAY ${targetDayNumber} 일정에 추가했습니다.`
+      );
+      onClose();
+      return;
+    }
+
+    // 3. 기본 보관함 위치 추가
     const success = addPlace(place, activeTripId);
     if (success) {
-      setSavedPlaceIds((prev) => ({
+      setSavedPlaceNames((prev) => ({
         ...prev,
         [item.name.trim().toLowerCase()]: true,
       }));
@@ -142,58 +222,13 @@ export const PlaceSearchModal: React.FC<PlaceSearchModalProps> = ({
       }
       Alert.alert(
         '위치 추가 완료',
-        `"${item.name}" 장소를 "${activeTripTitle}" 보관함에 추가했습니다.`
+        `"${item.name}" 위치를 "${activeTripTitle}" 보관함에 추가했습니다.`
       );
+      onClose();
     }
   };
 
-  const handleConfirmAddToSchedule = (dayNumber: number) => {
-    if (!selectedPlaceForSchedule) return;
-    const place = convertToPlace(selectedPlaceForSchedule);
-
-    addPlace(place, activeTripId);
-    setSavedPlaceIds((prev) => ({
-      ...prev,
-      [selectedPlaceForSchedule.name.trim().toLowerCase()]: true,
-    }));
-
-    if (onAddToSchedule) {
-      onAddToSchedule(dayNumber, place);
-    } else {
-      addPlaceToSchedule(dayNumber, place);
-    }
-
-    Alert.alert(
-      '일정에 추가 완료',
-      `"${selectedPlaceForSchedule.name}" 장소를 DAY ${dayNumber} 일정에 추가했습니다.`
-    );
-    setSelectedPlaceForSchedule(null);
-  };
-
-  const getCategoryBadgeLabel = (cat?: PlaceCategory) => {
-    switch (cat) {
-      case 'CAFE':
-        return '카페';
-      case 'RESTAURANT':
-        return '맛집';
-      case 'ATTRACTION':
-        return '명소';
-      case 'LODGING':
-        return '숙소';
-      case 'SHOPPING':
-        return '쇼핑';
-      default:
-        return '장소';
-    }
-  };
-
-  const schedulesCount = currentTrip?.schedules?.length || 3;
-  const scheduleDays = Array.from({ length: schedulesCount }, (_, i) => i + 1);
-
-  const activePlace = selectedItem || results[0] || null;
-  const mapLat = activePlace?.latitude || currentTrip?.centerLat || 35.6762;
-  const mapLng = activePlace?.longitude || currentTrip?.centerLng || 139.6503;
-
+  // 레퍼런스 5번 이미지와 동일한 핀 스타일 (물방울 핀 + 하단 작은 점)
   const leafletHtml = `
     <!DOCTYPE html>
     <html>
@@ -202,127 +237,203 @@ export const PlaceSearchModal: React.FC<PlaceSearchModalProps> = ({
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
       <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
       <style>
-        html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; background: #E5E7EB; }
+        html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; background: #ECEBE6; }
         .leaflet-control-attribution, .leaflet-control-zoom { display: none !important; }
-        .navy-pin {
-          width: 44px; height: 44px;
+        .pin-wrapper {
+          position: relative;
+          width: 48px;
+          height: 62px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+        .pin-teardrop {
+          width: 42px;
+          height: 42px;
           background: #1B2A4A;
-          border: 3px solid #FFFFFF;
+          border: 2.5px solid #FFFFFF;
           border-radius: 50% 50% 50% 0;
           transform: rotate(-45deg);
-          box-shadow: 0 6px 16px rgba(27,42,74,0.38);
-          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 5px 14px rgba(27, 42, 74, 0.35);
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
-        .navy-pin-inner {
-          width: 14px; height: 14px;
+        .pin-hole {
+          width: 15px;
+          height: 15px;
           background: #FFFFFF;
           border-radius: 50%;
           transform: rotate(45deg);
+        }
+        .pin-ground-dot {
+          width: 8px;
+          height: 8px;
+          background: #1B2A4A;
+          border: 1.5px solid #FFFFFF;
+          border-radius: 50%;
+          margin-top: 8px;
+          box-shadow: 0 2px 4px rgba(27, 42, 74, 0.3);
         }
       </style>
     </head>
     <body>
       <div id="map"></div>
       <script>
-        var map = L.map('map', { zoomControl: false }).setView([${mapLat}, ${mapLng}], 15);
+        var map = L.map('map', { zoomControl: false }).setView([${mapLat}, ${mapLng}], 16);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
           maxZoom: 19
         }).addTo(map);
-        var icon = L.divIcon({
+        var customIcon = L.divIcon({
           className: '',
-          html: '<div class="navy-pin"><div class="navy-pin-inner"></div></div>',
-          iconSize: [44, 44],
-          iconAnchor: [22, 44]
+          html: '<div class="pin-wrapper"><div class="pin-teardrop"><div class="pin-hole"></div></div><div class="pin-ground-dot"></div></div>',
+          iconSize: [48, 62],
+          iconAnchor: [24, 56]
         });
-        L.marker([${mapLat}, ${mapLng}], { icon: icon }).addTo(map);
+        var marker = L.marker([${mapLat}, ${mapLng}], { icon: customIcon }).addTo(map);
+        window.updatePinLocation = function(lat, lng) {
+          marker.setLatLng([lat, lng]);
+          map.flyTo([lat, lng], 16, { duration: 0.45 });
+        };
       </script>
     </body>
     </html>
   `;
 
+  const isAlreadySaved = activePlace
+    ? Boolean(savedPlaceNames[activePlace.name.trim().toLowerCase()])
+    : false;
+
+  const buttonText = ctaLabel
+    ? ctaLabel
+    : targetDayNumber
+      ? `이 위치 추가하기 (DAY ${targetDayNumber})`
+      : isAlreadySaved && !onSelectResult
+        ? '이미 추가된 위치입니다'
+        : '이 위치 추가하기';
+
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
-      <View style={[styles.screen, { paddingTop: Math.max(insets.top, 14) }]}>
-        {/* ==================== 1. 상단 검색 바 (레퍼런스 5 스타일: X + 둥근 검색 필 + ⊗) ==================== */}
+    <Modal visible={visible} animationType="fade" transparent={false} onRequestClose={onClose}>
+      <View style={[styles.screen, { paddingTop: Math.max(insets.top, 12) }]}>
+        {/* ==================== 1. 상단 검색 바 (레퍼런스 5번 동일 구조: X + 둥근 회색 검색바 + ⊗) ==================== */}
         <View style={styles.topSearchRow}>
-          <TouchableOpacity onPress={onClose} style={styles.closeXBtn} activeOpacity={0.7}>
-            <X size={24} color="#111827" />
+          <TouchableOpacity
+            onPress={onClose}
+            style={styles.closeXBtn}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <X size={25} color="#111827" strokeWidth={2} />
           </TouchableOpacity>
 
           <View style={styles.searchPillBar}>
-            <Search size={18} color="#6B7280" />
+            <Search size={18} color="#8E8E93" />
             <TextInput
               value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="장소, 맛집, 카페, 주소 검색"
+              onChangeText={(text) => {
+                setSearchQuery(text);
+                setShowDropdown(true);
+              }}
+              onFocus={() => {
+                if (results.length > 1) setShowDropdown(true);
+              }}
+              onSubmitEditing={handleSubmitSearch}
+              placeholder="장소, 주소 검색 (예: 맥도날드, 시부야 스카이)"
               placeholderTextColor="#9CA3AF"
               style={styles.searchInput}
               returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity
-                onPress={() => setSearchQuery('')}
+                onPress={() => {
+                  setSearchQuery('');
+                  setShowDropdown(true);
+                }}
                 style={styles.clearCircleBtn}
                 activeOpacity={0.75}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <X size={12} color="#FFFFFF" strokeWidth={2.5} />
+                <X size={11} color="#FFFFFF" strokeWidth={2.6} />
               </TouchableOpacity>
             )}
           </View>
         </View>
 
-        {/* 카테고리 칩 바 */}
-        <View style={styles.categoryWrap}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryScroll}
-          >
-            {CATEGORIES.map((cat) => {
-              const selected = selectedCategory === cat.value;
-              return (
-                <TouchableOpacity
-                  key={cat.value}
-                  onPress={() => setSelectedCategory(cat.value)}
-                  style={[styles.categoryChip, selected && styles.categoryChipActive]}
-                  activeOpacity={0.75}
-                >
-                  <Text
-                    style={[styles.categoryChipText, selected && styles.categoryChipTextActive]}
-                  >
-                    {cat.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* ==================== 2. 풀스크린 지도 + 플로팅 하단 카드 (레퍼런스 5 스타일) ==================== */}
+        {/* ==================== 2. 풀스크린 지도 + 플로팅 하단 카드 (레퍼런스 5번 구조) ==================== */}
         <View style={styles.mapAreaContainer}>
           {Platform.OS === 'web' ? (
             <iframe
-              title="Place Search Map"
-              src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapLng - 0.015}%2C${mapLat - 0.012}%2C${mapLng + 0.015}%2C${mapLat + 0.012}&layer=mapnik&marker=${mapLat}%2C${mapLng}`}
+              key={`${mapLat.toFixed(5)}_${mapLng.toFixed(5)}`}
+              title="Pinchi Place Search Map"
+              srcDoc={leafletHtml}
               style={{ width: '100%', height: '100%', border: 'none' }}
             />
           ) : (
             <WebView
-              key={`${mapLat}_${mapLng}`}
+              ref={webViewRef}
               originWhitelist={['*']}
               source={{ html: leafletHtml }}
               style={{ flex: 1 }}
-              scrollEnabled={false}
+              scrollEnabled={true}
             />
           )}
 
-          {/* 검색 결과 가로 선택 칩 (여러 결과가 있을 때 빠르게 핀 이동) */}
-          {results.length > 1 && (
+          {/* 검색어 입력 중 자동완성 결과 드롭다운 (원하는 지점 즉시 선택) */}
+          {showDropdown && results.length > 0 && (
+            <View style={styles.dropdownOverlay}>
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                style={{ maxHeight: 280 }}
+              >
+                {results.slice(0, 10).map((item) => {
+                  const selected = activePlace?.id === item.id;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      activeOpacity={0.75}
+                      onPress={() => handleSelectDropdownItem(item)}
+                      style={[
+                        styles.dropdownRow,
+                        selected && styles.dropdownRowSelected,
+                      ]}
+                    >
+                      <MapPin
+                        size={16}
+                        color={selected ? '#1B2A4A' : '#9CA3AF'}
+                        style={{ marginTop: 2, marginRight: 10 }}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.dropdownPlaceName,
+                            selected && styles.dropdownPlaceNameSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.name}
+                        </Text>
+                        <Text style={styles.dropdownPlaceAddr} numberOfLines={1}>
+                          {item.address}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* 여러 검색 결과가 있을 때 지도 상단 지점 빠른 전환 칩 */}
+          {!showDropdown && results.length > 1 && (
             <View style={styles.floatingResultsStrip}>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+                keyboardShouldPersistTaps="handled"
               >
                 {results.slice(0, 12).map((item) => {
                   const isSelected = activePlace?.id === item.id;
@@ -330,17 +441,15 @@ export const PlaceSearchModal: React.FC<PlaceSearchModalProps> = ({
                     <TouchableOpacity
                       key={item.id}
                       activeOpacity={0.85}
-                      onPress={() => setSelectedItem(item)}
+                      onPress={() => {
+                        setSelectedItem(item);
+                        Keyboard.dismiss();
+                      }}
                       style={[
                         styles.resultMiniPill,
                         isSelected && styles.resultMiniPillActive,
                       ]}
                     >
-                      <MapPin
-                        size={13}
-                        color={isSelected ? '#FFFFFF' : '#1B2A4A'}
-                        fill={isSelected ? '#FFFFFF' : 'none'}
-                      />
                       <Text
                         style={[
                           styles.resultMiniPillText,
@@ -357,123 +466,61 @@ export const PlaceSearchModal: React.FC<PlaceSearchModalProps> = ({
             </View>
           )}
 
-          {/* 하단 플로팅 화이트 카드 (레퍼런스 5 스타일: 장소명 / 주소 / [도로명] 상세 / [이 위치 추가하기]) */}
+          {/* ==================== 3. 하단 플로팅 화이트 카드 (레퍼런스 5번 100% 매칭) ==================== */}
           <View
             style={[
               styles.floatingBottomCard,
-              { marginBottom: Math.max(insets.bottom, 16) + 8 },
+              { marginBottom: Math.max(insets.bottom, 16) + 6 },
             ]}
           >
-            {isSearching ? (
+            {isSearching && !activePlace ? (
               <View style={styles.cardLoadingBox}>
                 <ActivityIndicator size="small" color="#1B2A4A" />
-                <Text style={styles.cardLoadingText}>장소 위치를 찾는 중...</Text>
+                <Text style={styles.cardLoadingText}>위치를 검색하고 있습니다...</Text>
               </View>
             ) : activePlace ? (
               <>
-                <View style={styles.cardTopRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cardPlaceTitle} numberOfLines={1}>
-                      {activePlace.name}
-                    </Text>
-                    <Text style={styles.cardPrimaryAddress} numberOfLines={1}>
-                      {activePlace.address}
-                    </Text>
-                  </View>
-                  {activePlace.imageUrl ? (
-                    <Image
-                      source={{ uri: activePlace.imageUrl }}
-                      style={styles.cardPlaceThumb}
-                    />
-                  ) : null}
-                </View>
+                {/* 1줄: 장소명 (굵은 타이틀) */}
+                <Text style={styles.cardPlaceTitle} numberOfLines={1}>
+                  {activePlace.name}
+                </Text>
 
-                <View style={styles.cardSecondaryRow}>
-                  <View style={styles.boxedTag}>
-                    <Text style={styles.boxedTagText}>
-                      {getCategoryBadgeLabel(activePlace.category)}
-                    </Text>
+                {/* 2줄: 기본/지번 주소 */}
+                <Text style={styles.cardPrimaryAddress} numberOfLines={1}>
+                  {activePlace.address}
+                </Text>
+
+                {/* 3줄: [도로명] 박스 태그 + 도로명/상세 주소 */}
+                <View style={styles.cardRoadAddressRow}>
+                  <View style={styles.roadBadgeBox}>
+                    <Text style={styles.roadBadgeText}>도로명</Text>
                   </View>
-                  <Text style={styles.cardSecondaryText} numberOfLines={1}>
-                    {activePlace.memo || `${activeTripTitle} 추천 스팟`}
+                  <Text style={styles.cardRoadAddressText} numberOfLines={1}>
+                    {activePlace.roadAddress || activePlace.address}
                   </Text>
-                  {activePlace.rating ? (
-                    <View style={styles.ratingInline}>
-                      <Star size={12} color="#F59E0B" fill="#F59E0B" />
-                      <Text style={styles.ratingInlineText}>
-                        {activePlace.rating.toFixed(1)}
-                      </Text>
-                    </View>
-                  ) : null}
                 </View>
 
-                <View style={styles.cardCtaRow}>
-                  <TouchableOpacity
-                    activeOpacity={0.88}
-                    onPress={() => handleSaveToPocket(activePlace)}
-                    style={[
-                      styles.addLocationBtn,
-                      savedPlaceIds[activePlace.name.trim().toLowerCase()] &&
-                        styles.addLocationBtnSaved,
-                    ]}
-                  >
-                    <Text style={styles.addLocationBtnText}>
-                      {savedPlaceIds[activePlace.name.trim().toLowerCase()]
-                        ? '보관함에 추가됨'
-                        : '이 위치 추가하기'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={() => setSelectedPlaceForSchedule(activePlace)}
-                    style={styles.scheduleOutlineBtn}
-                  >
-                    <Plus size={16} color="#1B2A4A" />
-                    <Text style={styles.scheduleOutlineBtnText}>일정 넣기</Text>
-                  </TouchableOpacity>
-                </View>
+                {/* 4줄: 풀폭 솔리드 버튼 "이 위치 추가하기" */}
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  onPress={() => handleAddLocationAction(activePlace)}
+                  style={[
+                    styles.addLocationBtn,
+                    isAlreadySaved && !onSelectResult && !targetDayNumber && styles.addLocationBtnSaved,
+                  ]}
+                >
+                  <Text style={styles.addLocationBtnText}>{buttonText}</Text>
+                </TouchableOpacity>
               </>
             ) : (
               <View style={styles.cardLoadingBox}>
                 <Text style={styles.cardLoadingText}>
-                  검색어를 입력해 원하는 위치를 찾아보세요.
+                  상단 검색창에 장소명이나 주소를 입력해보세요.
                 </Text>
               </View>
             )}
           </View>
         </View>
-
-        {/* 일정 날짜 선택 서브 모달 */}
-        {selectedPlaceForSchedule && (
-          <View style={styles.dayPickerOverlay}>
-            <View style={styles.dayPickerCard}>
-              <Text style={styles.dayPickerTitle}>{selectedPlaceForSchedule.name}</Text>
-              <Text style={styles.dayPickerSubtitle}>어느 날짜 일정에 추가할까요?</Text>
-
-              <View style={styles.dayPickerGrid}>
-                {scheduleDays.map((day) => (
-                  <TouchableOpacity
-                    key={day}
-                    onPress={() => handleConfirmAddToSchedule(day)}
-                    style={styles.dayChoiceBtn}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.dayChoiceBtnText}>DAY {day}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <TouchableOpacity
-                onPress={() => setSelectedPlaceForSchedule(null)}
-                style={styles.dayCancelBtn}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.dayCancelBtnText}>닫기</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
       </View>
     </Modal>
   );
@@ -487,10 +534,13 @@ const styles = StyleSheet.create({
   topSearchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     gap: 10,
     backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F3F5',
+    zIndex: 20,
   },
   closeXBtn: {
     width: 36,
@@ -502,79 +552,89 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F2F3F5',
     borderRadius: 10,
     paddingHorizontal: 12,
-    height: 44,
+    height: 42,
     gap: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     color: '#111827',
+    paddingVertical: 0,
   },
   clearCircleBtn: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#9CA3AF',
+    backgroundColor: '#AEAEB2',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  categoryWrap: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F3F5',
-    paddingBottom: 10,
-  },
-  categoryScroll: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-  },
-  categoryChipActive: {
-    backgroundColor: '#1B2A4A',
-  },
-  categoryChipText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  categoryChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   mapAreaContainer: {
     flex: 1,
     position: 'relative',
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#ECEBE6',
+  },
+  dropdownOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 30,
+  },
+  dropdownRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dropdownRowSelected: {
+    backgroundColor: '#F8FAFC',
+  },
+  dropdownPlaceName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  dropdownPlaceNameSelected: {
+    color: '#1B2A4A',
+  },
+  dropdownPlaceAddr: {
+    fontSize: 12.5,
+    color: '#6B7280',
   },
   floatingResultsStrip: {
     position: 'absolute',
-    top: 14,
+    top: 12,
     left: 0,
     right: 0,
+    zIndex: 10,
   },
   resultMiniPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
     paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingVertical: 7,
+    borderRadius: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    maxWidth: 180,
+    maxWidth: 190,
   },
   resultMiniPillActive: {
     backgroundColor: '#1B2A4A',
@@ -593,173 +653,80 @@ const styles = StyleSheet.create({
     right: 16,
     bottom: 0,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 6 },
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
-    shadowRadius: 16,
+    shadowRadius: 14,
     elevation: 8,
+    zIndex: 15,
   },
   cardLoadingBox: {
-    paddingVertical: 20,
+    paddingVertical: 22,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   cardLoadingText: {
-    fontSize: 13.5,
+    fontSize: 14,
     color: '#6B7280',
     fontWeight: '500',
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
   },
   cardPlaceTitle: {
     fontSize: 19,
     fontWeight: '800',
     color: '#111827',
-    marginBottom: 4,
+    letterSpacing: -0.3,
+    marginBottom: 7,
   },
   cardPrimaryAddress: {
-    fontSize: 14.5,
+    fontSize: 15,
     fontWeight: '500',
-    color: '#374151',
+    color: '#222222',
+    marginBottom: 7,
   },
-  cardPlaceThumb: {
-    width: 52,
-    height: 52,
-    borderRadius: 10,
-    marginLeft: 12,
-    backgroundColor: '#F3F4F6',
-  },
-  cardSecondaryRow: {
+  cardRoadAddressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 18,
-    gap: 8,
+    marginBottom: 20,
   },
-  boxedTag: {
+  roadBadgeBox: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    marginRight: 7,
   },
-  boxedTagText: {
+  roadBadgeText: {
     fontSize: 11,
-    color: '#9CA3AF',
     fontWeight: '600',
-  },
-  cardSecondaryText: {
-    fontSize: 13,
     color: '#9CA3AF',
+  },
+  cardRoadAddressText: {
     flex: 1,
-  },
-  ratingInline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  ratingInlineText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#4B5563',
-  },
-  cardCtaRow: {
-    flexDirection: 'row',
-    gap: 10,
+    fontSize: 13.5,
+    fontWeight: '500',
+    color: '#9CA3AF',
   },
   addLocationBtn: {
-    flex: 1,
-    height: 48,
+    width: '100%',
+    height: 50,
     borderRadius: 8,
     backgroundColor: '#1B2A4A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   addLocationBtnSaved: {
-    backgroundColor: '#334155',
+    backgroundColor: '#475569',
   },
   addLocationBtnText: {
     color: '#FFFFFF',
-    fontSize: 15.5,
+    fontSize: 16,
     fontWeight: '700',
-  },
-  scheduleOutlineBtn: {
-    height: 48,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#1B2A4A',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    backgroundColor: '#FFFFFF',
-  },
-  scheduleOutlineBtnText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#1B2A4A',
-  },
-  dayPickerOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(17, 24, 39, 0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-  },
-  dayPickerCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 22,
-    alignItems: 'center',
-  },
-  dayPickerTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  dayPickerSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 4,
-    marginBottom: 16,
-  },
-  dayPickerGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  dayChoiceBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-    borderRadius: 10,
-    backgroundColor: '#1B2A4A',
-  },
-  dayChoiceBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13.5,
-    fontWeight: '800',
-  },
-  dayCancelBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-  },
-  dayCancelBtnText: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    color: '#6B7280',
+    letterSpacing: -0.2,
   },
 });

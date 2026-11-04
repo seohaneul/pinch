@@ -30,6 +30,7 @@ import {
 import type { LodgingInfo, DaySchedule } from '../../types';
 import { CalendarRangePicker } from '../common/CalendarRangePicker';
 import { searchAccommodations, SearchPlaceResult } from '../../services/placeSearchService';
+import { PlaceSearchModal } from '../places/PlaceSearchModal';
 
 interface LodgingModalProps {
   visible: boolean;
@@ -225,15 +226,31 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
     onClose();
   };
 
+  if (inputMode === 'search') {
+    return (
+      <PlaceSearchModal
+        visible={visible}
+        onClose={onClose}
+        initialQuery={searchQuery}
+        defaultCategory="LODGING"
+        ctaLabel="이 위치로 숙소 설정하기"
+        onSelectResult={(item) => {
+          setName(item.name);
+          setAddress(item.address);
+          setLatitude(item.latitude);
+          setLongitude(item.longitude);
+          if (item.imageUrl) setImageUrl(item.imageUrl);
+          if (item.memo) setMemo(item.memo);
+          setInputMode('manual');
+        }}
+      />
+    );
+  }
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom > 0 ? insets.bottom : 16 }]}>
+        <View style={[styles.sheet, { paddingTop: Math.max(insets.top, 14), paddingBottom: insets.bottom > 0 ? insets.bottom : 16 }]}>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
@@ -254,12 +271,12 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
           <View style={styles.modeTabRow}>
             <TouchableOpacity
               onPress={() => setInputMode('search')}
-              style={[styles.modeTabBtn, inputMode === 'search' && styles.modeTabBtnActive]}
+              style={styles.modeTabBtn}
               activeOpacity={0.8}
             >
-              <Search size={14} color={inputMode === 'search' ? '#1B2A4A' : '#64748B'} style={{ marginRight: 6 }} />
-              <Text style={[styles.modeTabText, inputMode === 'search' && styles.modeTabTextActive]}>
-                숙소 검색하여 선택 🔍
+              <Search size={14} color="#64748B" style={{ marginRight: 6 }} />
+              <Text style={styles.modeTabText}>
+                지도에서 숙소 검색 🔍
               </Text>
             </TouchableOpacity>
 
@@ -310,7 +327,7 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
             </View>
 
             {/* MODE 1: SEARCH MODE */}
-            {inputMode === 'search' && (
+            {(inputMode as string) === 'search' && (
               <View style={styles.searchSection}>
                 <Text style={styles.sectionLabel}>숙소명 또는 도시명 검색</Text>
                 <View style={styles.searchBar}>
@@ -527,16 +544,12 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: '#FFFFFF',
   },
   sheet: {
+    flex: 1,
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    maxHeight: '92%',
     paddingHorizontal: 20,
-    paddingTop: 18,
   },
   header: {
     flexDirection: 'row',

@@ -31,6 +31,7 @@ import {
   Compass,
 } from '@/components/common/CustomIcons';
 import { searchPlaces, SearchPlaceResult } from '../../services/placeSearchService';
+import { PlaceSearchModal } from '../places/PlaceSearchModal';
 
 interface AddSpotModalProps {
   visible: boolean;
@@ -297,15 +298,28 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
     { key: 'SHOPPING', label: '🛍️ 쇼핑' },
   ];
 
+  if (tab === 'search') {
+    return (
+      <PlaceSearchModal
+        visible={visible}
+        onClose={() => {
+          setTab('pocket');
+          onClose();
+        }}
+        initialQuery={searchQueryOnline}
+        targetDayNumber={dayNumber}
+        onAddToSchedule={(_, place) => {
+          onSelectPlace(place);
+          setTab('pocket');
+        }}
+      />
+    );
+  }
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom > 0 ? insets.bottom : 16 }]}>
+        <View style={[styles.sheet, { paddingTop: Math.max(insets.top, 14), paddingBottom: insets.bottom > 0 ? insets.bottom : 16 }]}>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
@@ -338,10 +352,10 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
 
             <TouchableOpacity
               onPress={() => setTab('search')}
-              style={[styles.tabBtn, tab === 'search' && styles.tabBtnActive]}
+              style={styles.tabBtn}
             >
-              <Search size={13} color={tab === 'search' ? '#1B2A4A' : '#6B7280'} style={{ marginRight: 4 }} />
-              <Text style={[styles.tabText, tab === 'search' && styles.tabTextActive]}>
+              <Search size={13} color="#6B7280" style={{ marginRight: 4 }} />
+              <Text style={styles.tabText}>
                 장소 검색 추가
               </Text>
             </TouchableOpacity>
@@ -633,7 +647,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                 )}
               </ScrollView>
             </View>
-          ) : tab === 'search' ? (
+          ) : (tab as string) === 'search' ? (
             <View style={{ flex: 1 }}>
               <View style={[styles.searchBar, { marginTop: 4, marginBottom: 8 }]}>
                 <Search size={16} color="#1B2A4A" style={{ marginRight: 8 }} />
@@ -885,17 +899,13 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: '#FFFFFF',
   },
   sheet: {
+    flex: 1,
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
     paddingHorizontal: 20,
-    paddingTop: 18,
     paddingBottom: 0,
-    maxHeight: '88%',
   },
   header: {
     flexDirection: 'row',

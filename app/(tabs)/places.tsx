@@ -363,13 +363,11 @@ export default function PlacesScreen() {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 onSubmitEditing={() => {
-                  if (searchQuery.trim().length > 0) {
-                    setModalInitialTab('search');
-                    setModalInitialSearchQuery(searchQuery.trim());
-                    setModalVisible(true);
-                  }
+                  setModalInitialTab('search');
+                  setModalInitialSearchQuery(searchQuery.trim());
+                  setModalVisible(true);
                 }}
-                placeholder="장소명, 지역, 태그, 메모 검색..."
+                placeholder="보관함 검색 또는 새 장소 지도 검색..."
                 placeholderTextColor="#A0AEC0"
                 style={styles.searchInput}
                 returnKeyType="search"
@@ -377,10 +375,29 @@ export default function PlacesScreen() {
                 autoCorrect={false}
               />
               {searchQuery ? (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <TouchableOpacity onPress={() => setSearchQuery('')} style={{ paddingHorizontal: 6 }}>
                   <Text style={{ fontSize: 12, color: '#A0AEC0', fontWeight: 'bold' }}>✕</Text>
                 </TouchableOpacity>
               ) : null}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => {
+                  setModalInitialTab('search');
+                  setModalInitialSearchQuery(searchQuery.trim());
+                  setModalVisible(true);
+                }}
+                style={{
+                  backgroundColor: '#1B2A4A',
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  marginLeft: 4,
+                }}
+              >
+                <Text style={{ color: '#FFFFFF', fontSize: 11.5, fontWeight: '700' }}>
+                  지도 검색
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Online search prompt when search query entered */}
@@ -394,9 +411,9 @@ export default function PlacesScreen() {
                 style={styles.searchOnlinePrompt}
                 activeOpacity={0.8}
               >
-                <Search size={13} color="#E11D48" style={{ marginRight: 6 }} />
+                <Search size={13} color="#1B2A4A" style={{ marginRight: 6 }} />
                 <Text style={styles.searchOnlinePromptText} numberOfLines={1}>
-                  "{searchQuery}" 장소를 전체 구글맵에서 검색 및 저장 ↗
+                  "{searchQuery}" 지도에서 위치 검색 및 추가하기 ↗
                 </Text>
               </TouchableOpacity>
             )}
@@ -1108,18 +1125,18 @@ const styles = StyleSheet.create({
   searchOnlinePrompt: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#EEF2F8',
     borderWidth: 1,
     borderColor: '#CBD5E1',
     borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 9,
     marginBottom: 10,
   },
   searchOnlinePromptText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#E11D48',
+    color: '#1B2A4A',
     flex: 1,
   },
   addHeaderBtnUnified: {

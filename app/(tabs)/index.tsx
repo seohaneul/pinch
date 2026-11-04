@@ -22,6 +22,7 @@ import { ClipboardToast } from '../../src/components/places/ClipboardToast';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import { CreateTripModal } from '../../src/components/trip/CreateTripModal';
 import { LinkPlacesModal } from '../../src/components/places/LinkPlacesModal';
+import { PlaceSearchModal } from '../../src/components/places/PlaceSearchModal';
 import type { SavedLink } from '../../src/types';
 import { resolveDestinationCoverImage } from '../../src/services/destinationSearchService';
 import {
@@ -35,6 +36,7 @@ import {
   Plus,
   Edit3,
   Share2,
+  Search,
 } from '@/components/common/CustomIcons';
 
 export default function HomeScreen() {
@@ -46,6 +48,7 @@ export default function HomeScreen() {
   const [wizardEditMode, setWizardEditMode] = useState(false);
   const [wizardInitialStep, setWizardInitialStep] = useState<1 | 2 | 3 | 4>(1);
   const [selectedLinkForPlaces, setSelectedLinkForPlaces] = useState<SavedLink | null>(null);
+  const [placeSearchVisible, setPlaceSearchVisible] = useState(false);
   const [coverImageError, setCoverImageError] = useState(false);
 
   const { currentTrip, scheduleItems, getTripFlight, getDayLodging } = useTripStore();
@@ -175,6 +178,13 @@ export default function HomeScreen() {
             </TouchableOpacity>
 
             <View style={styles.topRightActions}>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => setPlaceSearchVisible(true)}
+                style={styles.headerIconBtn}
+              >
+                <Search size={19} color="#111827" />
+              </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.75}
                 onPress={() => openEditTripAtStep(1)}
@@ -390,6 +400,16 @@ export default function HomeScreen() {
                 {isExtractingLink ? '링크에서 장소 분석 중...' : '링크 분석하고 스팟 담기'}
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setPlaceSearchVisible(true)}
+              style={[styles.outlinedActionBtn, { marginTop: 8, backgroundColor: '#1B2A4A' }]}
+            >
+              <Text style={[styles.outlinedActionBtnText, { color: '#FFFFFF' }]}>
+                지도에서 위치 직접 검색하기
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* ==================== 메인 카드 3: 여행 설정 & 관리 ==================== */}
@@ -464,6 +484,12 @@ export default function HomeScreen() {
         visible={!!selectedLinkForPlaces}
         savedLink={selectedLinkForPlaces}
         onClose={() => setSelectedLinkForPlaces(null)}
+      />
+
+      {/* 레퍼런스 5번 스타일 풀스크린 지도 장소 검색 */}
+      <PlaceSearchModal
+        visible={placeSearchVisible}
+        onClose={() => setPlaceSearchVisible(false)}
       />
     </View>
   );

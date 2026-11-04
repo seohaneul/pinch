@@ -70,16 +70,16 @@ export function resolveDestinationCoverImage(name: string, country?: string): st
   if (q.includes('다낭') || q.includes('호이안') || q.includes('danang')) {
     return 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=1000&auto=format&fit=crop';
   }
-  if (q.includes('나트랑') || q.includes('냐짱') || q.includes('nhatrang')) {
+  if (q.includes('나트랑') || q.includes('냐짱') || q.includes('nhatrang') || q.includes('푸꾸옥')) {
     return 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1000&auto=format&fit=crop';
   }
-  if (q.includes('방콕') || q.includes('bangkok')) {
+  if (q.includes('방콕') || q.includes('bangkok') || q.includes('치앙마이')) {
     return 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=1000&auto=format&fit=crop';
   }
   if (q.includes('발리') || q.includes('bali')) {
     return 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1000&auto=format&fit=crop';
   }
-  if (q.includes('괌') || q.includes('guam')) {
+  if (q.includes('괌') || q.includes('guam') || q.includes('사이판')) {
     return 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1000&auto=format&fit=crop';
   }
   if (q.includes('하와이') || q.includes('hawaii') || q.includes('호놀룰루')) {
@@ -88,7 +88,7 @@ export function resolveDestinationCoverImage(name: string, country?: string): st
   if (q.includes('싱가포르') || q.includes('singapore')) {
     return 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=1000&auto=format&fit=crop';
   }
-  if (q.includes('타이베이') || q.includes('대만') || q.includes('taipei')) {
+  if (q.includes('타이베이') || q.includes('대만') || q.includes('taipei') || q.includes('홍콩')) {
     return 'https://images.unsplash.com/photo-1508247967583-7d982ea01526?w=1000&auto=format&fit=crop';
   }
 
@@ -99,16 +99,16 @@ export function resolveDestinationCoverImage(name: string, country?: string): st
   if (q.includes('런던') || q.includes('london') || q.includes('영국')) {
     return 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1000&auto=format&fit=crop';
   }
-  if (q.includes('로마') || q.includes('rome') || q.includes('이탈리아')) {
+  if (q.includes('로마') || q.includes('rome') || q.includes('이탈리아') || q.includes('피렌체') || q.includes('베네치아')) {
     return 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=1000&auto=format&fit=crop';
   }
-  if (q.includes('바르셀로나') || q.includes('barcelona') || q.includes('스페인')) {
+  if (q.includes('바르셀로나') || q.includes('barcelona') || q.includes('스페인') || q.includes('마드리드')) {
     return 'https://images.unsplash.com/photo-1583422409516-2895a77efded?w=1000&auto=format&fit=crop';
   }
-  if (q.includes('뉴욕') || q.includes('new york') || q.includes('미국')) {
+  if (q.includes('뉴욕') || q.includes('new york') || q.includes('미국') || q.includes('로스앤젤레스') || q.includes('la')) {
     return 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1000&auto=format&fit=crop';
   }
-  if (q.includes('시드니') || q.includes('sydney') || q.includes('호주')) {
+  if (q.includes('시드니') || q.includes('sydney') || q.includes('호주') || q.includes('멜버른')) {
     return 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=1000&auto=format&fit=crop';
   }
 
@@ -116,7 +116,7 @@ export function resolveDestinationCoverImage(name: string, country?: string): st
   return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1000&auto=format&fit=crop';
 }
 
-// 1. 기본 추천 인기 여행지 (상단 캐러셀 노출용)
+// 1. 기본 추천 인기 여행지 (상단 그리드 노출용)
 export const POPULAR_RECOMMENDED_DESTINATIONS: WorldwideDestination[] = [
   {
     id: 'tokyo',
@@ -127,7 +127,7 @@ export const POPULAR_RECOMMENDED_DESTINATIONS: WorldwideDestination[] = [
     admin1: '도쿄도',
     latitude: 35.6762,
     longitude: 139.6503,
-    defaultTitle: '도쿄 감성 카페 & 쇼핑 투어 🗼',
+    defaultTitle: '도쿄 감성 카페 & 쇼핑 투어',
     coverImage: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=1000&auto=format&fit=crop',
   },
   {
@@ -139,44 +139,8 @@ export const POPULAR_RECOMMENDED_DESTINATIONS: WorldwideDestination[] = [
     admin1: '오사카부',
     latitude: 34.6937,
     longitude: 135.5023,
-    defaultTitle: '오사카 먹방 & 교토 힐링 여행 🏯',
+    defaultTitle: '오사카 먹방 & 교토 힐링 여행',
     coverImage: 'https://images.unsplash.com/photo-1590559899731-a3f376dd4558?w=1000&auto=format&fit=crop',
-  },
-  {
-    id: 'guam',
-    name: '괌 (Guam)',
-    country: '미국',
-    countryCode: 'US',
-    flag: '🇬🇺',
-    admin1: '투몬',
-    latitude: 13.4443,
-    longitude: 144.7937,
-    defaultTitle: '에메랄드빛 괌 힐링 바캉스 🌴',
-    coverImage: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1000&auto=format&fit=crop',
-  },
-  {
-    id: 'jeju',
-    name: '제주도',
-    country: '대한민국',
-    countryCode: 'KR',
-    flag: '🇰🇷',
-    admin1: '제주특별자치도',
-    latitude: 33.4996,
-    longitude: 126.5312,
-    defaultTitle: '푸른 바다 제주 드라이브 🍊',
-    coverImage: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1000&auto=format&fit=crop',
-  },
-  {
-    id: 'danang',
-    name: '다낭 / 호이안',
-    country: '베트남',
-    countryCode: 'VN',
-    flag: '🇻🇳',
-    admin1: '다낭시',
-    latitude: 16.0544,
-    longitude: 108.2022,
-    defaultTitle: '가성비 최고 다낭 & 호이안 힐링 🏮',
-    coverImage: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=1000&auto=format&fit=crop',
   },
   {
     id: 'fukuoka',
@@ -187,20 +151,44 @@ export const POPULAR_RECOMMENDED_DESTINATIONS: WorldwideDestination[] = [
     admin1: '후쿠오카현',
     latitude: 33.5904,
     longitude: 130.4017,
-    defaultTitle: '후쿠오카 라멘 & 온천 투어 🍜',
+    defaultTitle: '후쿠오카 라멘 & 온천 투어',
     coverImage: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=1000&auto=format&fit=crop',
   },
   {
-    id: 'paris',
-    name: '파리 (Paris)',
-    country: '프랑스',
-    countryCode: 'FR',
-    flag: '🇫🇷',
-    admin1: '일드프랑스',
-    latitude: 48.8566,
-    longitude: 2.3522,
-    defaultTitle: '낭만의 도시 파리 예술 여행 🥐',
-    coverImage: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1000&auto=format&fit=crop',
+    id: 'sapporo',
+    name: '삿포로 (Sapporo)',
+    country: '일본',
+    countryCode: 'JP',
+    flag: '🇯🇵',
+    admin1: '홋카이도',
+    latitude: 43.0618,
+    longitude: 141.3545,
+    defaultTitle: '삿포로 설경 & 미식 여행',
+    coverImage: 'https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1000&auto=format&fit=crop',
+  },
+  {
+    id: 'guam',
+    name: '괌 (Guam)',
+    country: '미국',
+    countryCode: 'US',
+    flag: '🇬🇺',
+    admin1: '투몬',
+    latitude: 13.4443,
+    longitude: 144.7937,
+    defaultTitle: '에메랄드빛 괌 힐링 바캉스',
+    coverImage: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1000&auto=format&fit=crop',
+  },
+  {
+    id: 'danang',
+    name: '다낭 / 호이안',
+    country: '베트남',
+    countryCode: 'VN',
+    flag: '🇻🇳',
+    admin1: '다낭시',
+    latitude: 16.0544,
+    longitude: 108.2022,
+    defaultTitle: '다낭 & 호이안 리조트 힐링',
+    coverImage: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=1000&auto=format&fit=crop',
   },
   {
     id: 'bangkok',
@@ -211,20 +199,44 @@ export const POPULAR_RECOMMENDED_DESTINATIONS: WorldwideDestination[] = [
     admin1: '방콕',
     latitude: 13.7563,
     longitude: 100.5018,
-    defaultTitle: '방콕 미식 & 야시장 투어 🇹🇭',
+    defaultTitle: '방콕 미식 & 야시장 투어',
     coverImage: 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=1000&auto=format&fit=crop',
   },
   {
-    id: 'newyork',
-    name: '뉴욕 (New York)',
-    country: '미국',
-    countryCode: 'US',
-    flag: '🇺🇸',
-    admin1: '뉴욕주',
-    latitude: 40.7128,
-    longitude: -74.006,
-    defaultTitle: '잠들지 않는 도시 뉴욕 투어 🗽',
-    coverImage: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1000&auto=format&fit=crop',
+    id: 'taipei',
+    name: '타이베이 (Taipei)',
+    country: '대만',
+    countryCode: 'TW',
+    flag: '🇹🇼',
+    admin1: '타이베이시',
+    latitude: 25.033,
+    longitude: 121.5654,
+    defaultTitle: '타이베이 야시장 & 감성 여행',
+    coverImage: 'https://images.unsplash.com/photo-1508247967583-7d982ea01526?w=1000&auto=format&fit=crop',
+  },
+  {
+    id: 'jeju',
+    name: '제주도 (Jeju)',
+    country: '대한민국',
+    countryCode: 'KR',
+    flag: '🇰🇷',
+    admin1: '제주특별자치도',
+    latitude: 33.4996,
+    longitude: 126.5312,
+    defaultTitle: '푸른 바다 제주 드라이브',
+    coverImage: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1000&auto=format&fit=crop',
+  },
+  {
+    id: 'paris',
+    name: '파리 (Paris)',
+    country: '프랑스',
+    countryCode: 'FR',
+    flag: '🇫🇷',
+    admin1: '일드프랑스',
+    latitude: 48.8566,
+    longitude: 2.3522,
+    defaultTitle: '낭만의 도시 파리 예술 여행',
+    coverImage: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1000&auto=format&fit=crop',
   },
   {
     id: 'london',
@@ -235,20 +247,8 @@ export const POPULAR_RECOMMENDED_DESTINATIONS: WorldwideDestination[] = [
     admin1: '잉글랜드',
     latitude: 51.5074,
     longitude: -0.1278,
-    defaultTitle: '클래식한 런던 박물관 & 뮤지컬 🇬🇧',
+    defaultTitle: '클래식한 런던 여행',
     coverImage: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1000&auto=format&fit=crop',
-  },
-  {
-    id: 'barcelona',
-    name: '바르셀로나 (Barcelona)',
-    country: '스페인',
-    countryCode: 'ES',
-    flag: '🇪🇸',
-    admin1: '카탈루냐',
-    latitude: 41.3851,
-    longitude: 2.1734,
-    defaultTitle: '가우디 건축과 지중해 바르셀로나 🇪🇸',
-    coverImage: 'https://images.unsplash.com/photo-1583422409516-2895a77efded?w=1000&auto=format&fit=crop',
   },
   {
     id: 'bali',
@@ -259,28 +259,245 @@ export const POPULAR_RECOMMENDED_DESTINATIONS: WorldwideDestination[] = [
     admin1: '발리주',
     latitude: -8.4095,
     longitude: 115.1889,
-    defaultTitle: '지상낙원 발리 리조트 & 선셋 🏄',
+    defaultTitle: '지상낙원 발리 리조트 & 선셋',
     coverImage: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1000&auto=format&fit=crop',
   },
 ];
 
+// 전세계 주요 도시 & 국가 통합 사전 (한국어 검색 즉시 응답 보장)
+const EXTENDED_DESTINATIONS_DB: WorldwideDestination[] = [
+  ...POPULAR_RECOMMENDED_DESTINATIONS,
+  {
+    id: 'kyoto',
+    name: '교토 (Kyoto)',
+    country: '일본',
+    countryCode: 'JP',
+    flag: '🇯🇵',
+    admin1: '교토부',
+    latitude: 35.0116,
+    longitude: 135.7681,
+    defaultTitle: '교토 전통 거리 & 사찰 여행',
+    coverImage: resolveDestinationCoverImage('교토', '일본'),
+  },
+  {
+    id: 'okinawa',
+    name: '오키나와 (Okinawa)',
+    country: '일본',
+    countryCode: 'JP',
+    flag: '🇯🇵',
+    admin1: '오키나와현',
+    latitude: 26.2124,
+    longitude: 127.6809,
+    defaultTitle: '오키나와 에메랄드 바다 드라이브',
+    coverImage: resolveDestinationCoverImage('오키나와', '일본'),
+  },
+  {
+    id: 'nagoya',
+    name: '나고야 (Nagoya)',
+    country: '일본',
+    countryCode: 'JP',
+    flag: '🇯🇵',
+    admin1: '아이치현',
+    latitude: 35.1815,
+    longitude: 136.9066,
+    defaultTitle: '나고야 미식 & 지브리 파크 여행',
+    coverImage: resolveDestinationCoverImage('도쿄', '일본'),
+  },
+  {
+    id: 'seoul',
+    name: '서울 (Seoul)',
+    country: '대한민국',
+    countryCode: 'KR',
+    flag: '🇰🇷',
+    admin1: '서울특별시',
+    latitude: 37.5665,
+    longitude: 126.978,
+    defaultTitle: '서울 핫플 & 미식 투어',
+    coverImage: resolveDestinationCoverImage('서울', '대한민국'),
+  },
+  {
+    id: 'busan',
+    name: '부산 (Busan)',
+    country: '대한민국',
+    countryCode: 'KR',
+    flag: '🇰🇷',
+    admin1: '부산광역시',
+    latitude: 35.1796,
+    longitude: 129.0756,
+    defaultTitle: '부산 해운대 & 광안리 바다 여행',
+    coverImage: resolveDestinationCoverImage('부산', '대한민국'),
+  },
+  {
+    id: 'gangneung',
+    name: '강릉 / 속초',
+    country: '대한민국',
+    countryCode: 'KR',
+    flag: '🇰🇷',
+    admin1: '강원특별자치도',
+    latitude: 37.7519,
+    longitude: 128.8761,
+    defaultTitle: '동해 바다 강릉 & 속초 힐링 여행',
+    coverImage: resolveDestinationCoverImage('강릉', '대한민국'),
+  },
+  {
+    id: 'gyeongju',
+    name: '경주 (Gyeongju)',
+    country: '대한민국',
+    countryCode: 'KR',
+    flag: '🇰🇷',
+    admin1: '경상북도',
+    latitude: 35.8562,
+    longitude: 129.2247,
+    defaultTitle: '경주 황리단길 & 야경 투어',
+    coverImage: resolveDestinationCoverImage('경주', '대한민국'),
+  },
+  {
+    id: 'nhatrang',
+    name: '나트랑 / 냐짱 (Nha Trang)',
+    country: '베트남',
+    countryCode: 'VN',
+    flag: '🇻🇳',
+    admin1: '카인호아주',
+    latitude: 12.2388,
+    longitude: 109.1967,
+    defaultTitle: '나트랑 휴양 리조트 여행',
+    coverImage: resolveDestinationCoverImage('나트랑', '베트남'),
+  },
+  {
+    id: 'phuquoc',
+    name: '푸꾸옥 (Phu Quoc)',
+    country: '베트남',
+    countryCode: 'VN',
+    flag: '🇻🇳',
+    admin1: '끼엔장성',
+    latitude: 10.2899,
+    longitude: 103.984,
+    defaultTitle: '푸꾸옥 선셋 & 리조트 바캉스',
+    coverImage: resolveDestinationCoverImage('푸꾸옥', '베트남'),
+  },
+  {
+    id: 'singapore',
+    name: '싱가포르 (Singapore)',
+    country: '싱가포르',
+    countryCode: 'SG',
+    flag: '🇸🇬',
+    admin1: '싱가포르',
+    latitude: 1.3521,
+    longitude: 103.8198,
+    defaultTitle: '싱가포르 야경 & 미식 여행',
+    coverImage: resolveDestinationCoverImage('싱가포르', '싱가포르'),
+  },
+  {
+    id: 'hongkong',
+    name: '홍콩 / 마카오',
+    country: '홍콩',
+    countryCode: 'HK',
+    flag: '🇭🇰',
+    admin1: '홍콩',
+    latitude: 22.3193,
+    longitude: 114.1694,
+    defaultTitle: '홍콩 야경 & 딤섬 투어',
+    coverImage: resolveDestinationCoverImage('홍콩', '홍콩'),
+  },
+  {
+    id: 'hawaii',
+    name: '하와이 호놀룰루 (Hawaii)',
+    country: '미국',
+    countryCode: 'US',
+    flag: '🇺🇸',
+    admin1: '하와이주',
+    latitude: 21.3069,
+    longitude: -157.8583,
+    defaultTitle: '하와이 와이키키 비치 & 드라이브',
+    coverImage: resolveDestinationCoverImage('하와이', '미국'),
+  },
+  {
+    id: 'newyork',
+    name: '뉴욕 (New York)',
+    country: '미국',
+    countryCode: 'US',
+    flag: '🇺🇸',
+    admin1: '뉴욕주',
+    latitude: 40.7128,
+    longitude: -74.006,
+    defaultTitle: '잠들지 않는 도시 뉴욕 투어',
+    coverImage: resolveDestinationCoverImage('뉴욕', '미국'),
+  },
+  {
+    id: 'la',
+    name: '로스앤젤레스 (LA)',
+    country: '미국',
+    countryCode: 'US',
+    flag: '🇺🇸',
+    admin1: '캘리포니아주',
+    latitude: 34.0522,
+    longitude: -118.2437,
+    defaultTitle: 'LA 할리우드 & 산타모니카 여행',
+    coverImage: resolveDestinationCoverImage('뉴욕', '미국'),
+  },
+  {
+    id: 'rome',
+    name: '로마 (Rome)',
+    country: '이탈리아',
+    countryCode: 'IT',
+    flag: '🇮🇹',
+    admin1: '라치오',
+    latitude: 41.9028,
+    longitude: 12.4964,
+    defaultTitle: '로마 역사 & 미식 투어',
+    coverImage: resolveDestinationCoverImage('로마', '이탈리아'),
+  },
+  {
+    id: 'barcelona',
+    name: '바르셀로나 (Barcelona)',
+    country: '스페인',
+    countryCode: 'ES',
+    flag: '🇪🇸',
+    admin1: '카탈루냐',
+    latitude: 41.3851,
+    longitude: 2.1734,
+    defaultTitle: '가우디 건축과 지중해 바르셀로나',
+    coverImage: resolveDestinationCoverImage('바르셀로나', '스페인'),
+  },
+  {
+    id: 'sydney',
+    name: '시드니 (Sydney)',
+    country: '호주',
+    countryCode: 'AU',
+    flag: '🇦🇺',
+    admin1: '뉴사우스웨일스',
+    latitude: -33.8688,
+    longitude: 151.2093,
+    defaultTitle: '시드니 오페라하우스 & 비치 여행',
+    coverImage: resolveDestinationCoverImage('시드니', '호주'),
+  },
+];
+
 /**
- * 2. 전세계 모든 도시 실시간 검색 (Open-Meteo Geocoding API)
- * - 100% 무료, API 키 불필요
- * - 한국어(ko) 및 영어, 현지어 지원
- * - 도시명, 국가, 위경도 좌표 실시간 취득
+ * 2. 전세계 모든 도시 실시간 검색 (한국어 사전 우선 매칭 + Open-Meteo Geocoding 결합)
  */
 export async function searchWorldwideDestinations(query: string): Promise<WorldwideDestination[]> {
   const cleanQuery = query.trim();
   if (!cleanQuery) return POPULAR_RECOMMENDED_DESTINATIONS;
 
+  const q = cleanQuery.toLowerCase();
+
+  // 1차: 내장 한국어/영어 사전에서 도시명·국가명·지역명 매칭
+  const localMatches = EXTENDED_DESTINATIONS_DB.filter(
+    (item) =>
+      item.name.toLowerCase().includes(q) ||
+      item.country.toLowerCase().includes(q) ||
+      (item.admin1 && item.admin1.toLowerCase().includes(q))
+  );
+
+  // 2차: Open-Meteo Geocoding API 조회하여 병합
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
 
     const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
       cleanQuery
-    )}&count=15&language=ko&format=json`;
+    )}&count=12&language=ko&format=json`;
 
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
@@ -288,43 +505,50 @@ export async function searchWorldwideDestinations(query: string): Promise<Worldw
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.results) && data.results.length > 0) {
-        return data.results.map((item: any) => {
-          const flag = getCountryFlag(item.country_code);
-          const countryName = item.country || item.country_code || '해외';
-          const coverImage = resolveDestinationCoverImage(item.name, countryName);
-          const defaultTitle = `${item.name} ${flag} 힐링 여행 ✈️`;
+        const apiItems: WorldwideDestination[] = data.results
+          .filter((item: any) => item.country_code !== 'KP')
+          .map((item: any) => {
+            const flag = getCountryFlag(item.country_code);
+            const countryName = item.country || item.country_code || '해외';
+            const coverImage = resolveDestinationCoverImage(item.name, countryName);
+            const defaultTitle = `${item.name} 여행`;
 
-          return {
-            id: `geo_${item.id || Math.random().toString(36).substring(7)}`,
-            name: item.name,
-            country: countryName,
-            countryCode: item.country_code || '',
-            flag,
-            admin1: item.admin1,
-            latitude: Number(item.latitude),
-            longitude: Number(item.longitude),
-            defaultTitle,
-            coverImage,
-          };
-        });
+            return {
+              id: `geo_${item.id || Math.random().toString(36).substring(7)}`,
+              name: item.name,
+              country: countryName,
+              countryCode: item.country_code || '',
+              flag,
+              admin1: item.admin1,
+              latitude: Number(item.latitude),
+              longitude: Number(item.longitude),
+              defaultTitle,
+              coverImage,
+            };
+          });
+
+        const merged = [...localMatches];
+        for (const apiItem of apiItems) {
+          if (
+            !merged.some(
+              (m) =>
+                m.name.toLowerCase().includes(apiItem.name.toLowerCase()) ||
+                apiItem.name.toLowerCase().includes(m.name.split(' ')[0].toLowerCase())
+            )
+          ) {
+            merged.push(apiItem);
+          }
+        }
+        if (merged.length > 0) return merged.slice(0, 15);
       }
     }
   } catch (err) {
-    console.log('[DestinationSearch] Open-Meteo search failed, falling back to local filter:', err);
+    console.log('[DestinationSearch] Open-Meteo search fallback:', err);
   }
 
-  // API 실패 시 로컬 인기 목록에서 텍스트 필터링
-  const q = cleanQuery.toLowerCase();
-  const matched = POPULAR_RECOMMENDED_DESTINATIONS.filter(
-    (item) =>
-      item.name.toLowerCase().includes(q) ||
-      item.country.toLowerCase().includes(q) ||
-      (item.admin1 && item.admin1.toLowerCase().includes(q))
-  );
+  if (localMatches.length > 0) return localMatches;
 
-  if (matched.length > 0) return matched;
-
-  // 검색 결과가 아예 없더라도 사용자가 직접 입력한 도시로 즉석 생성
+  // 검색 결과가 없더라도 사용자가 입력한 도시로 즉석 생성
   return [
     {
       id: `custom_${Date.now()}`,
@@ -334,7 +558,7 @@ export async function searchWorldwideDestinations(query: string): Promise<Worldw
       flag: '✈️',
       latitude: 35.6762,
       longitude: 139.6503,
-      defaultTitle: `${cleanQuery} 힐링 여행 ✈️`,
+      defaultTitle: `${cleanQuery} 여행`,
       coverImage: resolveDestinationCoverImage(cleanQuery),
     },
   ];
