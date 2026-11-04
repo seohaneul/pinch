@@ -18,17 +18,18 @@ import {
   X,
   Calendar as CalendarIcon,
   MapPin,
-  Sparkles,
-  DollarSign,
   Users,
   Check,
   Search,
-  Plus,
-  Globe,
+  ChevronLeft,
+  Plane,
+  Hotel,
+  Coins,
 } from '@/components/common/CustomIcons';
 import { useRouter } from 'expo-router';
-import type { Trip } from '../../types';
+import type { Trip, FlightInfo, LodgingInfo } from '../../types';
 import { useTripStore } from '../../store/useTripStore';
+import { useWalletStore } from '../../store/useWalletStore';
 import { CalendarRangePicker } from '../common/CalendarRangePicker';
 import { PStyleCourseModal } from './PStyleCourseModal';
 import {
@@ -41,29 +42,61 @@ interface CreateTripModalProps {
   visible: boolean;
   onClose: () => void;
   onCreated?: (tripId: string) => void;
+  editTrip?: Trip | null;
+  isOnboarding?: boolean;
+  initialStep?: 1 | 2 | 3 | 4;
 }
 
 export type DestinationItem = WorldwideDestination;
-
 export const POPULAR_DESTINATIONS: DestinationItem[] = POPULAR_RECOMMENDED_DESTINATIONS;
 
+const ORIGIN_AIRPORTS = ['인천 (ICN)', '김포 (GMP)', '김해/부산 (PUS)', '제주 (CJU)'];
+const DEST_AIRPORTS = [
+  '도쿄 나리타 (NRT)',
+  '도쿄 하네다 (HND)',
+  '오사카 간사이 (KIX)',
+  '후쿠오카 (FUK)',
+  '방콕 수완나품 (BKK)',
+  '다낭 (DAD)',
+  '괌 (GUM)',
+  '파리 샤를드골 (CDG)',
+];
 
-// 콤마 포맷터
-function formatNumberWithCommas(val: string | number): string {
-  const digits = String(val).replace(/[^0-9]/g, '');
-  if (!digits) return '';
-  return Number(digits).toLocaleString('ko-KR');
-}
+const CURRENCY_OPTIONS: { code: 'JPY' | 'USD' | 'EUR' | 'KRW'; label: string; symbol: string }[] = [
+  { code: 'JPY', label: '일본 엔화', symbol: '¥ JPY' },
+  { code: 'USD', label: '미국 달러', symbol: '$ USD' },
+  { code: 'EUR', label: '유럽 유로', symbol: '€ EUR' },
+  { code: 'KRW', label: '대한민국 원', symbol: '₩ KRW' },
+];
 
 export const CreateTripModal: React.FC<CreateTripModalProps> = ({
   visible,
   onClose,
   onCreated,
+  editTrip = null,
+  isOnboarding = false,
+  initialStep = 1,
 }) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { createTrip } = useTripStore();
+  const {
+    createTrip,
+    updateTrip,
+    getTripFlight,
+    setTripFlight,
+    deleteTripFlight,
+    getDayLodging,
+    setRangeLodging,
+    setHasCompletedOnboarding,
+  } = useTripStore();
+  const { setTripCurrency, getTripCurrency } = useWalletStore();
 
+  const isEditMode = !!editTrip;
+
+  // Step state: 1 (나라/도시), 2 (날짜), 3 (항공편 - 선택), 4 (숙소/동행자 - 선택)
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(initialStep);
+
+  // Step 1: 나라 / 도시 및 여행 제목
   const [selectedDestination, setSelectedDestination] = useState<WorldwideDestination>(
     POPULAR_RECOMMENDED_DESTINATIONS[0]
   );
@@ -73,20 +106,102 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
   );
   const [isSearching, setIsSearching] = useState(false);
   const [destination, setDestination] = useState(POPULAR_RECOMMENDED_DESTINATIONS[0].name);
-  const [title, setTitle] = useState(POPULAR_RECOMMENDED_DESTINATIONS[0].defaultTitle);
+  const [title, setTitle] = useState(POPULAR_RECOMMENDED_DESTINATIONS[0].defaultTitle.replace(/[^\w\sㄱ-ㅎㅏ-ㅣ가-힣&·-]/g, '').trim());
 
-  // 날짜 선택 상태 및 캘린더 모달
+  // Step 2: 날짜
   const [startDate, setStartDate] = useState('2026-12-01');
   const [endDate, setEndDate] = useState('2026-12-04');
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
+
+  // Step 3: 비행기 (나중에 설정 가능)
+  const [skipFlight, setSkipFlight] = useState(false);
+  const [depAirport, setDepAirport] = useState('인천 (ICN)');
+  const [arrAirport, setArrAirport] = useState('도쿄 나리타 (NRT)');
+  const [outFlightNumber, setOutFlightNumber] = useState('');
+  const [outDepTime, setOutDepTime] = useState('10:00');
+  const [outArrTime, setOutArrTime] = useState('12:30');
+  const [retFlightNumber, setRetFlightNumber] = useState('');
+  const [retDepTime, setRetDepTime] = useState('16:00');
+  const [retArrTime, setRetArrTime] = useState('18:30');
+
+  // Step 4: 숙소 & 동행자 & 통화 (나중에 설정 가능)
+  const [lodgingName, setLodgingName] = useState('');
+  const [lodgingAddress, setLodgingAddress] = useState('');
+  const [memberInput, setMemberInput] = useState('나');
+  const [currency, setCurrency] = useState<'JPY' | 'USD' | 'EUR' | 'KRW'>('JPY');
 
   // P형 맞춤 추천 코스 모달 상태
   const [createdTrip, setCreatedTrip] = useState<Trip | null>(null);
   const [showPStyleModal, setShowPStyleModal] = useState(false);
 
-  const [memberInput, setMemberInput] = useState('나, 지은, 민혁');
+  // 모달 열릴 때 초기값 세팅 (생성 모드 vs 수정 모드)
+  useEffect(() => {
+    if (!visible) return;
+    setStep(initialStep);
 
-  // 실시간 전세계 도시 검색 (Open-Meteo Geocoding API + 디바운스 250ms)
+    if (editTrip) {
+      setDestination(editTrip.destination || '');
+      setTitle(editTrip.title || '');
+      setStartDate(editTrip.startDate || '2026-12-01');
+      setEndDate(editTrip.endDate || '2026-12-04');
+
+      const matchedDest = POPULAR_RECOMMENDED_DESTINATIONS.find(
+        (d) => d.name === editTrip.destination || editTrip.destination?.includes(d.name)
+      );
+      if (matchedDest) {
+        setSelectedDestination(matchedDest);
+      }
+
+      const existingFlight = getTripFlight(editTrip.id);
+      if (existingFlight?.outbound) {
+        setSkipFlight(false);
+        setDepAirport(existingFlight.outbound.departureAirport || '인천 (ICN)');
+        setArrAirport(existingFlight.outbound.arrivalAirport || '도쿄 나리타 (NRT)');
+        setOutFlightNumber(existingFlight.outbound.flightNumber || '');
+        setOutDepTime(existingFlight.outbound.departureTime || '10:00');
+        setOutArrTime(existingFlight.outbound.arrivalTime || '12:30');
+        setRetFlightNumber(existingFlight.returnFlight?.flightNumber || '');
+        setRetDepTime(existingFlight.returnFlight?.departureTime || '16:00');
+        setRetArrTime(existingFlight.returnFlight?.arrivalTime || '18:30');
+      } else {
+        setSkipFlight(true);
+        setOutFlightNumber('');
+        setRetFlightNumber('');
+      }
+
+      const existingLodging = editTrip.lodging || getDayLodging(1);
+      setLodgingName(existingLodging?.name || '');
+      setLodgingAddress(existingLodging?.address || '');
+
+      const memberNames =
+        editTrip.members && editTrip.members.length > 0
+          ? editTrip.members.map((m) => m.name).join(', ')
+          : '나';
+      setMemberInput(memberNames);
+
+      const tripCur = editTrip.currency || getTripCurrency(editTrip.id) || 'JPY';
+      setCurrency(tripCur);
+    } else {
+      const def = POPULAR_RECOMMENDED_DESTINATIONS[0];
+      setSelectedDestination(def);
+      setDestination(def.name);
+      setTitle(`${def.name} 여행`);
+      const today = new Date();
+      const s = new Date(today.getTime() + 86400000 * 7);
+      const e = new Date(today.getTime() + 86400000 * 10);
+      setStartDate(s.toISOString().slice(0, 10));
+      setEndDate(e.toISOString().slice(0, 10));
+      setSkipFlight(false);
+      setOutFlightNumber('');
+      setRetFlightNumber('');
+      setLodgingName('');
+      setLodgingAddress('');
+      setMemberInput('나');
+      setCurrency('JPY');
+    }
+  }, [visible, editTrip?.id, initialStep]);
+
+  // 실시간 전세계 도시 검색
   useEffect(() => {
     const q = searchQuery.trim();
     if (!q) {
@@ -100,8 +215,8 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
       try {
         const results = await searchWorldwideDestinations(q);
         setSearchResults(results);
-      } catch (e) {
-        console.log('[CreateTripModal] Search error:', e);
+      } catch {
+        // ignore
       } finally {
         setIsSearching(false);
       }
@@ -110,28 +225,223 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // 여행지 선택 핸들러
   const handleSelectDestination = (dest: WorldwideDestination) => {
     setSelectedDestination(dest);
     setDestination(dest.name);
-    setTitle(dest.defaultTitle);
+    setTitle(`${dest.name} 여행`);
+    if (dest.country.includes('일본')) {
+      setCurrency('JPY');
+      if (dest.name.includes('오사카') || dest.name.includes('교토')) {
+        setArrAirport('오사카 간사이 (KIX)');
+      } else if (dest.name.includes('후쿠오카')) {
+        setArrAirport('후쿠오카 (FUK)');
+      } else {
+        setArrAirport('도쿄 나리타 (NRT)');
+      }
+    } else if (dest.country.includes('미국') || dest.name.includes('괌') || dest.name.includes('하와이')) {
+      setCurrency('USD');
+    } else if (dest.country.includes('프랑스') || dest.country.includes('유럽') || dest.country.includes('이탈리아')) {
+      setCurrency('EUR');
+    } else if (dest.country.includes('한국') || dest.name.includes('제주')) {
+      setCurrency('KRW');
+    }
   };
 
-  // 검색창에 직접 입력한 여행지로 설정
   const handleUseCustomDestination = () => {
     const trimmed = searchQuery.trim();
     if (!trimmed) return;
     setDestination(trimmed);
-    setTitle(`${trimmed} 힐링 여행 ✈️`);
+    setTitle(`${trimmed} 여행`);
   };
 
-  // 날짜 범위 확정
-  const handleConfirmDates = (start: string, end: string) => {
-    setStartDate(start);
-    setEndDate(end);
+  const applyQuickDuration = (nights: number) => {
+    try {
+      const s = new Date(startDate);
+      const e = new Date(s.getTime() + nights * 86400000);
+      setEndDate(e.toISOString().slice(0, 10));
+    } catch {
+      // ignore
+    }
   };
 
-  // P형 맞춤 코스 모달 닫기
+  const durationSummary = useMemo(() => {
+    try {
+      const s = new Date(startDate);
+      const e = new Date(endDate);
+      const diffDays = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays === 0) return '당일치기';
+      if (diffDays > 0) return `${diffDays}박 ${diffDays + 1}일`;
+      return '';
+    } catch {
+      return '';
+    }
+  }, [startDate, endDate]);
+
+  const totalDaysCount = useMemo(() => {
+    try {
+      const s = new Date(startDate);
+      const e = new Date(endDate);
+      return Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000) + 1);
+    } catch {
+      return 1;
+    }
+  }, [startDate, endDate]);
+
+  const handleNextStep = () => {
+    if (step === 1) {
+      if (!destination.trim()) {
+        Alert.alert('알림', '여행할 나라 또는 도시를 선택해주세요.');
+        return;
+      }
+      if (!title.trim()) {
+        setTitle(`${destination.trim()} 여행`);
+      }
+      setStep(2);
+    } else if (step === 2) {
+      if (new Date(startDate) > new Date(endDate)) {
+        Alert.alert('알림', '도착일은 출발일 이후여야 합니다.');
+        return;
+      }
+      setStep(3);
+    } else if (step === 3) {
+      setStep(4);
+    } else {
+      handleFinalSubmit();
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (step > 1) {
+      setStep((prev) => (prev - 1) as 1 | 2 | 3 | 4);
+    } else if (!isOnboarding) {
+      onClose();
+    }
+  };
+
+  const saveFlightAndLodgingForTrip = (targetTripId: string, tStart: string, tEnd: string, daysCount: number) => {
+    // 1. 항공편 저장 (입력된 경우)
+    const hasFlightInput =
+      !skipFlight && (outFlightNumber.trim().length > 0 || depAirport.trim().length > 0);
+    if (hasFlightInput && outFlightNumber.trim().length > 0) {
+      const flightObj: FlightInfo = {
+        outbound: {
+          flightNumber: outFlightNumber.trim() || '항공편',
+          departureAirport: depAirport.trim() || '인천 (ICN)',
+          departureDate: tStart,
+          departureTime: outDepTime.trim() || '10:00',
+          arrivalAirport: arrAirport.trim() || `${destination} 공항`,
+          arrivalDate: tStart,
+          arrivalTime: outArrTime.trim() || '12:30',
+          bufferMinutes: 90,
+        },
+        returnFlight: retFlightNumber.trim()
+          ? {
+              flightNumber: retFlightNumber.trim(),
+              departureAirport: arrAirport.trim() || `${destination} 공항`,
+              departureDate: tEnd,
+              departureTime: retDepTime.trim() || '16:00',
+              arrivalAirport: depAirport.trim() || '인천 (ICN)',
+              arrivalDate: tEnd,
+              arrivalTime: retArrTime.trim() || '18:30',
+            }
+          : undefined,
+        autoAddToSchedule: true,
+      };
+      setTripFlight(targetTripId, flightObj);
+    } else if (isEditMode && skipFlight) {
+      deleteTripFlight(targetTripId);
+    }
+
+    // 2. 숙소 저장 (입력된 경우)
+    if (lodgingName.trim()) {
+      const lodgingObj: LodgingInfo = {
+        id: `lodging_${targetTripId}`,
+        trip_id: targetTripId,
+        name: lodgingName.trim(),
+        address: lodgingAddress.trim() || destination.trim(),
+        startDate: tStart,
+        endDate: tEnd,
+        stayNights: Math.max(1, daysCount - 1),
+        startDay: 1,
+        endDay: daysCount,
+        checkInTime: '15:00',
+        checkOutTime: '11:00',
+        latitude: selectedDestination.latitude,
+        longitude: selectedDestination.longitude,
+      };
+      setRangeLodging(targetTripId, lodgingObj, 1, daysCount);
+      updateTrip(targetTripId, { lodging: lodgingObj });
+    }
+
+    // 3. 통화 저장
+    setTripCurrency(targetTripId, currency);
+  };
+
+  const handleFinalSubmit = () => {
+    const cleanDest = destination.trim() || '도쿄';
+    const cleanTitle = title.trim() || `${cleanDest} 여행`;
+    const members = memberInput
+      .split(',')
+      .map((m) => m.trim())
+      .filter(Boolean);
+    const finalMembers = members.length > 0 ? members : ['나'];
+
+    if (isEditMode && editTrip) {
+      const updatedMembers = finalMembers.map((name, idx) => ({
+        id: editTrip.members?.[idx]?.id || `m_${Date.now()}_${idx}`,
+        name,
+        color: ['#1B2A4A', '#2B50AA', '#3B82F6', '#6366F1', '#0D9488'][idx % 5],
+      }));
+
+      updateTrip(editTrip.id, {
+        title: cleanTitle,
+        destination: cleanDest,
+        startDate,
+        endDate,
+        coverImage:
+          selectedDestination.name === cleanDest
+            ? selectedDestination.coverImage
+            : editTrip.coverImage,
+        members: updatedMembers,
+        currency,
+        centerLat:
+          selectedDestination.name === cleanDest
+            ? selectedDestination.latitude
+            : editTrip.centerLat,
+        centerLng:
+          selectedDestination.name === cleanDest
+            ? selectedDestination.longitude
+            : editTrip.centerLng,
+      });
+
+      saveFlightAndLodgingForTrip(editTrip.id, startDate, endDate, totalDaysCount);
+      setHasCompletedOnboarding(true);
+      onClose();
+      if (onCreated) onCreated(editTrip.id);
+      return;
+    }
+
+    // 신규 여행 생성
+    const newTrip = createTrip({
+      title: cleanTitle,
+      destination: cleanDest,
+      startDate,
+      endDate,
+      budget: 0,
+      coverImage: selectedDestination.coverImage,
+      memberNames: finalMembers,
+      centerLat: selectedDestination.latitude,
+      centerLng: selectedDestination.longitude,
+      currency,
+    });
+
+    saveFlightAndLodgingForTrip(newTrip.id, startDate, endDate, totalDaysCount);
+    setHasCompletedOnboarding(true);
+
+    setCreatedTrip(newTrip);
+    setShowPStyleModal(true);
+  };
+
   const handlePStyleClose = () => {
     const tripId = createdTrip?.id;
     setShowPStyleModal(false);
@@ -140,7 +450,6 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     if (tripId && onCreated) onCreated(tripId);
   };
 
-  // P형 맞춤 코스 모달 생성 완료
   const handlePStyleCompleted = () => {
     const tripId = createdTrip?.id;
     setShowPStyleModal(false);
@@ -150,315 +459,582 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     router.push('/(tabs)/planner');
   };
 
-  // 여행 생성 제출
-  const handleCreate = () => {
-    if (!title.trim()) {
-      Alert.alert('알림', '여행 제목을 입력해 주세요.');
-      return;
-    }
-    if (!destination.trim()) {
-      Alert.alert('알림', '여행지를 선택하거나 입력해 주세요.');
-      return;
-    }
-    if (new Date(startDate) > new Date(endDate)) {
-      Alert.alert('알림', '종료일은 시작일보다 빠를 수 없습니다.');
-      return;
-    }
-
-    const members = memberInput
-      .split(',')
-      .map((m) => m.trim())
-      .filter(Boolean);
-
-    const newTrip = createTrip({
-      title: title.trim(),
-      destination: destination.trim(),
-      startDate,
-      endDate,
-      budget: 0,
-      coverImage: selectedDestination.coverImage,
-      memberNames: members.length > 0 ? members : ['나 (민지)', '수현'],
-      centerLat: selectedDestination.latitude,
-      centerLng: selectedDestination.longitude,
-    });
-
-    // P형 맞춤 코스 온보딩 팝업 실행 (2번 UX 단독 적용)
-    setCreatedTrip(newTrip);
-    setShowPStyleModal(true);
-  };
-
-  // 여행 기간 계산 (N박 M일)
-  const durationSummary = useMemo(() => {
-    try {
-      const s = new Date(startDate);
-      const e = new Date(endDate);
-      const diffTime = e.getTime() - s.getTime();
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays === 0) return '당일치기';
-      if (diffDays > 0) return `${diffDays}박 ${diffDays + 1}일`;
-      return '';
-    } catch {
-      return '';
-    }
-  }, [startDate, endDate]);
-
   return (
     <>
-      <Modal visible={visible && !showPStyleModal} animationType="slide" transparent={true} onRequestClose={onClose}>
+      <Modal
+        visible={visible && !showPStyleModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => {
+          if (!isOnboarding) onClose();
+        }}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={[styles.keyboardContainer, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}
+          style={[
+            styles.screenContainer,
+            { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 16) },
+          ]}
         >
-          <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-            {/* Header */}
-            <View style={styles.header}>
-              <View>
-                <Text style={styles.headerTitle}>새로운 여행 만들기 ✈️</Text>
-                <Text style={styles.headerSubtitle}>
-                  새로운 일정과 가계부를 함께 시작해 보세요
-                </Text>
-              </View>
-              <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={styles.closeBtn}>
-                <X size={18} color="#64748B" />
-              </TouchableOpacity>
+          {/* Top Navigation Bar (Reference Image 3 Style) */}
+          <View style={styles.topBar}>
+            <View style={styles.topBarLeft}>
+              {step > 1 ? (
+                <TouchableOpacity onPress={handlePrevStep} style={styles.iconBtn} activeOpacity={0.7}>
+                  <ChevronLeft size={24} color="#111827" />
+                </TouchableOpacity>
+              ) : !isOnboarding ? (
+                <TouchableOpacity onPress={onClose} style={styles.iconBtn} activeOpacity={0.7}>
+                  <X size={22} color="#111827" />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.onboardingBadge}>
+                  <Text style={styles.onboardingBadgeText}>첫 여행 시작하기</Text>
+                </View>
+              )}
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollBody}>
-              {/* 1. 여행지 검색 & 선택 */}
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionLabel}>여행지 검색 및 선택</Text>
-                {destination ? (
-                  <View style={styles.selectedDestBadge}>
-                    <MapPin size={12} color="#FF6B6B" style={{ marginRight: 4 }} />
-                    <Text style={styles.selectedDestText} numberOfLines={1}>
-                      {destination}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
+            <View style={styles.topBarRight}>
+              {step === 3 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setSkipFlight(true);
+                    setStep(4);
+                  }}
+                  style={styles.skipTextBtn}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.skipTextBtnLabel}>나중에 설정</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={handleNextStep}
+                activeOpacity={0.85}
+                style={styles.nextPillBtn}
+              >
+                <Text style={styles.nextPillBtnText}>
+                  {step < 4 ? '다음' : isEditMode ? '저장' : '완료'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-              {/* 실시간 전세계 검색창 */}
-              <View style={styles.searchBar}>
-                <Globe size={16} color="#FF6B6B" style={{ marginRight: 8 }} />
-                <TextInput
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholder="전세계 모든 도시 검색 (예: 파리, 로마, 런던, 뉴욕, 속초...)"
-                  placeholderTextColor="#94A3B8"
-                  style={styles.searchInput}
-                  returnKeyType="search"
-                />
-                {isSearching ? (
-                  <ActivityIndicator size="small" color="#FF6B6B" />
-                ) : searchQuery.length > 0 ? (
-                  <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <X size={16} color="#94A3B8" />
-                  </TouchableOpacity>
-                ) : null}
-              </View>
+          {/* Thin Step Progress Bar (Reference Image 3 Style) */}
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${(step / 4) * 100}%` }]} />
+          </View>
 
-              {/* 검색 모드 (검색어 입력 시 전세계 실시간 검색 결과 리스트 노출) */}
-              {searchQuery.trim().length > 0 ? (
-                <View style={styles.searchResultsContainer}>
-                  <View style={styles.searchResultHeaderRow}>
-                    <Text style={styles.searchResultCountText}>
-                      검색 결과 {searchResults.length}개
-                    </Text>
-                    <Text style={styles.searchResultHintText}>
-                      전세계 실시간 API 연동
-                    </Text>
-                  </View>
+          {/* Step Quick Tabs (Always clickable in Edit Mode, or step indicator in Create Mode) */}
+          <View style={styles.stepTabsRow}>
+            {[
+              { num: 1, label: '1. 여행지' },
+              { num: 2, label: '2. 날짜' },
+              { num: 3, label: '3. 항공편' },
+              { num: 4, label: '4. 숙소·멤버' },
+            ].map((item) => {
+              const active = step === item.num;
+              const passed = step > item.num;
+              return (
+                <TouchableOpacity
+                  key={item.num}
+                  activeOpacity={0.75}
+                  onPress={() => setStep(item.num as 1 | 2 | 3 | 4)}
+                  style={[
+                    styles.stepTabChip,
+                    active && styles.stepTabChipActive,
+                    passed && !active && styles.stepTabChipPassed,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.stepTabChipText,
+                      active && styles.stepTabChipTextActive,
+                      passed && !active && styles.stepTabChipTextPassed,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-                  {searchResults.slice(0, 6).map((item) => {
-                    const isSelected = destination === item.name || selectedDestination.id === item.id;
-                    return (
-                      <TouchableOpacity
-                        key={item.id}
-                        activeOpacity={0.75}
-                        onPress={() => handleSelectDestination(item)}
-                        style={[
-                          styles.searchResultRow,
-                          isSelected && styles.searchResultRowSelected,
-                        ]}
-                      >
-                        <Text style={styles.searchResultFlag}>{item.flag}</Text>
-                        <View style={styles.searchResultInfo}>
-                          <Text
-                            style={[
-                              styles.searchResultName,
-                              isSelected && styles.searchResultNameSelected,
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {item.name}
-                          </Text>
-                          <Text style={styles.searchResultSub} numberOfLines={1}>
-                            {item.country} {item.admin1 ? `· ${item.admin1}` : ''}
-                          </Text>
-                        </View>
-                        {isSelected ? (
-                          <View style={styles.selectedCheckCircle}>
-                            <Check size={12} color="#FFFFFF" />
-                          </View>
-                        ) : (
-                          <Text style={styles.searchResultCoordBadge}>
-                            {item.latitude.toFixed(1)}°, {item.longitude.toFixed(1)}°
-                          </Text>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
+          <ScrollView
+            style={styles.bodyScroll}
+            contentContainerStyle={styles.bodyScrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* ==================== STEP 1: 나라 / 도시 선택 ==================== */}
+            {step === 1 && (
+              <View style={styles.stepSection}>
+                <Text style={styles.stepTitle}>
+                  {isEditMode ? '여행지와 제목 수정' : '어디로 떠나시나요?'}
+                </Text>
+                <Text style={styles.stepSubtitle}>
+                  여행할 국가나 도시를 선택하고{'\n'}나만의 여행 이름을 입력해보세요.
+                </Text>
 
-                  {/* 검색어 직접 등록 옵션 */}
+                {/* 중심 입력 영역: 선택된 여행지 및 여행 제목 */}
+                <View style={styles.centerFocusBox}>
+                  <Text style={styles.fieldMiniLabel}>선택한 여행지</Text>
+                  <Text style={styles.bigDestinationDisplay}>
+                    {destination || '도시를 선택해주세요'}
+                  </Text>
+
+                  <Text style={[styles.fieldMiniLabel, { marginTop: 20 }]}>여행 이름</Text>
+                  <TextInput
+                    value={title}
+                    onChangeText={setTitle}
+                    placeholder="예: 도쿄 3박 4일 미식 여행"
+                    placeholderTextColor="#CBD5E1"
+                    style={styles.underlineCenterInput}
+                  />
+                </View>
+
+                {/* 도시 검색창 */}
+                <View style={styles.searchBox}>
+                  <Search size={18} color="#64748B" />
+                  <TextInput
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder="국가 또는 도시 검색 (예: 도쿄, 오사카, 방콕, 파리, 제주)"
+                    placeholderTextColor="#94A3B8"
+                    style={styles.searchBoxInput}
+                    returnKeyType="search"
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <X size={16} color="#94A3B8" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {searchQuery.trim().length > 0 && (
                   <TouchableOpacity
                     onPress={handleUseCustomDestination}
+                    style={styles.customCityBanner}
                     activeOpacity={0.8}
-                    style={styles.customDestBanner}
                   >
-                    <Plus size={14} color="#E11D48" style={{ marginRight: 6 }} />
-                    <Text style={styles.customDestText}>
-                      '<Text style={{ fontWeight: '800' }}>{searchQuery.trim()}</Text>'(으)로 직접 등록하기
+                    <MapPin size={15} color="#1B2A4A" />
+                    <Text style={styles.customCityBannerText}>
+                      "{searchQuery.trim()}" 직접 여행지로 설정하기
                     </Text>
                   </TouchableOpacity>
-                </View>
-              ) : (
-                /* 기본 추천 모드 (검색어 없을 때 인기 추천 여행지 캐러셀) */
-                <View>
-                  <Text style={styles.presetSectionSubLabel}>🔥 추천 인기 여행지</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.presetScroll}
-                    contentContainerStyle={{ paddingRight: 16 }}
-                  >
-                    {POPULAR_RECOMMENDED_DESTINATIONS.map((dest) => {
-                      const isSelected = destination === dest.name || selectedDestination.id === dest.id;
+                )}
+
+                <Text style={styles.subSectionLabel}>
+                  {searchQuery.trim() ? '검색 결과' : '인기 여행지'}
+                </Text>
+
+                {isSearching ? (
+                  <View style={styles.loadingWrap}>
+                    <ActivityIndicator size="small" color="#1B2A4A" />
+                  </View>
+                ) : (
+                  <View style={styles.cityGrid}>
+                    {searchResults.slice(0, 12).map((dest) => {
+                      const isSelected = destination === dest.name;
                       return (
                         <TouchableOpacity
                           key={dest.id}
-                          activeOpacity={0.8}
+                          activeOpacity={0.85}
                           onPress={() => handleSelectDestination(dest)}
-                          style={[styles.presetItem, isSelected && styles.presetItemSelected]}
+                          style={[styles.cityChipCard, isSelected && styles.cityChipCardActive]}
                         >
                           <Image
                             source={{ uri: dest.coverImage }}
-                            style={styles.presetImage}
-                            resizeMode="cover"
+                            style={styles.cityChipThumb}
                           />
-                          <Text style={styles.presetText} numberOfLines={1}>
-                            {dest.flag} {dest.name.split('(')[0].trim()}
-                          </Text>
-                          <Text style={styles.presetCountryText} numberOfLines={1}>
-                            {dest.country}
-                          </Text>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={[
+                                styles.cityChipName,
+                                isSelected && styles.cityChipNameActive,
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {dest.name}
+                            </Text>
+                            <Text style={styles.cityChipCountry} numberOfLines={1}>
+                              {dest.country}
+                            </Text>
+                          </View>
                           {isSelected && (
-                            <View style={styles.checkBadge}>
-                              <Check size={11} color="#FFF" />
+                            <View style={styles.cityCheckCircle}>
+                              <Check size={12} color="#FFFFFF" strokeWidth={2.5} />
                             </View>
                           )}
                         </TouchableOpacity>
                       );
                     })}
-                  </ScrollView>
-                </View>
-              )}
-
-              {/* 2. 여행 제목 */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>여행 제목</Text>
-                <View style={styles.inputRow}>
-                  <Sparkles size={16} color="#FF6B6B" style={{ marginRight: 8 }} />
-                  <TextInput
-                    value={title}
-                    onChangeText={setTitle}
-                    placeholder="예: 도쿄 3박 4일 감성 여행"
-                    placeholderTextColor="#94A3B8"
-                    style={styles.textInput}
-                  />
-                </View>
+                  </View>
+                )}
               </View>
+            )}
 
-              {/* 3. 여행 날짜 (캘린더 터치 피커) */}
-              <View style={styles.inputGroup}>
-                <View style={styles.labelWithBadgeRow}>
-                  <Text style={styles.inputLabel}>여행 일정 (캘린더로 선택)</Text>
-                  {durationSummary ? (
-                    <View style={styles.durationBadge}>
-                      <Text style={styles.durationBadgeText}>{durationSummary}</Text>
-                    </View>
-                  ) : null}
-                </View>
+            {/* ==================== STEP 2: 날짜 선택 ==================== */}
+            {step === 2 && (
+              <View style={styles.stepSection}>
+                <Text style={styles.stepTitle}>언제 떠나시나요?</Text>
+                <Text style={styles.stepSubtitle}>
+                  출발일과 도착일을 선택하면{'\n'}일자별 동선 플래너가 자동으로 만들어집니다.
+                </Text>
+
                 <TouchableOpacity
-                  activeOpacity={0.8}
+                  activeOpacity={0.85}
                   onPress={() => setIsCalendarVisible(true)}
-                  style={styles.calendarTriggerBox}
+                  style={styles.dateHeroCard}
                 >
-                  <View style={styles.calendarTriggerLeft}>
-                    <CalendarIcon size={18} color="#FF6B6B" style={{ marginRight: 10 }} />
-                    <View>
-                      <Text style={styles.calendarDateRangeText}>
-                        {startDate} ~ {endDate}
-                      </Text>
-                      <Text style={styles.calendarHelperText}>
-                        탭하여 달력에서 출발일과 도착일을 선택하세요
-                      </Text>
+                  <View style={styles.dateDurationBadge}>
+                    <Text style={styles.dateDurationBadgeText}>
+                      {durationSummary || '일정 선택'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.dateRangeRow}>
+                    <View style={styles.dateCol}>
+                      <Text style={styles.dateColLabel}>출발일</Text>
+                      <Text style={styles.dateColValue}>{startDate.replace(/-/g, '.')}</Text>
+                    </View>
+                    <View style={styles.dateDividerLine} />
+                    <View style={styles.dateCol}>
+                      <Text style={styles.dateColLabel}>도착일</Text>
+                      <Text style={styles.dateColValue}>{endDate.replace(/-/g, '.')}</Text>
                     </View>
                   </View>
-                  <View style={styles.calendarTriggerBadge}>
-                    <Text style={styles.calendarTriggerBadgeText}>달력 열기</Text>
+
+                  <View style={styles.openCalendarBtn}>
+                    <CalendarIcon size={16} color="#1B2A4A" />
+                    <Text style={styles.openCalendarBtnText}>달력에서 날짜 변경하기</Text>
                   </View>
                 </TouchableOpacity>
-              </View>
 
-              {/* 4. 예산 설정 안내 카드 (가계부 탭에서 설정) */}
-              <View style={styles.budgetGuideCard}>
-                <View style={styles.budgetGuideHeader}>
-                  <Sparkles size={16} color="#FF6B6B" style={{ marginRight: 6 }} />
-                  <Text style={styles.budgetGuideTitle}>예산 계획은 가계부에서 🎯</Text>
+                <Text style={styles.subSectionLabel}>빠른 기간 설정</Text>
+                <View style={styles.quickDurationRow}>
+                  {[
+                    { label: '당일치기', nights: 0 },
+                    { label: '1박 2일', nights: 1 },
+                    { label: '2박 3일', nights: 2 },
+                    { label: '3박 4일', nights: 3 },
+                    { label: '4박 5일', nights: 4 },
+                    { label: '6박 7일', nights: 6 },
+                  ].map((item) => {
+                    const currentNights = Math.max(0, totalDaysCount - 1);
+                    const active = currentNights === item.nights;
+                    return (
+                      <TouchableOpacity
+                        key={item.label}
+                        onPress={() => applyQuickDuration(item.nights)}
+                        style={[
+                          styles.quickDurationChip,
+                          active && styles.quickDurationChipActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.quickDurationChipText,
+                            active && styles.quickDurationChipTextActive,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-                <Text style={styles.budgetGuideDesc}>
-                  여행 생성 후 가계부 탭에서 항공권, 숙소, 식비, 투어/패키지 등 세부 항목별로 정밀하게 예산을 계획하고 관리할 수 있습니다.
+
+                <Text style={styles.helperFootnote}>
+                  여행 중에도 언제든 날짜를 늘리거나 수정할 수 있습니다.
                 </Text>
               </View>
+            )}
 
-              {/* 5. 동행 멤버 */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>동행 멤버 (쉼표로 구분)</Text>
-                <View style={styles.inputRow}>
-                  <Users size={16} color="#64748B" style={{ marginRight: 8 }} />
+            {/* ==================== STEP 3: 비행기 설정 (나중에 가능) ==================== */}
+            {step === 3 && (
+              <View style={styles.stepSection}>
+                <Text style={styles.stepTitle}>항공편이 정해지셨나요?</Text>
+                <Text style={styles.stepSubtitle}>
+                  항공편을 입력하면 첫날과 마지막 날 동선에 자동 반영됩니다.{'\n'}아직 예약 전이라면 건너뛰고 나중에 설정할 수 있어요.
+                </Text>
+
+                {/* 나중에 설정하기 / 지금 입력하기 선택 스위치 */}
+                <View style={styles.choiceToggleRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => setSkipFlight(false)}
+                    style={[styles.choiceCard, !skipFlight && styles.choiceCardActive]}
+                  >
+                    <Plane size={18} color={!skipFlight ? '#1B2A4A' : '#94A3B8'} />
+                    <Text
+                      style={[styles.choiceCardText, !skipFlight && styles.choiceCardTextActive]}
+                    >
+                      지금 입력할게요
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => setSkipFlight(true)}
+                    style={[styles.choiceCard, skipFlight && styles.choiceCardActive]}
+                  >
+                    <Check size={18} color={skipFlight ? '#1B2A4A' : '#94A3B8'} />
+                    <Text
+                      style={[styles.choiceCardText, skipFlight && styles.choiceCardTextActive]}
+                    >
+                      나중에 설정할게요
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {skipFlight ? (
+                  <View style={styles.deferredInfoCard}>
+                    <Plane size={28} color="#1B2A4A" />
+                    <Text style={styles.deferredInfoTitle}>항공편은 나중에 등록해도 괜찮아요</Text>
+                    <Text style={styles.deferredInfoDesc}>
+                      홈 화면의 [항공편 등록] 카드나 일정 플래너에서 언제든지 항공편을 추가하고 동선에 연결할 수 있습니다.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.flightFormBox}>
+                    <Text style={styles.formGroupTitle}>출발 공항</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={{ marginBottom: 14 }}
+                    >
+                      {ORIGIN_AIRPORTS.map((ap) => {
+                        const active = depAirport === ap;
+                        return (
+                          <TouchableOpacity
+                            key={ap}
+                            onPress={() => setDepAirport(ap)}
+                            style={[styles.airportChip, active && styles.airportChipActive]}
+                          >
+                            <Text
+                              style={[
+                                styles.airportChipText,
+                                active && styles.airportChipTextActive,
+                              ]}
+                            >
+                              {ap}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+
+                    <Text style={styles.formGroupTitle}>도착 공항</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={{ marginBottom: 14 }}
+                    >
+                      {DEST_AIRPORTS.map((ap) => {
+                        const active = arrAirport === ap;
+                        return (
+                          <TouchableOpacity
+                            key={ap}
+                            onPress={() => setArrAirport(ap)}
+                            style={[styles.airportChip, active && styles.airportChipActive]}
+                          >
+                            <Text
+                              style={[
+                                styles.airportChipText,
+                                active && styles.airportChipTextActive,
+                              ]}
+                            >
+                              {ap}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+
+                    <View style={styles.formRow}>
+                      <View style={{ flex: 1.2 }}>
+                        <Text style={styles.inputLabel}>출국 편명 (선택)</Text>
+                        <TextInput
+                          value={outFlightNumber}
+                          onChangeText={setOutFlightNumber}
+                          placeholder="예: KE703"
+                          placeholderTextColor="#94A3B8"
+                          style={styles.cleanInput}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>출발 시간</Text>
+                        <TextInput
+                          value={outDepTime}
+                          onChangeText={setOutDepTime}
+                          placeholder="10:00"
+                          placeholderTextColor="#94A3B8"
+                          style={styles.cleanInput}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>도착 시간</Text>
+                        <TextInput
+                          value={outArrTime}
+                          onChangeText={setOutArrTime}
+                          placeholder="12:30"
+                          placeholderTextColor="#94A3B8"
+                          style={styles.cleanInput}
+                        />
+                      </View>
+                    </View>
+
+                    <View style={[styles.formRow, { marginTop: 12 }]}>
+                      <View style={{ flex: 1.2 }}>
+                        <Text style={styles.inputLabel}>귀국 편명 (선택)</Text>
+                        <TextInput
+                          value={retFlightNumber}
+                          onChangeText={setRetFlightNumber}
+                          placeholder="예: KE704"
+                          placeholderTextColor="#94A3B8"
+                          style={styles.cleanInput}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>출발 시간</Text>
+                        <TextInput
+                          value={retDepTime}
+                          onChangeText={setRetDepTime}
+                          placeholder="16:00"
+                          placeholderTextColor="#94A3B8"
+                          style={styles.cleanInput}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>도착 시간</Text>
+                        <TextInput
+                          value={retArrTime}
+                          onChangeText={setRetArrTime}
+                          placeholder="18:30"
+                          placeholderTextColor="#94A3B8"
+                          style={styles.cleanInput}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* ==================== STEP 4: 숙소 & 동행자 설정 ==================== */}
+            {step === 4 && (
+              <View style={styles.stepSection}>
+                <Text style={styles.stepTitle}>숙소와 동행자를 설정할까요?</Text>
+                <Text style={styles.stepSubtitle}>
+                  머무는 숙소와 함께 가는 멤버, 기준 통화를 설정해주세요.{'\n'}비워두면 나중에 홈에서 언제든 등록할 수 있습니다.
+                </Text>
+
+                <View style={styles.formCard}>
+                  <View style={styles.formCardHeader}>
+                    <Hotel size={18} color="#1B2A4A" />
+                    <Text style={styles.formCardHeaderTitle}>숙소 정보 (나중에 설정 가능)</Text>
+                  </View>
+                  <TextInput
+                    value={lodgingName}
+                    onChangeText={setLodgingName}
+                    placeholder="숙소 이름 (예: 신주쿠 그레이서리 호텔)"
+                    placeholderTextColor="#94A3B8"
+                    style={styles.cleanInput}
+                  />
+                  <TextInput
+                    value={lodgingAddress}
+                    onChangeText={setLodgingAddress}
+                    placeholder="숙소 지역 또는 주소 (선택)"
+                    placeholderTextColor="#94A3B8"
+                    style={[styles.cleanInput, { marginTop: 8 }]}
+                  />
+                </View>
+
+                <View style={styles.formCard}>
+                  <View style={styles.formCardHeader}>
+                    <Users size={18} color="#1B2A4A" />
+                    <Text style={styles.formCardHeaderTitle}>함께 가는 멤버 (정산 연동)</Text>
+                  </View>
                   <TextInput
                     value={memberInput}
                     onChangeText={setMemberInput}
-                    placeholder="나, 민지, 수현"
+                    placeholder="쉼표(,)로 구분해 입력 (예: 나, 지은, 민혁)"
                     placeholderTextColor="#94A3B8"
-                    style={styles.textInput}
+                    style={styles.cleanInput}
                   />
                 </View>
-              </View>
 
-              {/* 완료 버튼 */}
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={handleCreate}
-                style={styles.submitBtn}
-              >
-                <Text style={styles.submitBtnText}>이 여행으로 일정 시작하기 🚀</Text>
-              </TouchableOpacity>
-            </ScrollView>
+                <View style={styles.formCard}>
+                  <View style={styles.formCardHeader}>
+                    <Coins size={18} color="#1B2A4A" />
+                    <Text style={styles.formCardHeaderTitle}>현지 기준 통화</Text>
+                  </View>
+                  <View style={styles.currencyRow}>
+                    {CURRENCY_OPTIONS.map((c) => {
+                      const active = currency === c.code;
+                      return (
+                        <TouchableOpacity
+                          key={c.code}
+                          onPress={() => setCurrency(c.code)}
+                          style={[styles.currencyChip, active && styles.currencyChipActive]}
+                        >
+                          <Text
+                            style={[
+                              styles.currencyChipCode,
+                              active && styles.currencyChipCodeActive,
+                            ]}
+                          >
+                            {c.symbol}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.currencyChipLabel,
+                              active && styles.currencyChipLabelActive,
+                            ]}
+                          >
+                            {c.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Bottom Full-Width CTA */}
+          <View style={styles.bottomBar}>
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={handleNextStep}
+              style={styles.bottomPrimaryBtn}
+            >
+              <Text style={styles.bottomPrimaryBtnText}>
+                {step < 4
+                  ? `다음 단계로 (${step}/4)`
+                  : isEditMode
+                    ? '여행 정보 수정 완료'
+                    : '여행 시작하기'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* 대화형 캘린더 날짜 범위 피커 */}
+      {/* 날짜 선택 달력 모달 */}
       <CalendarRangePicker
         visible={isCalendarVisible}
+        onClose={() => setIsCalendarVisible(false)}
         initialStartDate={startDate}
         initialEndDate={endDate}
-        onClose={() => setIsCalendarVisible(false)}
-        onConfirm={handleConfirmDates}
+        onConfirm={(start, end) => {
+          setStartDate(start);
+          setEndDate(end);
+        }}
       />
 
-      {/* P형 맞춤 코스 추천 모달 (새 여행 생성 직후 온보딩) */}
+      {/* P형 맞춤 코스 모달 (신규 여행 생성 직후) */}
       <PStyleCourseModal
         visible={showPStyleModal}
         trip={createdTrip}
@@ -470,371 +1046,534 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  keyboardContainer: {
+  screenContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalSheet: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    maxHeight: '90%',
-    paddingBottom: 24,
-    paddingTop: 16,
-    paddingHorizontal: 20,
   },
-  header: {
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 12,
-    borderBottomWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  topBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  topBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  iconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+  },
+  onboardingBadge: {
+    backgroundColor: '#EEF2F8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  onboardingBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1B2A4A',
+  },
+  skipTextBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  skipTextBtnLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  nextPillBtn: {
+    backgroundColor: '#1B2A4A',
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  nextPillBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  progressTrack: {
+    height: 3,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 20,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#1B2A4A',
+  },
+  stepTabsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+    gap: 6,
+  },
+  stepTabChip: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    borderWidth: 1,
     borderColor: '#F1F5F9',
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1E293B',
+  stepTabChipActive: {
+    backgroundColor: '#EEF2F8',
+    borderColor: '#1B2A4A',
   },
-  headerSubtitle: {
+  stepTabChipPassed: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#CBD5E1',
+  },
+  stepTabChipText: {
     fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
+    fontWeight: '600',
+    color: '#94A3B8',
   },
-  closeBtn: {
-    width: 36,
-    height: 36,
+  stepTabChipTextActive: {
+    color: '#1B2A4A',
+    fontWeight: '800',
+  },
+  stepTabChipTextPassed: {
+    color: '#475569',
+  },
+  bodyScroll: {
+    flex: 1,
+  },
+  bodyScrollContent: {
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 32,
+  },
+  stepSection: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 23,
+    fontWeight: '800',
+    color: '#111827',
+    textAlign: 'center',
+    letterSpacing: -0.4,
+  },
+  stepSubtitle: {
+    fontSize: 13.5,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 8,
+    marginBottom: 26,
+  },
+  centerFocusBox: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    backgroundColor: '#F8FAFC',
     borderRadius: 18,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollBody: {
-    marginTop: 14,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#1E293B',
-  },
-  selectedDestBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF5F5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FFE4E6',
-  },
-  selectedDestText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FF6B6B',
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    marginBottom: 8,
+    marginBottom: 20,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 13,
-    color: '#1E293B',
-    padding: 0,
-  },
-  customDestBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF1F2',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#FFE4E6',
-  },
-  customDestText: {
-    fontSize: 12,
-    color: '#E11D48',
-  },
-  searchResultsContainer: {
-    marginBottom: 14,
-  },
-  searchResultHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    paddingHorizontal: 4,
-  },
-  searchResultCountText: {
+  fieldMiniLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: '#64748B',
+    marginBottom: 4,
   },
-  searchResultHintText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#94A3B8',
-  },
-  searchResultRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    marginBottom: 6,
-  },
-  searchResultRowSelected: {
-    borderColor: '#FF6B6B',
-    backgroundColor: '#FFF5F5',
-  },
-  searchResultFlag: {
+  bigDestinationDisplay: {
     fontSize: 22,
-    marginRight: 10,
+    fontWeight: '900',
+    color: '#1B2A4A',
   },
-  searchResultInfo: {
+  underlineCenterInput: {
+    width: '90%',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#1B2A4A',
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 46,
+    marginBottom: 12,
+  },
+  searchBoxInput: {
     flex: 1,
-    marginRight: 8,
+    fontSize: 14,
+    color: '#111827',
+    marginLeft: 8,
   },
-  searchResultName: {
+  customCityBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2F8',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
+    marginBottom: 14,
+    gap: 8,
+  },
+  customCityBannerText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 2,
+    color: '#1B2A4A',
   },
-  searchResultNameSelected: {
-    color: '#FF6B6B',
-    fontWeight: '800',
-  },
-  searchResultSub: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  selectedCheckCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#FF6B6B',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchResultCoordBadge: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#94A3B8',
-    backgroundColor: '#EEF2F6',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  presetSectionSubLabel: {
-    fontSize: 12,
+  subSectionLabel: {
+    fontSize: 13,
     fontWeight: '700',
     color: '#475569',
-    marginBottom: 8,
+    marginBottom: 10,
+    marginTop: 6,
   },
-  presetScroll: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  presetItem: {
-    marginRight: 12,
-    padding: 10,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+  loadingWrap: {
+    paddingVertical: 24,
     alignItems: 'center',
-    width: 108,
-    position: 'relative',
   },
-  presetItemSelected: {
-    borderColor: '#FF6B6B',
-    backgroundColor: '#FFF5F5',
+  cityGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
   },
-  presetImage: {
-    width: 84,
-    height: 56,
+  cityChipCard: {
+    width: '48.5%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 4,
+  },
+  cityChipCardActive: {
+    borderColor: '#1B2A4A',
+    backgroundColor: '#EEF2F8',
+  },
+  cityChipThumb: {
+    width: 40,
+    height: 40,
     borderRadius: 10,
-    marginBottom: 6,
+    marginRight: 10,
+    backgroundColor: '#E2E8F0',
   },
-  presetText: {
-    fontSize: 11,
+  cityChipName: {
+    fontSize: 13.5,
     fontWeight: '700',
-    color: '#1E293B',
-    textAlign: 'center',
+    color: '#111827',
   },
-  presetCountryText: {
-    fontSize: 9,
-    fontWeight: '600',
+  cityChipNameActive: {
+    color: '#1B2A4A',
+    fontWeight: '800',
+  },
+  cityChipCountry: {
+    fontSize: 11,
     color: '#94A3B8',
     marginTop: 1,
   },
-  checkBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
+  cityCheckCircle: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  inputGroup: {
-    marginBottom: 14,
-  },
-  labelWithBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 6,
-  },
-  inputSubLabel: {
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  durationBadge: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  durationBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 13,
-    color: '#1E293B',
-    fontWeight: '600',
-    padding: 0,
-  },
-  currencySuffix: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
     marginLeft: 4,
   },
-  calendarTriggerBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  dateHeroCard: {
     backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  calendarTriggerLeft: {
-    flexDirection: 'row',
+    borderRadius: 20,
+    padding: 22,
+    borderWidth: 1.5,
+    borderColor: '#1B2A4A',
     alignItems: 'center',
-    flex: 1,
+    marginBottom: 22,
   },
-  calendarDateRangeText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#1E293B',
-  },
-  calendarHelperText: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  calendarTriggerBadge: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  calendarTriggerBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  quickBudgetRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 8,
-  },
-  budgetGuideCard: {
-    backgroundColor: '#FFF7ED',
-    borderWidth: 1,
-    borderColor: '#FED7AA',
+  dateDurationBadge: {
+    backgroundColor: '#1B2A4A',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
     borderRadius: 16,
-    padding: 14,
     marginBottom: 16,
   },
-  budgetGuideHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  budgetGuideTitle: {
-    fontSize: 13,
+  dateDurationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '800',
-    color: '#9A3412',
   },
-  budgetGuideDesc: {
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#C2410C',
-    fontWeight: '500',
-  },
-  submitBtn: {
-    backgroundColor: '#FF6B6B',
-    paddingVertical: 15,
-    borderRadius: 16,
+  dateRangeRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
-    marginBottom: 16,
-    elevation: 3,
-    shadowColor: '#FF6B6B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+    width: '100%',
+    marginBottom: 18,
   },
-  submitBtnText: {
+  dateCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  dateColLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 4,
+    fontWeight: '600',
+  },
+  dateColValue: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  dateDividerLine: {
+    width: 1,
+    height: 36,
+    backgroundColor: '#CBD5E1',
+  },
+  openCalendarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  openCalendarBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1B2A4A',
+  },
+  quickDurationRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 24,
+  },
+  quickDurationChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  quickDurationChipActive: {
+    backgroundColor: '#1B2A4A',
+    borderColor: '#1B2A4A',
+  },
+  quickDurationChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  quickDurationChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  helperFootnote: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  choiceToggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  choiceCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  choiceCardActive: {
+    borderColor: '#1B2A4A',
+    backgroundColor: '#EEF2F8',
+  },
+  choiceCardText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  choiceCardTextActive: {
+    color: '#1B2A4A',
+  },
+  deferredInfoCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 18,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+  },
+  deferredInfoTitle: {
     fontSize: 15,
     fontWeight: '800',
+    color: '#111827',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  deferredInfoDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 19,
+  },
+  flightFormBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  formGroupTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 8,
+  },
+  airportChip: {
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    marginRight: 8,
+  },
+  airportChipActive: {
+    backgroundColor: '#1B2A4A',
+    borderColor: '#1B2A4A',
+  },
+  airportChipText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  airportChipTextActive: {
     color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  formRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  inputLabel: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#64748B',
+    marginBottom: 5,
+  },
+  cleanInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 42,
+    fontSize: 13.5,
+    color: '#111827',
+  },
+  formCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+  },
+  formCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  formCardHeaderTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  currencyRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  currencyChip: {
+    width: '48%',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  currencyChipActive: {
+    backgroundColor: '#1B2A4A',
+    borderColor: '#1B2A4A',
+  },
+  currencyChipCode: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  currencyChipCodeActive: {
+    color: '#FFFFFF',
+  },
+  currencyChipLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  currencyChipLabelActive: {
+    color: '#CBD5E1',
+  },
+  bottomBar: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
+  },
+  bottomPrimaryBtn: {
+    backgroundColor: '#1B2A4A',
+    height: 52,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomPrimaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

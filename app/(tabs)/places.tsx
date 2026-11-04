@@ -47,11 +47,11 @@ import {
 
 const CATEGORIES: { label: string; value: CategoryFilter }[] = [
   { label: '전체', value: 'ALL' },
-  { label: '☕ 카페', value: 'CAFE' },
-  { label: '🍴 맛집', value: 'RESTAURANT' },
-  { label: '📸 명소', value: 'ATTRACTION' },
-  { label: '🏨 숙소', value: 'LODGING' },
-  { label: '🛍️ 쇼핑', value: 'SHOPPING' },
+  { label: '카페', value: 'CAFE' },
+  { label: '맛집', value: 'RESTAURANT' },
+  { label: '명소', value: 'ATTRACTION' },
+  { label: '숙소', value: 'LODGING' },
+  { label: '쇼핑', value: 'SHOPPING' },
 ];
 
 export default function PlacesScreen() {
@@ -212,40 +212,40 @@ export default function PlacesScreen() {
     const upper = cat.toUpperCase();
     switch (upper) {
       case 'CAFE':
-        return '☕ 카페';
+        return '카페';
       case 'RESTAURANT':
-        return '🍴 맛집';
+        return '맛집';
       case 'ATTRACTION':
       case 'SPOT':
-        return '📸 명소';
+        return '명소';
       case 'LODGING':
       case 'STAY':
-        return '🏨 숙소';
+        return '숙소';
       case 'SHOPPING':
-        return '🛍️ 쇼핑';
+        return '쇼핑';
       default:
-        return '📍 장소';
+        return '장소';
     }
   };
 
   const getPlatformChipText = (platform: string) => {
     switch (platform) {
       case 'instagram':
-        return '📸 Instagram';
+        return 'Instagram';
       case 'youtube':
-        return '🎥 YouTube';
+        return 'YouTube';
       case 'naver':
-        return '📗 Naver';
+        return 'Naver';
       default:
-        return '🔗 Link';
+        return 'Link';
     }
   };
 
   return (
     <View style={styles.container}>
       <Header
-        title="장소 & 링크 보관함 📌"
-        subtitle={`${currentTrip?.title || '여행'} · 핫플 ${tripPlaces.length}개 · 링크 ${tripLinks.length}개`}
+        title="BOOKMARK"
+        subtitle={`${currentTrip?.title || '여행'} · 스팟 ${tripPlaces.length}곳 · 링크 ${tripLinks.length}개`}
         rightAction={
           <TouchableOpacity
             onPress={() => {
@@ -273,7 +273,7 @@ export default function PlacesScreen() {
           <Text style={styles.tripBadgeText} numberOfLines={1}>
             {currentTrip?.title || '도쿄 3박 4일 감성 여행'}
           </Text>
-          <ChevronDown size={14} color="#FF6B6B" style={{ marginLeft: 4 }} />
+          <ChevronDown size={14} color="#1B2A4A" style={{ marginLeft: 4 }} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -294,7 +294,7 @@ export default function PlacesScreen() {
         >
           <MapPin
             size={14}
-            color={activeTab === 'PLACES' ? '#FF6B6B' : '#64748B'}
+            color={activeTab === 'PLACES' ? '#1B2A4A' : '#64748B'}
             style={{ marginRight: 6 }}
           />
           <Text style={[styles.segmentText, activeTab === 'PLACES' && styles.segmentTextActive]}>
@@ -309,7 +309,7 @@ export default function PlacesScreen() {
         >
           <LinkIcon
             size={14}
-            color={activeTab === 'LINKS' ? '#FF6B6B' : '#64748B'}
+            color={activeTab === 'LINKS' ? '#1B2A4A' : '#64748B'}
             style={{ marginRight: 6 }}
           />
           <Text style={[styles.segmentText, activeTab === 'LINKS' && styles.segmentTextActive]}>
@@ -475,8 +475,8 @@ export default function PlacesScreen() {
                             <TouchableOpacity onPress={() => togglePin(place.id)} className="p-1">
                               <Bookmark
                                 size={18}
-                                color={place.isPinned ? '#FF6B6B' : '#8D99AE'}
-                                fill={place.isPinned ? '#FF6B6B' : 'none'}
+                                color={place.isPinned ? '#1B2A4A' : '#8D99AE'}
+                                fill={place.isPinned ? '#1B2A4A' : 'none'}
                               />
                             </TouchableOpacity>
                           </View>
@@ -553,7 +553,7 @@ export default function PlacesScreen() {
                               onPress={() => handleOpenPlannerModal(place)}
                               className="bg-primary/10 px-2.5 py-1 rounded-full flex-row items-center"
                             >
-                              <Plus size={12} color="#FF6B6B" />
+                              <Plus size={12} color="#1B2A4A" />
                               <Text className="text-[11px] font-extrabold text-primary ml-1">
                                 일정 담기
                               </Text>
@@ -572,7 +572,7 @@ export default function PlacesScreen() {
             </ScrollView>
           ) : (
             <EmptyState
-              icon={<Bookmark size={28} color="#FF6B6B" />}
+              icon={<Bookmark size={28} color="#1B2A4A" />}
               title="보관함에 담긴 장소가 없습니다"
               description="원하는 장소 이름을 직접 검색하여 저장하거나 릴스/블로그 링크를 핀치해보세요."
               actionButton={
@@ -596,7 +596,7 @@ export default function PlacesScreen() {
                     }}
                     size="sm"
                     variant="outline"
-                    icon={<Sparkles size={14} color="#FF6B6B" />}
+                    icon={<Sparkles size={14} color="#1B2A4A" />}
                   />
                 </View>
               }
@@ -611,7 +611,7 @@ export default function PlacesScreen() {
           contentContainerStyle={{ paddingBottom: 36 }}
         >
           <View style={styles.linksIntroBox}>
-            <Sparkles size={16} color="#FF6B6B" style={{ marginRight: 6 }} />
+            <Sparkles size={16} color="#1B2A4A" style={{ marginRight: 6 }} />
             <Text style={styles.linksIntroText}>
               수집한 릴스/블로그를 터치하면 <Text style={{ fontWeight: '800' }}>링크 속 장소들을 골라서 보관함에 담을 수 있어요!</Text>
             </Text>
@@ -662,7 +662,7 @@ export default function PlacesScreen() {
 
                   <View style={styles.linkFooterRow}>
                     <View style={styles.placesCountBadge}>
-                      <MapPin size={11} color="#FF6B6B" style={{ marginRight: 3 }} />
+                      <MapPin size={11} color="#1B2A4A" style={{ marginRight: 3 }} />
                       <Text style={styles.placesCountBadgeText}>
                         장소 {link.extractedPlaces.length}곳 포함
                       </Text>
@@ -685,7 +685,7 @@ export default function PlacesScreen() {
             ))
           ) : (
             <EmptyState
-              icon={<LinkIcon size={28} color="#FF6B6B" />}
+              icon={<LinkIcon size={28} color="#1B2A4A" />}
               title="저장된 링크가 없습니다"
               description="인스타그램 릴스나 유튜브 숏츠, 블로그 링크를 붙여넣어 여행별 링크 보관함을 만들어보세요."
               actionButton={
@@ -732,7 +732,7 @@ export default function PlacesScreen() {
           >
             <View className="flex-row items-center justify-between pb-3 border-b border-gray-100">
               <View className="flex-row items-center">
-                <Calendar size={18} color="#FF6B6B" />
+                <Calendar size={18} color="#1B2A4A" />
                 <Text className="text-base font-extrabold text-darkText ml-1.5">
                   동선 플래너에 일정 담기
                 </Text>
@@ -862,11 +862,11 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    backgroundColor: 'rgba(27, 42, 74, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 107, 107, 0.2)',
+    borderColor: 'rgba(27, 42, 74, 0.2)',
   },
   tripBar: {
     paddingHorizontal: 16,
@@ -882,9 +882,9 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F5',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#FFE4E6',
+    borderColor: '#EEF2F8',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 20,
@@ -894,7 +894,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     marginRight: 6,
   },
   tripBadgeText: {
@@ -935,9 +935,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
   },
   segmentBtnActive: {
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
-    borderColor: '#FFE4E6',
+    borderColor: '#EEF2F8',
   },
   segmentText: {
     fontSize: 12,
@@ -945,7 +945,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   segmentTextActive: {
-    color: '#FF6B6B',
+    color: '#1B2A4A',
     fontWeight: '800',
   },
   filterSection: {
@@ -984,8 +984,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   categoryChipSelected: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
+    borderColor: '#1B2A4A',
   },
   categoryChipText: {
     fontSize: 12,
@@ -1007,9 +1007,9 @@ const styles = StyleSheet.create({
   linksIntroBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F5',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#FFE4E6',
+    borderColor: '#EEF2F8',
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -1082,7 +1082,7 @@ const styles = StyleSheet.create({
   placesCountBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -1090,7 +1090,7 @@ const styles = StyleSheet.create({
   placesCountBadgeText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#FF6B6B',
+    color: '#1B2A4A',
   },
   openUrlBtn: {
     flexDirection: 'row',
@@ -1108,9 +1108,9 @@ const styles = StyleSheet.create({
   searchOnlinePrompt: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#FECDD3',
+    borderColor: '#CBD5E1',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1125,12 +1125,12 @@ const styles = StyleSheet.create({
   addHeaderBtnUnified: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 20,
     elevation: 2,
-    shadowColor: '#FF6B6B',
+    shadowColor: '#1B2A4A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -1179,9 +1179,9 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F5',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#FFE4E6',
+    borderColor: '#EEF2F8',
     borderRadius: 14,
     paddingHorizontal: 10,
     paddingVertical: 9,
@@ -1190,7 +1190,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 9,
-    backgroundColor: '#FFE4E6',
+    backgroundColor: '#EEF2F8',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
@@ -1210,12 +1210,12 @@ const styles = StyleSheet.create({
     right: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 28,
     elevation: 6,
-    shadowColor: '#FF6B6B',
+    shadowColor: '#1B2A4A',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,

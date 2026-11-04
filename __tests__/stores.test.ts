@@ -602,5 +602,43 @@ describe('Store Actions & Cross-Store Integration (FN-PLC, FN-PLN, FN-WAL)', () 
       assert.strictEqual(validRes.success, true);
     });
   });
+
+  describe('[Task 7] Onboarding & Step-by-Step Trip Edit', () => {
+    it('marks onboarding completed and replaces initial placeholder trip when creating first trip', () => {
+      useTripStore.getState().resetToDefaults();
+      assert.strictEqual(useTripStore.getState().hasCompletedOnboarding, false);
+
+      const firstTrip = useTripStore.getState().createTrip({
+        title: '후쿠오카 미식 여행',
+        destination: '후쿠오카',
+        startDate: '2026-12-10',
+        endDate: '2026-12-12',
+        memberNames: ['나', '지은'],
+        currency: 'JPY',
+      });
+
+      assert.strictEqual(useTripStore.getState().hasCompletedOnboarding, true);
+      assert.strictEqual(useTripStore.getState().currentTrip?.id, firstTrip.id);
+      assert.strictEqual(useTripStore.getState().trips.length, 1);
+      assert.strictEqual(useTripStore.getState().trips[0].schedules.length, 3);
+    });
+
+    it('updates trip destination, title, dates and dynamically rebuilds day schedules', () => {
+      const targetId = 't_tokyo';
+      useTripStore.getState().updateTrip(targetId, {
+        title: '도쿄 4박 5일 확장 여행',
+        destination: '도쿄 · 가마쿠라',
+        startDate: '2026-11-10',
+        endDate: '2026-11-14',
+      });
+
+      const updated = useTripStore.getState().currentTrip!;
+      assert.strictEqual(updated.title, '도쿄 4박 5일 확장 여행');
+      assert.strictEqual(updated.destination, '도쿄 · 가마쿠라');
+      assert.strictEqual(updated.schedules.length, 5);
+      assert.strictEqual(updated.schedules[0].date, '2026-11-10');
+      assert.strictEqual(updated.schedules[4].date, '2026-11-14');
+    });
+  });
 });
 

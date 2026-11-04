@@ -9,7 +9,7 @@ export default function NotFoundScreen() {
       <Stack.Screen options={{ title: 'Oops!' }} />
       <View style={styles.container}>
         <View style={styles.iconContainer}>
-          <Compass size={48} color="#FF6B6B" />
+          <Compass size={48} color="#1B2A4A" />
         </View>
         <Text style={styles.title}>페이지를 찾을 수 없습니다.</Text>
         <Text style={styles.description}>
@@ -35,7 +35,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FFEBEB',
+    backgroundColor: '#EEF2F8',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingVertical: 12,
     paddingHorizontal: 24,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     borderRadius: 16,
   },
   linkText: {

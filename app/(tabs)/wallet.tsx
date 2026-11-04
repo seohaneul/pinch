@@ -59,7 +59,7 @@ import {
 } from '@/components/common/CustomIcons';
 
 const CATEGORIES: { key: WalletCategory; label: string; icon: any; color: string; bg: string }[] = [
-  { key: 'FOOD', label: '식비', icon: Utensils, color: '#FF6B6B', bg: 'bg-rose-50' },
+  { key: 'FOOD', label: '식비', icon: Utensils, color: '#1B2A4A', bg: 'bg-rose-50' },
   { key: 'LODGING', label: '숙소', icon: HomeIcon, color: '#A29BFE', bg: 'bg-purple-50' },
   { key: 'FLIGHT', label: '항공권', icon: Plane, color: '#0284C7', bg: 'bg-sky-50' },
   { key: 'TRANSPORT', label: '교통', icon: Car, color: '#4ECDC4', bg: 'bg-teal-50' },
@@ -129,7 +129,7 @@ export default function WalletScreen() {
       id: m.id,
       name: m.name,
       avatarUrl: m.avatarUrl,
-      color: m.color || ['#FF6B6B', '#4ECDC4', '#FFE66D', '#1A535C', '#4D96FF'][idx % 5],
+      color: m.color || ['#1B2A4A', '#4ECDC4', '#FFE66D', '#1A535C', '#4D96FF'][idx % 5],
     }))
     : members;
 
@@ -335,7 +335,7 @@ export default function WalletScreen() {
   return (
     <View className="flex-1 bg-background">
       <Header
-        title="여행 가계부 💳"
+        title="WALLET"
         subtitle="이중통화 실시간 환율 & 최소 송금 정산"
         rightAction={
           <View className="flex-row items-center gap-2">
@@ -344,14 +344,14 @@ export default function WalletScreen() {
               className="w-10 h-10 rounded-full bg-secondary/10 items-center justify-center"
               accessibilityLabel="정산서 복사"
             >
-              <Share2 size={18} color="#4ECDC4" />
+              <Share2 size={18} color="#2B50AA" />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setModalVisible(true)}
               className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center"
               accessibilityLabel="지출 추가"
             >
-              <Plus size={20} color="#FF6B6B" />
+              <Plus size={20} color="#1B2A4A" />
             </TouchableOpacity>
           </View>
         }
@@ -366,14 +366,14 @@ export default function WalletScreen() {
             className="flex-row items-center justify-between bg-white px-3.5 py-2.5 rounded-2xl border border-gray-200 shadow-xs"
           >
             <View className="flex-row items-center flex-1 mr-2">
-              <MapPin size={14} color="#FF6B6B" className="mr-1.5" />
+              <MapPin size={14} color="#1B2A4A" className="mr-1.5" />
               <Text className="text-xs font-bold text-darkText flex-1" numberOfLines={1}>
                 {currentTrip.title}
               </Text>
             </View>
             <View className="flex-row items-center bg-primary/10 px-2 py-1 rounded-lg">
               <Text className="text-[10px] font-bold text-primary mr-1">여행 변경</Text>
-              <ChevronDown size={11} color="#FF6B6B" />
+              <ChevronDown size={11} color="#1B2A4A" />
             </View>
           </TouchableOpacity>
         </View>
@@ -392,7 +392,7 @@ export default function WalletScreen() {
           >
             <PieChart
               size={15}
-              color={activeTab === 'budget' ? '#FF6B6B' : '#6B7280'}
+              color={activeTab === 'budget' ? '#1B2A4A' : '#6B7280'}
               style={{ marginRight: 5 }}
             />
             <Text
@@ -415,7 +415,7 @@ export default function WalletScreen() {
           >
             <Receipt
               size={15}
-              color={activeTab === 'expenses' ? '#FF6B6B' : '#6B7280'}
+              color={activeTab === 'expenses' ? '#1B2A4A' : '#6B7280'}
               style={{ marginRight: 5 }}
             />
             <Text
@@ -438,7 +438,7 @@ export default function WalletScreen() {
           >
             <Users
               size={15}
-              color={activeTab === 'settlement' ? '#FF6B6B' : '#6B7280'}
+              color={activeTab === 'settlement' ? '#1B2A4A' : '#6B7280'}
               style={{ marginRight: 5 }}
             />
             <Text
@@ -465,7 +465,7 @@ export default function WalletScreen() {
             <View className="p-4 mx-4 mt-3 bg-surface rounded-3xl border border-borderLine shadow-sm">
               <View className="flex-row items-center justify-between mb-2">
                 <View className="flex-row items-center">
-                  <Coins size={15} color="#FF6B6B" className="mr-1" />
+                  <Coins size={15} color="#1B2A4A" className="mr-1" />
                   <Text className="text-xs font-bold text-mutedText">총 계획 예산 🎯</Text>
                 </View>
                 {/* Currency Selector Pills */}
@@ -529,7 +529,7 @@ export default function WalletScreen() {
               <View className="flex-row items-center justify-between pb-2.5 border-b border-gray-100 mb-2">
                 <View className="flex-row items-center flex-1 mr-2">
                   <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center mr-2">
-                    <Layers size={16} color="#FF6B6B" />
+                    <Layers size={16} color="#1B2A4A" />
                   </View>
                   <View>
                     <Text className="text-sm font-extrabold text-darkText">항목별 예산 계획 & 실시간 소진 📊</Text>
@@ -543,7 +543,7 @@ export default function WalletScreen() {
                   onPress={() => setCategoryBudgetModalVisible(true)}
                   className="bg-primary/10 px-3 py-1.5 rounded-xl flex-row items-center"
                 >
-                  <Sparkles size={12} color="#FF6B6B" style={{ marginRight: 4 }} />
+                  <Sparkles size={12} color="#1B2A4A" style={{ marginRight: 4 }} />
                   <Text className="text-xs font-extrabold text-primary">예산 설정</Text>
                 </TouchableOpacity>
               </View>
@@ -784,7 +784,7 @@ export default function WalletScreen() {
             <View className="p-4 mx-4 mt-3 bg-surface rounded-3xl border border-borderLine shadow-sm">
               <View className="flex-row items-center justify-between mb-2">
                 <View className="flex-row items-center">
-                  <Coins size={15} color="#FF6B6B" className="mr-1" />
+                  <Coins size={15} color="#1B2A4A" className="mr-1" />
                   <Text className="text-xs font-bold text-mutedText">실제 여행 지출 합계</Text>
                 </View>
                 {/* Currency Selector Pills */}
@@ -942,7 +942,7 @@ export default function WalletScreen() {
                             {/* Itinerary Place Link Badge */}
                             {expense.place_name && (
                               <View className="flex-row items-center mb-1">
-                                <MapPin size={11} color="#FF6B6B" />
+                                <MapPin size={11} color="#1B2A4A" />
                                 <Text
                                   className="text-[11px] font-bold text-primary ml-0.5"
                                   numberOfLines={1}
@@ -957,7 +957,7 @@ export default function WalletScreen() {
                               <View className="flex-row items-center bg-gray-100 px-2 py-0.5 rounded-md">
                                 <View
                                   className="w-3.5 h-3.5 rounded-full items-center justify-center mr-1"
-                                  style={{ backgroundColor: payer?.color || '#FF6B6B' }}
+                                  style={{ backgroundColor: payer?.color || '#1B2A4A' }}
                                 >
                                   <Text className="text-[9px] font-bold text-white">
                                     {payer?.name[0] || 'P'}
@@ -1008,7 +1008,7 @@ export default function WalletScreen() {
                 })
               ) : (
                 <EmptyState
-                  icon={<Receipt size={32} color="#FF6B6B" />}
+                  icon={<Receipt size={32} color="#1B2A4A" />}
                   title="지출 내역이 없습니다"
                   description="여행 중 사용한 금액을 등록하면 실시간 환율과 1/N 정산이 자동으로 계산됩니다."
                   actionButton={
@@ -1034,7 +1034,7 @@ export default function WalletScreen() {
               <View className="flex-row items-center justify-between">
                 <View className="flex-1 mr-3">
                   <View className="flex-row items-center mb-1">
-                    <Sparkles size={16} color="#FF6B6B" />
+                    <Sparkles size={16} color="#1B2A4A" />
                     <Text className="text-sm font-extrabold text-darkText ml-1.5">
                       카카오톡 메신저 원터치 공유
                     </Text>
@@ -1057,7 +1057,7 @@ export default function WalletScreen() {
             <View className="mb-5">
               <View className="flex-row items-center justify-between mb-3">
                 <View className="flex-row items-center">
-                  <Wallet size={18} color="#FF6B6B" />
+                  <Wallet size={18} color="#1B2A4A" />
                   <Text className="text-base font-bold text-darkText ml-1.5">
                     스마트 최소 송금 경로 ({transactions.length}건)
                   </Text>
@@ -1078,7 +1078,7 @@ export default function WalletScreen() {
                         <View className="flex-row items-center flex-1">
                           <View
                             className="w-8 h-8 rounded-full items-center justify-center mr-2"
-                            style={{ backgroundColor: tx.from.color || '#FF6B6B' }}
+                            style={{ backgroundColor: tx.from.color || '#1B2A4A' }}
                           >
                             <Text className="text-xs font-bold text-white">{tx.from.name[0]}</Text>
                           </View>
@@ -1098,7 +1098,7 @@ export default function WalletScreen() {
                           </Text>
                           <View className="flex-row items-center">
                             <View className="h-0.5 w-6 bg-primary/40" />
-                            <ArrowRight size={14} color="#FF6B6B" />
+                            <ArrowRight size={14} color="#1B2A4A" />
                           </View>
                         </View>
 
@@ -1167,7 +1167,7 @@ export default function WalletScreen() {
                     <View className="flex-row items-center">
                       <View
                         className="w-9 h-9 rounded-full items-center justify-center mr-3"
-                        style={{ backgroundColor: mb.member.color || '#FF6B6B' }}
+                        style={{ backgroundColor: mb.member.color || '#1B2A4A' }}
                       >
                         <Text className="text-xs font-bold text-white">{mb.member.name[0]}</Text>
                       </View>
@@ -1215,7 +1215,7 @@ export default function WalletScreen() {
           onPress={() => setModalVisible(true)}
           className="bg-primary px-5 py-3.5 rounded-full flex-row items-center shadow-lg"
           style={{
-            shadowColor: '#FF6B6B',
+            shadowColor: '#1B2A4A',
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.35,
             shadowRadius: 8,
@@ -1248,7 +1248,7 @@ export default function WalletScreen() {
             {/* Modal Header */}
             <View className="flex-row items-center justify-between pb-3 border-b border-gray-100">
               <View className="flex-row items-center">
-                <Receipt size={20} color="#FF6B6B" />
+                <Receipt size={20} color="#1B2A4A" />
                 <Text className="text-lg font-extrabold text-darkText ml-1.5">새 지출 추가</Text>
               </View>
               <TouchableOpacity
@@ -1351,7 +1351,7 @@ export default function WalletScreen() {
                       >
                         <MapPin
                           size={11}
-                          color={selectedPlaceName === item.place_name ? '#FFF' : '#FF6B6B'}
+                          color={selectedPlaceName === item.place_name ? '#FFF' : '#1B2A4A'}
                           className="mr-1"
                         />
                         <Text
@@ -1413,7 +1413,7 @@ export default function WalletScreen() {
                     >
                       <View
                         className="w-4 h-4 rounded-full items-center justify-center mr-1.5"
-                        style={{ backgroundColor: m.color || '#FF6B6B' }}
+                        style={{ backgroundColor: m.color || '#1B2A4A' }}
                       >
                         <Text className="text-[9px] font-bold text-white">{m.name[0]}</Text>
                       </View>
@@ -1455,7 +1455,7 @@ export default function WalletScreen() {
                       <View className="flex-row items-center">
                         <View
                           className="w-4 h-4 rounded-full items-center justify-center mr-1"
-                          style={{ backgroundColor: m.color || '#FF6B6B' }}
+                          style={{ backgroundColor: m.color || '#1B2A4A' }}
                         >
                           <Text className="text-[9px] font-bold text-white">{m.name[0]}</Text>
                         </View>
@@ -1554,7 +1554,7 @@ const tabStyles = StyleSheet.create({
     fontWeight: '700',
   },
   activeTabText: {
-    color: '#FF6B6B',
+    color: '#1B2A4A',
   },
   inactiveTabText: {
     color: '#6B7280',

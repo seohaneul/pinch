@@ -421,7 +421,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
-                <Plane size={18} color="#FF6B6B" />
+                <Plane size={18} color="#1B2A4A" />
               </View>
               <View>
                 <Text style={styles.title}>왕복 항공권 등록 ✈️</Text>
@@ -442,7 +442,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
               style={[styles.tabBtn, activeTab === 'outbound' && styles.tabBtnActive]}
               activeOpacity={0.8}
             >
-              <Plane size={14} color={activeTab === 'outbound' ? '#FF6B6B' : '#64748B'} style={{ marginRight: 6 }} />
+              <Plane size={14} color={activeTab === 'outbound' ? '#1B2A4A' : '#64748B'} style={{ marginRight: 6 }} />
               <Text style={[styles.tabBtnText, activeTab === 'outbound' && styles.tabBtnTextActive]}>
                 가는 편 (출발편)
               </Text>
@@ -455,7 +455,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
             >
               <Plane
                 size={14}
-                color={activeTab === 'return' ? '#FF6B6B' : '#64748B'}
+                color={activeTab === 'return' ? '#1B2A4A' : '#64748B'}
                 style={{ marginRight: 6, transform: [{ rotate: '180deg' }] }}
               />
               <Text style={[styles.tabBtnText, activeTab === 'return' && styles.tabBtnTextActive]}>
@@ -506,7 +506,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                       style={styles.searchPickerLink}
                       activeOpacity={0.7}
                     >
-                      <Search size={12} color="#FF6B6B" style={{ marginRight: 3 }} />
+                      <Search size={12} color="#1B2A4A" style={{ marginRight: 3 }} />
                       <Text style={styles.searchPickerLinkText}>공항 검색/선택</Text>
                     </TouchableOpacity>
                   </View>
@@ -593,7 +593,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                       style={styles.searchPickerLink}
                       activeOpacity={0.7}
                     >
-                      <Search size={12} color="#FF6B6B" style={{ marginRight: 3 }} />
+                      <Search size={12} color="#1B2A4A" style={{ marginRight: 3 }} />
                       <Text style={styles.searchPickerLinkText}>공항 검색/선택</Text>
                     </TouchableOpacity>
                   </View>
@@ -696,7 +696,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                 {/* 4. 입국 수속 버퍼 */}
                 <View style={styles.bufferCard}>
                   <View style={styles.bufferHeader}>
-                    <Sparkles size={14} color="#FF6B6B" style={{ marginRight: 6 }} />
+                    <Sparkles size={14} color="#1B2A4A" style={{ marginRight: 6 }} />
                     <Text style={styles.bufferTitle}>도착 후 입국 수속 & 추천 일정 시작 시간</Text>
                   </View>
                   <Text style={styles.bufferDesc}>
@@ -767,7 +767,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                   <Switch
                     value={hasReturnFlight}
                     onValueChange={setHasReturnFlight}
-                    trackColor={{ false: '#CBD5E1', true: '#FF6B6B' }}
+                    trackColor={{ false: '#CBD5E1', true: '#1B2A4A' }}
                     thumbColor="#FFFFFF"
                   />
                 </View>
@@ -811,7 +811,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                           style={styles.searchPickerLink}
                           activeOpacity={0.7}
                         >
-                          <Search size={12} color="#FF6B6B" style={{ marginRight: 3 }} />
+                          <Search size={12} color="#1B2A4A" style={{ marginRight: 3 }} />
                           <Text style={styles.searchPickerLinkText}>공항 검색/선택</Text>
                         </TouchableOpacity>
                       </View>
@@ -869,7 +869,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                           style={styles.searchPickerLink}
                           activeOpacity={0.7}
                         >
-                          <Search size={12} color="#FF6B6B" style={{ marginRight: 3 }} />
+                          <Search size={12} color="#1B2A4A" style={{ marginRight: 3 }} />
                           <Text style={styles.searchPickerLinkText}>공항 검색/선택</Text>
                         </TouchableOpacity>
                       </View>
@@ -966,7 +966,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
               <Switch
                 value={autoAddToSchedule}
                 onValueChange={setAutoAddToSchedule}
-                trackColor={{ false: '#CBD5E1', true: '#FF6B6B' }}
+                trackColor={{ false: '#CBD5E1', true: '#1B2A4A' }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -993,7 +993,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
               <View style={styles.pickerSheet}>
                 <View style={styles.pickerHeader}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Globe size={18} color="#FF6B6B" style={{ marginRight: 8 }} />
+                    <Globe size={18} color="#1B2A4A" style={{ marginRight: 8 }} />
                     <Text style={styles.pickerTitle}>공항 선택 🛫</Text>
                   </View>
                   <TouchableOpacity onPress={() => setPickerTarget(null)} style={styles.pickerCloseBtn}>
@@ -1003,7 +1003,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
 
                 {/* Search in picker */}
                 <View style={styles.pickerSearchBar}>
-                  <Search size={15} color="#FF6B6B" style={{ marginRight: 8 }} />
+                  <Search size={15} color="#1B2A4A" style={{ marginRight: 8 }} />
                   <TextInput
                     value={pickerQuery}
                     onChangeText={setPickerQuery}
@@ -1164,7 +1164,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   tabBtnTextActive: {
-    color: '#FF6B6B',
+    color: '#1B2A4A',
     fontWeight: '800',
   },
   tabOffBadge: {
@@ -1207,7 +1207,7 @@ const styles = StyleSheet.create({
   searchPickerLinkText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FF6B6B',
+    color: '#1B2A4A',
   },
   presetChipRow: {
     gap: 6,
@@ -1223,7 +1223,7 @@ const styles = StyleSheet.create({
   },
   presetChipActive: {
     backgroundColor: '#FFF0F0',
-    borderColor: '#FF6B6B',
+    borderColor: '#1B2A4A',
   },
   presetChipText: {
     fontSize: 11,
@@ -1231,7 +1231,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   presetChipTextActive: {
-    color: '#FF6B6B',
+    color: '#1B2A4A',
     fontWeight: '700',
   },
   input: {
@@ -1284,7 +1284,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
   },
   smallChipActive: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
   },
   smallChipText: {
     fontSize: 11,
@@ -1334,8 +1334,8 @@ const styles = StyleSheet.create({
     borderColor: '#CBD5E1',
   },
   bufferPresetBtnActive: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
+    borderColor: '#1B2A4A',
   },
   bufferPresetText: {
     fontSize: 11,
@@ -1447,7 +1447,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   primarySaveBtn: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingVertical: 14,
     borderRadius: 14,
     flexDirection: 'row',
@@ -1530,7 +1530,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
   },
   pickerFilterChipActive: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
   },
   pickerFilterChipText: {
     fontSize: 11,

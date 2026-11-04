@@ -16,27 +16,25 @@ import * as Clipboard from 'expo-clipboard';
 import { useTripStore } from '../../src/store/useTripStore';
 import { usePlaceStore } from '../../src/store/usePlaceStore';
 import { useSavedLinkStore } from '../../src/store/useSavedLinkStore';
-import { useAuthStore } from '../../src/store/useAuthStore';
+import { useWalletStore } from '../../src/store/useWalletStore';
 import { useClipboardListener } from '../../src/hooks/useClipboardListener';
 import { ClipboardToast } from '../../src/components/places/ClipboardToast';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
+import { CreateTripModal } from '../../src/components/trip/CreateTripModal';
 import { LinkPlacesModal } from '../../src/components/places/LinkPlacesModal';
 import type { SavedLink } from '../../src/types';
 import { resolveDestinationCoverImage } from '../../src/services/destinationSearchService';
 import {
-  Sparkles,
-  Link as LinkIcon,
-  MapPin,
-  Calendar,
   Bookmark,
-  Map,
   Wallet,
-  Users,
-  ChevronRight,
+  ChevronDown,
   ClipboardPaste,
   ArrowRight,
   Plane,
+  Hotel,
   Plus,
+  Edit3,
+  Share2,
 } from '@/components/common/CustomIcons';
 
 export default function HomeScreen() {
@@ -44,17 +42,19 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [urlInput, setUrlInput] = useState('');
   const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
+  const [wizardVisible, setWizardVisible] = useState(false);
+  const [wizardEditMode, setWizardEditMode] = useState(false);
+  const [wizardInitialStep, setWizardInitialStep] = useState<1 | 2 | 3 | 4>(1);
   const [selectedLinkForPlaces, setSelectedLinkForPlaces] = useState<SavedLink | null>(null);
   const [coverImageError, setCoverImageError] = useState(false);
 
-  const { user } = useAuthStore();
-  const { currentTrip, scheduleItems } = useTripStore();
+  const { currentTrip, scheduleItems, getTripFlight, getDayLodging } = useTripStore();
   const { places } = usePlaceStore();
   const { isExtractingLink, addLinkFromUrl } = useSavedLinkStore();
+  const { getTotalKrw } = useWalletStore();
   const { detectedUrl, dismissDetectedUrl } = useClipboardListener();
 
-  // Active trip's schedule items & places
-  const currentTripId = currentTrip?.id || 't_tokyo';
+  const currentTripId = currentTrip?.id || 't_first';
   const currentTripScheduleItems = scheduleItems.filter(
     (s) => !s.trip_id || s.trip_id === currentTripId
   );
@@ -65,7 +65,12 @@ export default function HomeScreen() {
     return p.trip_id === currentTripId;
   });
 
-  // D-Day calculation
+  const tripFlight = getTripFlight(currentTripId);
+  const tripLodging = currentTrip?.lodging || getDayLodging(1);
+  const totalKrw = getTotalKrw(currentTripId);
+  const dayCount = currentTrip?.schedules?.length || 1;
+  const memberCount = currentTrip?.members?.length || 1;
+
   const calculateDDay = (startDate?: string) => {
     if (!startDate) return 'D-Day';
     const target = new Date(startDate).getTime();
@@ -76,312 +81,387 @@ export default function HomeScreen() {
     return `D+${Math.abs(diffDays)}`;
   };
 
+  const openEditTripAtStep = (stepNum: 1 | 2 | 3 | 4 = 1) => {
+    setWizardEditMode(true);
+    setWizardInitialStep(stepNum);
+    setWizardVisible(true);
+  };
+
+  const openCreateNewTrip = () => {
+    setWizardEditMode(false);
+    setWizardInitialStep(1);
+    setWizardVisible(true);
+  };
+
   const handleExtract = async (urlToExtract?: string) => {
-    const targetUrl = urlToExtract || urlInput;
-    if (!targetUrl.trim()) {
-      Alert.alert('알림', '인스타그램, 유튜브 등 SNS 링크를 입력해주세요.');
+    const targetUrl = (urlToExtract || urlInput).trim();
+    if (!targetUrl) {
+      Alert.alert('알림', '추출할 인스타그램, 유튜브, 블로그 링크를 입력해주세요.');
       return;
     }
 
-    const activeTripId = currentTrip?.id || 't_tokyo';
-    const newSavedLink = await addLinkFromUrl(targetUrl.trim(), activeTripId);
+    const newSavedLink = await addLinkFromUrl(targetUrl, currentTripId);
     if (newSavedLink) {
       setUrlInput('');
       dismissDetectedUrl();
       setSelectedLinkForPlaces(newSavedLink);
-      Alert.alert(
-        '링크 핀치 성공! ✈️',
-        `"${newSavedLink.title}" 링크가 저장되었습니다.\n포함된 장소 ${newSavedLink.extractedPlaces.length}곳 중 원하는 장소를 담아보세요!`
-      );
     } else {
-      Alert.alert('오류', '링크를 분석하지 못했습니다. 다시 시도해 주세요.');
+      Alert.alert('알림', '링크를 분석하지 못했습니다. 올바른 주소인지 확인해주세요.');
     }
   };
 
-  const handlePasteClipboard = async () => {
+  const handlePasteFromClipboard = async () => {
     try {
       const text = await Clipboard.getStringAsync();
-      if (text && text.trim()) {
+      if (text && text.trim().length > 0) {
         setUrlInput(text.trim());
-        handleExtract(text.trim());
       } else {
-        Alert.alert('클립보드 확인', '클립보드에 복사된 링크가 없습니다.');
+        Alert.alert('알림', '클립보드에 복사된 텍스트가 없습니다.');
       }
-    } catch (e) {
-      // Ignore
+    } catch {
+      Alert.alert('오류', '클립보드를 읽어오지 못했습니다.');
     }
   };
 
-  const handleInviteCompanion = async () => {
+  const handleShareTrip = async () => {
     try {
       await Share.share({
-        title: '핀치 (Pinch) 동행자 초대',
-        message: `✈️ ${currentTrip?.title || '여행'} 계획에 함께 참여해보세요!\n인스타그램/유튜브 링크만 넣으면 동선이 자동으로 짜여요.\nhttps://pinch-travel.app/trip/${currentTrip?.id || 'tokyo'}`,
+        title: `${currentTrip?.title || '핀치 여행'} 초대`,
+        message: `[PINCHI] ${currentTrip?.title || '여행'} (${currentTrip?.startDate} ~ ${currentTrip?.endDate})\n여행지: ${currentTrip?.destination}\n저장한 스팟 ${tripPlaces.length}곳 · 일정 ${currentTripScheduleItems.length}개`,
       });
-    } catch (error) {
-      // Ignore
+    } catch {
+      // ignore
     }
   };
 
-  const nickname = user?.nickname || '여행자';
-  const dayScheduleCount = currentTrip?.schedules?.length || 3;
+  const coverUri =
+    !coverImageError && currentTrip?.coverImage
+      ? currentTrip.coverImage
+      : resolveDestinationCoverImage(currentTrip?.destination || '도쿄');
+
+  const hasFlight = !!tripFlight?.outbound?.flightNumber;
+  const hasLodging = !!tripLodging?.name;
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 14) + 6 }]}>
+    <View style={styles.screen}>
+      {/* 클립보드 링크 감지 토스트 */}
+      {detectedUrl ? (
+        <View style={{ paddingTop: Math.max(insets.top, 12) }}>
+          <ClipboardToast
+            url={detectedUrl}
+            onPinch={(url: string) => handleExtract(url)}
+            onDismiss={dismissDetectedUrl}
+          />
+        </View>
+      ) : null}
+
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{ paddingBottom: 36 }}
       >
-        {/* 1. Top Cute Pinch Logo + Welcome Greeting */}
-        <View style={styles.topHeader}>
-          <View style={styles.logoRow}>
-            <View style={styles.pinchLogoBadge}>
-              <MapPin size={18} color="#FF6B6B" fill="#FF6B6B" />
-            </View>
-            <View style={styles.brandBadge}>
-              <Sparkles size={11} color="#FF6B6B" />
-              <Text style={styles.brandBadgeText}>Pinch</Text>
-            </View>
-          </View>
-
-          <Text style={styles.welcomeTitle}>
-            {nickname}님, 다음 여행을{'\n'}계획해 볼까요? ✈️
-          </Text>
-          <Text style={styles.welcomeSubtitle}>
-            SNS에서 본 핫플 링크를 핀치하면 최단 동선이 완성돼요!
-          </Text>
-        </View>
-
-        {/* Clipboard Toast Banner */}
-        {detectedUrl && (
-          <View style={styles.clipboardBannerWrap}>
-            <ClipboardToast
-              url={detectedUrl}
-              onPinch={() => handleExtract(detectedUrl)}
-              onDismiss={dismissDetectedUrl}
-            />
-          </View>
-        )}
-
-        {/* 2. Primary Action: Prominent "Quick Pinch" Link Input Bar */}
-        <View style={styles.quickPinchCard}>
-          <View style={styles.quickPinchHeader}>
-            <View style={styles.linkIconWrap}>
-              <LinkIcon size={15} color="#FF6B6B" />
-            </View>
-            <Text style={styles.quickPinchTitle}>Quick Pinch (링크로 장소 추가)</Text>
-            <View style={styles.aiBadge}>
-              <Text style={styles.aiBadgeText}>스마트 파싱</Text>
-            </View>
-          </View>
-
-          <View style={styles.inputContainer}>
-            <TextInput
-              value={urlInput}
-              onChangeText={setUrlInput}
-              placeholder="릴스/쇼츠/블로그 링크 붙여넣기"
-              placeholderTextColor="#9CA3AF"
-              style={styles.textInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-
+        {/* ==================== 1. 상단 화이트 헤더 & 히어로 섹션 (레퍼런스 4 스타일) ==================== */}
+        <View style={[styles.topWhiteSection, { paddingTop: Math.max(insets.top, 14) + 6 }]}>
+          {/* 상단바: 좌측 여행 선택 드롭다운 / 우측 새 여행 & 수정 버튼 */}
+          <View style={styles.topHeaderBar}>
             <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={handlePasteClipboard}
-              style={styles.pasteBtn}
-              accessibilityLabel="클립보드 붙여넣기"
+              activeOpacity={0.75}
+              onPress={() => setTripSwitcherVisible(true)}
+              style={styles.tripDropdownBtn}
             >
-              <ClipboardPaste size={14} color="#6B7280" />
-              <Text style={styles.pasteBtnText}>붙여넣기</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => handleExtract()}
-              disabled={isExtractingLink}
-              style={[styles.pinchActionBtn, isExtractingLink && styles.btnDisabled]}
-            >
-              <Text style={styles.pinchActionBtnText}>
-                {isExtractingLink ? '분석 중...' : '핀치 🤏'}
+              <Text style={styles.tripDropdownText} numberOfLines={1}>
+                {currentTrip?.destination || '여행지 선택'}
               </Text>
+              <ChevronDown size={20} color="#111827" />
             </TouchableOpacity>
-          </View>
-        </View>
 
-        {/* 3. Active Trip Card */}
-        {currentTrip ? (
-          <View style={styles.activeTripSection}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>진행 중인 여행 계획 🗺️</Text>
+            <View style={styles.topRightActions}>
               <TouchableOpacity
-                onPress={() => setTripSwitcherVisible(true)}
-                style={styles.tripSwitchPill}
+                activeOpacity={0.75}
+                onPress={() => openEditTripAtStep(1)}
+                style={styles.headerIconBtn}
               >
-                <Text style={styles.tripSwitchPillText}>여행 변경</Text>
-                <ChevronRight size={12} color="#FF6B6B" />
+                <Edit3 size={19} color="#111827" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={openCreateNewTrip}
+                style={styles.headerIconBtn}
+              >
+                <Plus size={21} color="#111827" />
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* 히어로 요약: 좌측 원형 썸네일 + 우측 3단 타이포 (레퍼런스 4 구조) */}
+          <View style={styles.heroProfileRow}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => openEditTripAtStep(1)}
+              style={styles.heroCircleFrame}
+            >
+              <Image
+                source={{ uri: coverUri }}
+                style={styles.heroCircleImg}
+                onError={() => setCoverImageError(true)}
+              />
+            </TouchableOpacity>
+
+            <View style={styles.heroTextCol}>
+              <Text style={styles.heroDateLine} numberOfLines={1}>
+                {currentTrip?.startDate?.replace(/-/g, '.')} -{' '}
+                {currentTrip?.endDate?.slice(5).replace(/-/g, '.')} ·{' '}
+                {dayCount > 1 ? `${dayCount - 1}박 ${dayCount}일` : '당일치기'} (
+                {calculateDDay(currentTrip?.startDate)})
+              </Text>
+
+              <Text style={styles.heroTitleLine} numberOfLines={1}>
+                {currentTrip?.title || '나의 첫 여행'}
+              </Text>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => openEditTripAtStep(1)}
+                style={styles.heroEditableLine}
+              >
+                <Text style={styles.heroEditableText} numberOfLines={1}>
+                  {hasFlight ? tripFlight?.outbound?.flightNumber : '항공편 미정'} ·{' '}
+                  {hasLodging ? tripLodging?.name : '숙소 미정'} · 동행 {memberCount}명
+                </Text>
+                <Edit3 size={13} color="#9CA3AF" style={{ marginLeft: 5 }} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* ==================== 2. 그레이 대시보드 피드 (레퍼런스 4 스타일) ==================== */}
+        <View style={styles.grayBodySection}>
+          {/* 4개 퀵 상태 카드 Row (미설정 시 점선 + 느낌표 배지, 설정 시 화이트 솔리드) */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickCardsRow}
+          >
+            {/* 1) 항공편 카드 */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => openEditTripAtStep(3)}
+              style={[styles.quickSquareCard, !hasFlight && styles.quickSquareCardDashed]}
+            >
+              <View style={styles.quickIconWrap}>
+                <Plane size={24} color="#1B2A4A" />
+                {!hasFlight && (
+                  <View style={styles.alertDotBadge}>
+                    <Text style={styles.alertDotBadgeText}>!</Text>
+                  </View>
+                )}
+              </View>
+              <Text
+                style={[styles.quickCardLabel, !hasFlight && styles.quickCardLabelMuted]}
+                numberOfLines={2}
+              >
+                {hasFlight
+                  ? `항공편\n${tripFlight?.outbound?.flightNumber}`
+                  : '항공편을\n등록해주세요'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* 2) 숙소 카드 */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => openEditTripAtStep(4)}
+              style={[styles.quickSquareCard, !hasLodging && styles.quickSquareCardDashed]}
+            >
+              <View style={styles.quickIconWrap}>
+                <Hotel size={24} color="#1B2A4A" />
+                {!hasLodging && (
+                  <View style={styles.alertDotBadge}>
+                    <Text style={styles.alertDotBadgeText}>!</Text>
+                  </View>
+                )}
+              </View>
+              <Text
+                style={[styles.quickCardLabel, !hasLodging && styles.quickCardLabelMuted]}
+                numberOfLines={2}
+              >
+                {hasLodging ? `숙소\n${tripLodging?.name}` : '숙소 정보를\n입력해주세요'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* 3) 보관함 카드 */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/(tabs)/places')}
+              style={styles.quickSquareCard}
+            >
+              <View style={styles.quickIconWrap}>
+                <Bookmark size={24} color="#1B2A4A" />
+              </View>
+              <Text style={styles.quickCardLabel} numberOfLines={2}>
+                {`저장 스팟\n${tripPlaces.length}곳`}
+              </Text>
+            </TouchableOpacity>
+
+            {/* 4) 가계부 카드 */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/(tabs)/wallet')}
+              style={styles.quickSquareCard}
+            >
+              <View style={styles.quickIconWrap}>
+                <Wallet size={24} color="#1B2A4A" />
+              </View>
+              <Text style={styles.quickCardLabel} numberOfLines={2}>
+                {totalKrw > 0 ? `지출 내역\n₩${totalKrw.toLocaleString()}` : '가계부·정산\n관리하기'}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          {/* ==================== 메인 카드 1: 내 여행 일정 & 동선 ==================== */}
+          <View style={styles.mainFeatureCard}>
+            <Text style={styles.featureCardTitle}>내 여행 일정 & 동선</Text>
+            <Text style={styles.featureCardBlueSub}>
+              {currentTripScheduleItems.length > 0
+                ? `총 ${currentTripScheduleItems.length}개의 스팟이 일자별 동선에 등록되어 있어요.`
+                : '보관함의 스팟을 담아 최적의 여행 코스를 완성해보세요.'}
+            </Text>
 
             <TouchableOpacity
               activeOpacity={0.9}
               onPress={() => router.push('/(tabs)/planner')}
-              style={styles.tripCard}
+              style={styles.featureImageBox}
             >
               <Image
-                source={{
-                  uri:
-                    !coverImageError && currentTrip.coverImage
-                      ? currentTrip.coverImage
-                      : resolveDestinationCoverImage(currentTrip.destination, currentTrip.title),
-                }}
-                style={styles.tripCoverImage}
+                source={{ uri: coverUri }}
+                style={styles.featureImage}
                 resizeMode="cover"
-                onError={() => setCoverImageError(true)}
               />
-              <View style={styles.imageOverlay} />
-
-              {/* Floating D-Day Badge */}
-              <View style={styles.ddayBadge}>
-                <Text style={styles.ddayText}>{calculateDDay(currentTrip.startDate)}</Text>
-              </View>
-
-              {/* Card Bottom Details */}
-              <View style={styles.tripCardContent}>
-                <View style={styles.destinationRow}>
-                  <MapPin size={12} color="#FFFFFF" />
-                  <Text style={styles.destinationText}>{currentTrip.destination}</Text>
-                  <Calendar size={12} color="#FFFFFF" style={{ marginLeft: 8 }} />
-                  <Text style={styles.dateText}>
-                    {currentTrip.startDate.slice(5).replace('-', '.')} ~{' '}
-                    {currentTrip.endDate.slice(5).replace('-', '.')}
-                  </Text>
-                </View>
-
-                <Text style={styles.tripTitleText} numberOfLines={1}>
-                  {currentTrip.title}
+              <View style={styles.featureImageCaptionBar}>
+                <Text style={styles.featureImageCaptionText} numberOfLines={1}>
+                  {currentTrip?.title || '나의 여행'} ({dayCount}일 일정 · 스팟{' '}
+                  {currentTripScheduleItems.length}곳)
                 </Text>
-
-                {/* Quick Stats Pill */}
-                <View style={styles.statsPillRow}>
-                  <View style={styles.statsPill}>
-                    <Bookmark size={11} color="#FF6B6B" />
-                    <Text style={styles.statsPillText}>저장 장소 {tripPlaces.length}개</Text>
-                  </View>
-                  <View style={styles.statsPill}>
-                    <Map size={11} color="#34D399" />
-                    <Text style={styles.statsPillText}>
-                      Day 1~{dayScheduleCount} 동선 ({currentTripScheduleItems.length}스팟)
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.activeTripSection}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>진행 중인 여행 계획 🗺️</Text>
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => setTripSwitcherVisible(true)}
-              style={styles.emptyTripCard}
-            >
-              <View style={styles.emptyTripIconWrap}>
-                <Plane size={24} color="#FF6B6B" />
-              </View>
-              <Text style={styles.emptyTripTitle}>아직 계획 중인 여행이 없어요</Text>
-              <Text style={styles.emptyTripSubtitle}>새로운 여행을 만들고 나만의 코스를 완성해보세요!</Text>
-              <View style={styles.emptyTripBtn}>
-                <Plus size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
-                <Text style={styles.emptyTripBtnText}>새 여행 만들기</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* 4. Action Shortcuts (2x2 Grid) */}
-        <View style={styles.shortcutsSection}>
-          <Text style={styles.sectionTitle}>빠른 메뉴</Text>
-
-          <View style={styles.gridContainer}>
-            {/* Shortcut 1: Places */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => router.push('/(tabs)/places')}
-              style={styles.gridItem}
-            >
-              <View style={[styles.gridIconWrap, { backgroundColor: 'rgba(255, 107, 107, 0.12)' }]}>
-                <Bookmark size={20} color="#FF6B6B" fill="#FF6B6B" />
-              </View>
-              <Text style={styles.gridTitle}>장소 보관함</Text>
-              <Text style={styles.gridSubtitle}>인스타/블로그에서 핀치한 곳</Text>
-              <View style={styles.gridArrow}>
-                <ArrowRight size={13} color="#9CA3AF" />
+                <ArrowRight size={16} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
 
-            {/* Shortcut 2: Planner */}
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => router.push('/(tabs)/planner')}
-              style={styles.gridItem}
+              style={styles.outlinedActionBtn}
             >
-              <View style={[styles.gridIconWrap, { backgroundColor: 'rgba(78, 205, 196, 0.15)' }]}>
-                <Map size={20} color="#2A9D8F" />
-              </View>
-              <Text style={styles.gridTitle}>동선 플래너</Text>
-              <Text style={styles.gridSubtitle}>날짜별 지도 & 시간표 짜기</Text>
-              <View style={styles.gridArrow}>
-                <ArrowRight size={13} color="#9CA3AF" />
-              </View>
+              <Text style={styles.outlinedActionBtnText}>일정 및 동선 플래너 열기</Text>
             </TouchableOpacity>
+          </View>
 
-            {/* Shortcut 3: Budget / Wallet */}
+          {/* ==================== 메인 카드 2: SNS 링크 스팟 추출 ==================== */}
+          <View style={styles.mainFeatureCard}>
+            <Text style={styles.featureCardTitle}>링크로 스팟 핀치하기</Text>
+            <Text style={styles.featureCardBlueSub}>
+              인스타그램 · 유튜브 · 블로그 링크에서 장소를 자동 추출해보세요.
+            </Text>
+
+            <View style={styles.linkInputBox}>
+              <TextInput
+                value={urlInput}
+                onChangeText={setUrlInput}
+                placeholder="https://www.instagram.com/reel/..."
+                placeholderTextColor="#9CA3AF"
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.linkTextInput}
+              />
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={handlePasteFromClipboard}
+                style={styles.pasteMiniBtn}
+              >
+                <ClipboardPaste size={14} color="#1B2A4A" />
+                <Text style={styles.pasteMiniBtnText}>붙여넣기</Text>
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => router.push('/(tabs)/wallet')}
-              style={styles.gridItem}
+              disabled={isExtractingLink}
+              onPress={() => handleExtract()}
+              style={[styles.outlinedActionBtn, isExtractingLink && { opacity: 0.6 }]}
             >
-              <View style={[styles.gridIconWrap, { backgroundColor: 'rgba(255, 159, 28, 0.15)' }]}>
-                <Wallet size={20} color="#F77F00" />
-              </View>
-              <Text style={styles.gridTitle}>여행 예산서</Text>
-              <Text style={styles.gridSubtitle}>예상 경비 & 1/N 정산 보기</Text>
-              <View style={styles.gridArrow}>
-                <ArrowRight size={13} color="#9CA3AF" />
-              </View>
+              <Text style={styles.outlinedActionBtnText}>
+                {isExtractingLink ? '링크에서 장소 분석 중...' : '링크 분석하고 스팟 담기'}
+              </Text>
             </TouchableOpacity>
+          </View>
 
-            {/* Shortcut 4: Invite Companion */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={handleInviteCompanion}
-              style={styles.gridItem}
-            >
-              <View style={[styles.gridIconWrap, { backgroundColor: 'rgba(162, 155, 254, 0.18)' }]}>
-                <Users size={20} color="#6C5CE7" />
+          {/* ==================== 메인 카드 3: 여행 설정 & 관리 ==================== */}
+          <View style={styles.mainFeatureCard}>
+            <Text style={styles.featureCardTitle}>여행 설정 및 동행자</Text>
+            <Text style={styles.featureCardBlueSub}>
+              여행 국가, 날짜, 항공편, 숙소 정보를 언제든 수정할 수 있어요.
+            </Text>
+
+            <View style={styles.infoSummaryList}>
+              <View style={styles.infoSummaryRow}>
+                <Text style={styles.infoSummaryKey}>여행지 · 기간</Text>
+                <Text style={styles.infoSummaryVal}>
+                  {currentTrip?.destination} ({currentTrip?.startDate?.slice(5)} ~{' '}
+                  {currentTrip?.endDate?.slice(5)})
+                </Text>
               </View>
-              <Text style={styles.gridTitle}>동행자 초대</Text>
-              <Text style={styles.gridSubtitle}>친구와 함께 링크 모으기</Text>
-              <View style={styles.gridArrow}>
-                <ArrowRight size={13} color="#9CA3AF" />
+              <View style={styles.infoSummaryRow}>
+                <Text style={styles.infoSummaryKey}>항공편</Text>
+                <Text style={styles.infoSummaryVal}>
+                  {hasFlight
+                    ? `${tripFlight?.outbound?.departureAirport} → ${tripFlight?.outbound?.arrivalAirport} (${tripFlight?.outbound?.flightNumber})`
+                    : '미등록 (나중에 설정 가능)'}
+                </Text>
               </View>
-            </TouchableOpacity>
+              <View style={styles.infoSummaryRow}>
+                <Text style={styles.infoSummaryKey}>숙소 · 동행</Text>
+                <Text style={styles.infoSummaryVal}>
+                  {hasLodging ? tripLodging?.name : '숙소 미등록'} · 멤버 {memberCount}명
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.dualBtnRow}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => openEditTripAtStep(1)}
+                style={[styles.outlinedActionBtn, { flex: 1, marginTop: 0 }]}
+              >
+                <Text style={styles.outlinedActionBtnText}>여행 정보 수정</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleShareTrip}
+                style={styles.shareSquareBtn}
+              >
+                <Share2 size={18} color="#1B2A4A" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </ScrollView>
 
-      {/* Trip Switcher & Create Modal */}
+      {/* 여행 전환 모달 */}
       <TripSwitcherModal
         visible={tripSwitcherVisible}
         onClose={() => setTripSwitcherVisible(false)}
       />
 
-      {/* 링크 속 장소 확인 및 골라 담기 모달 */}
+      {/* 스텝별 여행 추가 / 수정 위저드 모달 */}
+      <CreateTripModal
+        visible={wizardVisible}
+        editTrip={wizardEditMode ? currentTrip : null}
+        initialStep={wizardInitialStep}
+        onClose={() => setWizardVisible(false)}
+        onCreated={() => setWizardVisible(false)}
+      />
+
+      {/* 링크 추출 장소 선택 모달 */}
       <LinkPlacesModal
-        visible={Boolean(selectedLinkForPlaces)}
+        visible={!!selectedLinkForPlaces}
         savedLink={selectedLinkForPlaces}
         onClose={() => setSelectedLinkForPlaces(null)}
       />
@@ -390,356 +470,296 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F4F5F7',
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 48,
-  },
-  topHeader: {
-    marginTop: 4,
-    marginBottom: 20,
-  },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  pinchLogoBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 107, 107, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 107, 107, 0.25)',
-  },
-  brandBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  brandBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#FF6B6B',
-    marginLeft: 3,
-  },
-  welcomeTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#0F172A',
-    lineHeight: 32,
-    letterSpacing: -0.5,
-    marginBottom: 6,
-  },
-  welcomeSubtitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-    lineHeight: 18,
-  },
-  clipboardBannerWrap: {
-    marginBottom: 16,
-  },
-  quickPinchCard: {
+  topWhiteSection: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 16,
-    marginBottom: 24,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 107, 107, 0.3)',
-    elevation: 3,
-    shadowColor: '#FF6B6B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ECEEF2',
   },
-  quickPinchHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  linkIconWrap: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 107, 107, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  quickPinchTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#1E293B',
-    flex: 1,
-  },
-  aiBadge: {
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  aiBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1E293B',
-    paddingVertical: 4,
-  },
-  pasteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E2E8F0',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 10,
-    marginRight: 6,
-  },
-  pasteBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-    marginLeft: 3,
-  },
-  pinchActionBtn: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
-  },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-  pinchActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  activeTripSection: {
-    marginBottom: 24,
-  },
-  sectionHeaderRow: {
+  topHeaderBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 20,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  tripSwitchPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 107, 107, 0.08)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  tripSwitchPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FF6B6B',
-    marginRight: 2,
-  },
-  tripCard: {
-    height: 170,
-    borderRadius: 24,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#1E293B',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-  },
-  emptyTripCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#F1F5F9',
-    borderStyle: 'dashed',
-  },
-  emptyTripIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  emptyTripTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  emptyTripSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#94A3B8',
-    marginBottom: 14,
-    textAlign: 'center',
-  },
-  emptyTripBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 12,
-  },
-  emptyTripBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  tripCoverImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-  },
-  ddayBadge: {
-    position: 'absolute',
-    top: 14,
-    left: 14,
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  ddayText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  tripCardContent: {
-    position: 'absolute',
-    bottom: 14,
-    left: 14,
-    right: 14,
-  },
-  destinationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  destinationText: {
-    color: '#E2E8F0',
-    fontSize: 11,
-    fontWeight: '700',
-    marginLeft: 3,
-  },
-  dateText: {
-    color: '#CBD5E1',
-    fontSize: 11,
-    fontWeight: '600',
-    marginLeft: 3,
-  },
-  tripTitleText: {
-    color: '#FFFFFF',
-    fontSize: 19,
-    fontWeight: '900',
-    marginBottom: 8,
-  },
-  statsPillRow: {
+  tripDropdownBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    maxWidth: '72%',
   },
-  statsPill: {
+  tripDropdownText: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: -0.4,
+  },
+  topRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 10,
+    gap: 8,
   },
-  statsPillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#1E293B',
-    marginLeft: 4,
+  headerIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F4F5F7',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  shortcutsSection: {
-    marginBottom: 10,
-  },
-  gridContainer: {
+  heroProfileRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 12,
+    alignItems: 'center',
   },
-  gridItem: {
-    width: '48%',
+  heroCircleFrame: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    borderWidth: 1.2,
+    borderColor: '#1B2A4A',
+    padding: 3,
+    marginRight: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    position: 'relative',
-    elevation: 2,
-    shadowColor: '#000',
+  },
+  heroCircleImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 38,
+    backgroundColor: '#E5E7EB',
+  },
+  heroTextCol: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  heroDateLine: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  heroTitleLine: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: -0.3,
+    marginBottom: 6,
+  },
+  heroEditableLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroEditableText: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    fontWeight: '500',
+    flexShrink: 1,
+  },
+  grayBodySection: {
+    paddingTop: 18,
+    paddingHorizontal: 16,
+  },
+  quickCardsRow: {
+    paddingBottom: 18,
+    gap: 10,
+  },
+  quickSquareCard: {
+    width: 96,
+    height: 106,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#111827',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
+    elevation: 1,
   },
-  gridIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+  quickSquareCardDashed: {
+    backgroundColor: '#EDEFF3',
+    borderWidth: 1.2,
+    borderStyle: 'dashed',
+    borderColor: '#C5CBD6',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  quickIconWrap: {
+    position: 'relative',
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
   },
-  gridTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 2,
-  },
-  gridSubtitle: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#64748B',
-    lineHeight: 15,
-  },
-  gridArrow: {
+  alertDotBadge: {
     position: 'absolute',
-    top: 14,
-    right: 14,
+    top: -2,
+    right: -4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertDotBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  quickCardLabel: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#374151',
+    textAlign: 'center',
+    lineHeight: 15.5,
+  },
+  quickCardLabelMuted: {
+    color: '#8D99AE',
+  },
+  mainFeatureCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 14,
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  featureCardTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: -0.3,
+  },
+  featureCardBlueSub: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2B50AA',
+    marginTop: 5,
+    marginBottom: 14,
+  },
+  featureImageBox: {
+    height: 172,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#E5E7EB',
+    position: 'relative',
+  },
+  featureImage: {
+    width: '100%',
+    height: '100%',
+  },
+  featureImageCaptionBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(27, 42, 74, 0.84)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  featureImageCaptionText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 8,
+  },
+  outlinedActionBtn: {
+    marginTop: 14,
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1B2A4A',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  outlinedActionBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  linkInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F4F5F7',
+    borderRadius: 12,
+    paddingLeft: 14,
+    paddingRight: 8,
+    height: 48,
+  },
+  linkTextInput: {
+    flex: 1,
+    fontSize: 13.5,
+    color: '#111827',
+  },
+  pasteMiniBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  pasteMiniBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#1B2A4A',
+  },
+  infoSummaryList: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 14,
+    gap: 8,
+  },
+  infoSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  infoSummaryKey: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  infoSummaryVal: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#111827',
+    maxWidth: '68%',
+    textAlign: 'right',
+  },
+  dualBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  shareSquareBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1B2A4A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
   },
 });

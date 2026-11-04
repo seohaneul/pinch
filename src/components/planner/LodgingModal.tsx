@@ -238,7 +238,7 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
-                <Hotel size={18} color="#FF6B6B" />
+                <Hotel size={18} color="#1B2A4A" />
               </View>
               <View>
                 <Text style={styles.title}>숙소 검색 & 등록 🏨</Text>
@@ -257,7 +257,7 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
               style={[styles.modeTabBtn, inputMode === 'search' && styles.modeTabBtnActive]}
               activeOpacity={0.8}
             >
-              <Search size={14} color={inputMode === 'search' ? '#FF6B6B' : '#64748B'} style={{ marginRight: 6 }} />
+              <Search size={14} color={inputMode === 'search' ? '#1B2A4A' : '#64748B'} style={{ marginRight: 6 }} />
               <Text style={[styles.modeTabText, inputMode === 'search' && styles.modeTabTextActive]}>
                 숙소 검색하여 선택 🔍
               </Text>
@@ -268,7 +268,7 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
               style={[styles.modeTabBtn, inputMode === 'manual' && styles.modeTabBtnActive]}
               activeOpacity={0.8}
             >
-              <Edit3 size={14} color={inputMode === 'manual' ? '#FF6B6B' : '#64748B'} style={{ marginRight: 6 }} />
+              <Edit3 size={14} color={inputMode === 'manual' ? '#1B2A4A' : '#64748B'} style={{ marginRight: 6 }} />
               <Text style={[styles.modeTabText, inputMode === 'manual' && styles.modeTabTextActive]}>
                 직접 입력 ✏️
               </Text>
@@ -280,7 +280,7 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
             <View style={styles.datePickerCard}>
               <View style={styles.datePickerHeader}>
                 <View style={styles.datePickerHeaderLeft}>
-                  <Calendar size={15} color="#FF6B6B" style={{ marginRight: 6 }} />
+                  <Calendar size={15} color="#1B2A4A" style={{ marginRight: 6 }} />
                   <Text style={styles.datePickerTitle}>숙박 기간 (체크인 ~ 체크아웃)</Text>
                 </View>
                 <View style={styles.nightsBadge}>
@@ -331,7 +331,7 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
 
                 {isSearching ? (
                   <View style={styles.loadingBox}>
-                    <ActivityIndicator size="small" color="#FF6B6B" />
+                    <ActivityIndicator size="small" color="#1B2A4A" />
                     <Text style={styles.loadingText}>숙소 정보를 검색하고 있습니다...</Text>
                   </View>
                 ) : searchResults.length > 0 ? (
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   modeTabTextActive: {
-    color: '#FF6B6B',
+    color: '#1B2A4A',
   },
   scrollBody: {
     marginTop: 2,
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
   datePickerCard: {
     backgroundColor: '#FFF8F8',
     borderWidth: 1,
-    borderColor: '#FECDD3',
+    borderColor: '#CBD5E1',
     borderRadius: 18,
     padding: 14,
     marginBottom: 14,
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
     color: '#9F1239',
   },
   nightsBadge: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
   calendarTriggerBox: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#FDA4AF',
+    borderColor: '#94A3B8',
     borderRadius: 14,
     padding: 12,
     flexDirection: 'row',
@@ -667,17 +667,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   calendarBtnPill: {
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#FECDD3',
+    borderColor: '#CBD5E1',
   },
   calendarBtnPillText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#FF6B6B',
+    color: '#1B2A4A',
   },
   searchSection: {
     marginBottom: 16,
@@ -773,12 +773,12 @@ const styles = StyleSheet.create({
   },
   hotelMemo: {
     fontSize: 10,
-    color: '#FF6B6B',
+    color: '#1B2A4A',
     fontWeight: '600',
     marginTop: 3,
   },
   selectPill: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 12,
@@ -885,7 +885,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   submitBtn: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingVertical: 14,
     borderRadius: 16,
     flexDirection: 'row',
@@ -893,7 +893,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 6,
     marginBottom: 20,
-    shadowColor: '#FF6B6B',
+    shadowColor: '#1B2A4A',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 5,

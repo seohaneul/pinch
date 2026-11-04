@@ -7,7 +7,7 @@
  *  - `fill` prop 전달 시(활성/선택 상태): 면이 솔리드로 채워지고 내부 디테일은 흰색으로 반전
  *  - 모서리/끝은 모두 round 처리하여 여행 앱의 부드럽고 친근한 톤 유지
  *
- * 사용법은 기존 lucide 아이콘과 동일: <MapPin size={20} color="#FF6B6B" fill="#FF6B6B" />
+ * 사용법은 기존 lucide 아이콘과 동일: <MapPin size={20} color="#1B2A4A" fill="#1B2A4A" />
  */
 import React from 'react';
 import Svg, { Path, Circle, Rect, Ellipse, G, SvgProps } from 'react-native-svg';

@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MapPin, Sparkles } from '@/components/common/CustomIcons';
 
 interface HeaderProps {
   title: string;
@@ -14,42 +13,54 @@ export const Header: React.FC<HeaderProps> = ({
   title,
   subtitle,
   rightAction,
-  showLogo = true,
 }) => {
   const insets = useSafeAreaInsets();
-  const topPadding = Math.max(insets.top, 12) + 6;
+  const topPadding = Math.max(insets.top, 12) + 8;
 
   return (
-    <View
-      style={{ paddingTop: topPadding }}
-      className="px-5 pb-4 bg-surface border-b border-borderLine flex-row items-center justify-between"
-    >
-      <View className="flex-row items-center flex-1">
-        {showLogo && (
-          <View className="w-10 h-10 rounded-2xl bg-primary/10 items-center justify-center mr-3 border border-primary/20">
-            <MapPin size={22} color="#FF6B6B" fill="#FF6B6B" />
-          </View>
-        )}
-        <View className="flex-1">
-          <View className="flex-row items-center">
-            <Text className="text-xl font-bold text-darkText tracking-tight mr-2">
-              {title}
-            </Text>
-            {showLogo && (
-              <View className="bg-primary/15 px-2 py-0.5 rounded-full flex-row items-center">
-                <Sparkles size={11} color="#FF6B6B" />
-                <Text className="text-[10px] font-bold color-primary ml-1">Pinch</Text>
-              </View>
-            )}
-          </View>
-          {subtitle && (
-            <Text className="text-xs text-mutedText mt-0.5 font-medium" numberOfLines={1}>
-              {subtitle}
-            </Text>
-          )}
-        </View>
+    <View style={[styles.container, { paddingTop: topPadding }]}>
+      <View style={styles.leftCol}>
+        <Text style={styles.title} numberOfLines={1}>
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : null}
       </View>
-      {rightAction && <View className="ml-3">{rightAction}</View>}
+      {rightAction ? <View style={styles.rightCol}>{rightAction}</View> : null}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F3F5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  leftCol: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: 12.5,
+    color: '#64748B',
+    marginTop: 3,
+    fontWeight: '500',
+  },
+  rightCol: {
+    marginLeft: 12,
+  },
+});

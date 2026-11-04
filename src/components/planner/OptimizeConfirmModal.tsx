@@ -60,7 +60,7 @@ export const OptimizeConfirmModal: React.FC<OptimizeConfirmModalProps> = ({
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
-                <Sparkles size={18} color="#FF6B6B" />
+                <Sparkles size={18} color="#1B2A4A" />
               </View>
               <View>
                 <Text style={styles.title}>DAY {dayNumber} 동선 최적화 확인</Text>
@@ -82,7 +82,7 @@ export const OptimizeConfirmModal: React.FC<OptimizeConfirmModalProps> = ({
             </View>
 
             <View style={styles.compareArrow}>
-              <ArrowRight size={18} color="#FF6B6B" />
+              <ArrowRight size={18} color="#1B2A4A" />
             </View>
 
             {/* After */}
@@ -97,7 +97,7 @@ export const OptimizeConfirmModal: React.FC<OptimizeConfirmModalProps> = ({
 
           {/* Savings Banner */}
           <View style={styles.savingsBanner}>
-            <Sparkles size={16} color="#FF6B6B" />
+            <Sparkles size={16} color="#1B2A4A" />
             <Text style={styles.savingsText}>
               {savedTime > 0
                 ? `약 ${savedTime}분 (${savedDist > 0 ? savedDist + 'km' : '이동'}) 절약돼요! 🤏`
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 107, 107, 0.12)',
+    backgroundColor: 'rgba(27, 42, 74, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -263,13 +263,13 @@ const styles = StyleSheet.create({
   savingsBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    backgroundColor: 'rgba(27, 42, 74, 0.1)',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 107, 107, 0.25)',
+    borderColor: 'rgba(27, 42, 74, 0.25)',
   },
   savingsText: {
     fontSize: 13,
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
@@ -343,11 +343,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingVertical: 14,
     borderRadius: 16,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 3,
-    shadowColor: '#FF6B6B',
+    shadowColor: '#1B2A4A',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,

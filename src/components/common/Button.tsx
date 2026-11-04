@@ -43,7 +43,7 @@ export const Button: React.FC<ButtonProps> = ({
   fullWidth = false,
 }) => {
   // Pure reliable styles matching design specification:
-  // variant="primary": Pinch Coral (#FF6B6B active: #FA5252, white text)
+  // variant="primary": Pinch Coral (#1B2A4A active: #FA5252, white text)
   // variant="secondary": Fresh Mint (#4ECDC4 active: #38B2AC, white text)
   // variant="outline": Transparent border (#E5E7EB, text #374151, bg-white)
   // size="md": py-3.5 px-5 rounded-2xl text-base font-semibold
@@ -83,7 +83,7 @@ export const Button: React.FC<ButtonProps> = ({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'outline' || variant === 'ghost' ? '#FF6B6B' : '#FFFFFF'}
+          color={variant === 'outline' || variant === 'ghost' ? '#1B2A4A' : '#FFFFFF'}
           size="small"
         />
       ) : (
@@ -117,10 +117,10 @@ const styles = StyleSheet.create({
   },
   // Variants
   primaryButton: {
-    backgroundColor: '#FF6B6B', // Pinch Coral
+    backgroundColor: '#1B2A4A', // Pinch Coral
     borderWidth: 0,
     elevation: 2,
-    shadowColor: '#FF6B6B',
+    shadowColor: '#1B2A4A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.22,
     shadowRadius: 4,

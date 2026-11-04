@@ -21,8 +21,10 @@ interface TripState {
   dayStartTimes: Record<string, string>;
   dayLodgings: Record<string, LodgingInfo>;
   tripFlights: Record<string, FlightInfo>;
+  hasCompletedOnboarding: boolean;
 
   // Actions
+  setHasCompletedOnboarding: (completed: boolean) => void;
   getActiveTrip: () => Trip;
   getActiveScheduleItems: () => ScheduleItem[];
   setSelectedDay: (day: number) => void;
@@ -43,6 +45,7 @@ interface TripState {
     memberNames?: string[];
     centerLat?: number;
     centerLng?: number;
+    currency?: 'KRW' | 'JPY' | 'USD' | 'EUR';
   }) => Trip;
   deleteTrip: (tripId: string) => void;
   updateTrip: (tripId: string, updates: Partial<Trip>) => void;
@@ -98,6 +101,9 @@ export const useTripStore = create<TripState>()(
   dayStartTimes: INITIAL_DAY_START_TIMES,
   dayLodgings: INITIAL_DAY_LODGINGS,
   tripFlights: INITIAL_TRIP_FLIGHTS,
+  hasCompletedOnboarding: false,
+
+  setHasCompletedOnboarding: (completed: boolean) => set({ hasCompletedOnboarding: completed }),
 
   setTripFlight: (tripId: string, flight: FlightInfo) => {
     set((state) => ({
@@ -314,7 +320,7 @@ export const useTripStore = create<TripState>()(
       ? tripData.memberNames.map((name, idx) => ({
           id: `m_${Date.now()}_${idx}`,
           name,
-          color: ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A06CD5', '#20BF55'][idx % 5],
+          color: ['#1B2A4A', '#2B50AA', '#3B82F6', '#6366F1', '#0D9488'][idx % 5],
         }))
       : MOCK_MEMBERS;
 
@@ -333,14 +339,21 @@ export const useTripStore = create<TripState>()(
       schedules,
       centerLat: tripData.centerLat,
       centerLng: tripData.centerLng,
+      currency: tripData.currency,
     };
 
-    set((state) => ({
-      trips: [newTrip, ...state.trips],
-      currentTrip: newTrip,
-      activeTripId: newTrip.id,
-      selectedDay: 1,
-    }));
+    set((state) => {
+      const filteredExisting = state.trips.filter(
+        (t) => !(t.id === 't_first' && t.destination === '여행지 설정')
+      );
+      return {
+        trips: [newTrip, ...filteredExisting],
+        currentTrip: newTrip,
+        activeTripId: newTrip.id,
+        selectedDay: 1,
+        hasCompletedOnboarding: true,
+      };
+    });
 
     return newTrip;
   },
@@ -372,9 +385,36 @@ export const useTripStore = create<TripState>()(
 
   updateTrip: (tripId: string, updates: Partial<Trip>) => {
     set((state) => {
-      const updatedTrips = state.trips.map((t) => (t.id === tripId ? { ...t, ...updates } : t));
-      const current = state.currentTrip?.id === tripId ? { ...state.currentTrip, ...updates } : state.currentTrip;
-      return { trips: updatedTrips, currentTrip: current };
+      const rebuildTrip = (t: Trip): Trip => {
+        const merged = { ...t, ...updates };
+        if (updates.startDate || updates.endDate) {
+          const start = new Date(merged.startDate);
+          const end = new Date(merged.endDate);
+          const diffTime = Math.max(0, end.getTime() - start.getTime());
+          const dayCount = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+          const schedules: DaySchedule[] = [];
+          for (let i = 1; i <= dayCount; i++) {
+            const dayDate = new Date(start);
+            dayDate.setDate(dayDate.getDate() + (i - 1));
+            const existingDay = t.schedules?.find((s) => s.dayNumber === i);
+            schedules.push({
+              dayNumber: i,
+              date: dayDate.toISOString().slice(0, 10),
+              placeIds: existingDay?.placeIds || [],
+              notes: existingDay?.notes,
+              startTime: existingDay?.startTime,
+              lodging: existingDay?.lodging,
+            });
+          }
+          merged.schedules = schedules;
+        }
+        return merged;
+      };
+
+      const updatedTrips = state.trips.map((t) => (t.id === tripId ? rebuildTrip(t) : t));
+      const current =
+        state.currentTrip?.id === tripId ? rebuildTrip(state.currentTrip) : state.currentTrip;
+      return { trips: updatedTrips, currentTrip: current, hasCompletedOnboarding: true };
     });
   },
 
@@ -700,6 +740,7 @@ export const useTripStore = create<TripState>()(
       dayStartTimes: INITIAL_DAY_START_TIMES,
       dayLodgings: INITIAL_DAY_LODGINGS,
       tripFlights: INITIAL_TRIP_FLIGHTS,
+      hasCompletedOnboarding: false,
     });
   },
 }),
@@ -716,6 +757,7 @@ export const useTripStore = create<TripState>()(
     dayStartTimes: state.dayStartTimes,
     dayLodgings: state.dayLodgings,
     tripFlights: state.tripFlights,
+    hasCompletedOnboarding: state.hasCompletedOnboarding,
   }),
 }
 ));

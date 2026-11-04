@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
   Modal,
   TextInput,
@@ -13,14 +12,14 @@ import {
   Keyboard,
   ActivityIndicator,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Header } from '../../src/components/common/Header';
-import { Button } from '../../src/components/common/Button';
 import { usePlaceStore } from '../../src/store/usePlaceStore';
 import { useTripStore } from '../../src/store/useTripStore';
 import { useWalletStore } from '../../src/store/useWalletStore';
 import { useAuthStore } from '../../src/store/useAuthStore';
-import { AuthModal } from '../../src/components/auth/AuthModal';
+import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
+import { CreateTripModal } from '../../src/components/trip/CreateTripModal';
 import {
   isSupabaseConfigured,
   getSupabaseCredentials,
@@ -33,35 +32,29 @@ import {
 } from '../../src/services/cloudSyncService';
 import {
   User,
-  Shield,
   ChevronRight,
-  Heart,
-  MapPin,
-  Sparkles,
+  Bookmark,
   LogOut,
-  RotateCcw,
   Trash2,
-  Lock,
-  Globe,
-  Coins,
-  Check,
   X,
-  KeyRound,
   Edit3,
   Cloud,
   UploadCloud,
   DownloadCloud,
   Database,
-  Sliders,
-  CheckCircle2,
 } from '@/components/common/CustomIcons';
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [authModalVisible, setAuthModalVisible] = useState(false);
+
+  const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
+  const [editTripModalVisible, setEditTripModalVisible] = useState(false);
   const [editNicknameModalVisible, setEditNicknameModalVisible] = useState(false);
   const [changePasswordModalVisible, setChangePasswordModalVisible] = useState(false);
-  const [supabaseModalVisible, setSupabaseModalVisible] = useState(false);
+  const [appSettingsModalVisible, setAppSettingsModalVisible] = useState(false);
+  const [cloudModalVisible, setCloudModalVisible] = useState(false);
+  const [accountSheetVisible, setAccountSheetVisible] = useState(false);
 
   // Cloud Sync state
   const [isSyncing, setIsSyncing] = useState(false);
@@ -80,7 +73,6 @@ export default function ProfileScreen() {
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
 
   const {
-    isLoggedIn,
     user,
     defaultBaseCurrency,
     defaultTransportMode,
@@ -91,7 +83,13 @@ export default function ProfileScreen() {
   } = useAuthStore();
 
   const { places, resetToDefaults: resetPlaces, restorePlaces } = usePlaceStore();
-  const { trips, scheduleItems, resetToDefaults: resetTrips, restoreTripsData } = useTripStore();
+  const {
+    trips,
+    currentTrip,
+    scheduleItems,
+    resetToDefaults: resetTrips,
+    restoreTripsData,
+  } = useTripStore();
   const { expenses, resetToDefaults: resetWallet, restoreExpenses } = useWalletStore();
 
   const refreshSyncInfo = async () => {
@@ -116,7 +114,7 @@ export default function ProfileScreen() {
       });
       await refreshSyncInfo();
       Alert.alert(
-        result.isRemote ? '클라우드 백업 완료 ☁️' : '로컬 스냅샷 저장 완료 💾',
+        result.isRemote ? '클라우드 백업 완료' : '로컬 스냅샷 저장 완료',
         result.message
       );
     } catch (err: any) {
@@ -129,7 +127,7 @@ export default function ProfileScreen() {
   const handleRestoreFromCloud = () => {
     Alert.alert(
       '클라우드 데이터 복원',
-      '클라우드에 백업된 최신 여행 일정, 보관함 핫플, 가계부 지출을 기기로 복원하시겠습니까?',
+      '클라우드에 백업된 최신 여행 일정, 보관함 장소, 가계부 지출을 복원하시겠습니까?',
       [
         { text: '취소', style: 'cancel' },
         {
@@ -150,12 +148,12 @@ export default function ProfileScreen() {
                   restoreExpenses(result.data.expenses);
                 }
                 await refreshSyncInfo();
-                Alert.alert('복원 완료 🎉', result.message);
+                Alert.alert('복원 완료', result.message);
               } else {
                 Alert.alert('복원 실패', result.message);
               }
             } catch (err: any) {
-              Alert.alert('복원 오류', err?.message || '데이터를 복원하는 중 문제가 발생했습니다.');
+              Alert.alert('복원 오류', err?.message || '데이터 복원 중 문제가 발생했습니다.');
             } finally {
               setIsRestoring(false);
             }
@@ -165,16 +163,16 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleOpenSupabaseModal = () => {
+  const handleOpenCloudModal = () => {
     const creds = getSupabaseCredentials();
     setSupabaseUrlInput(creds.url.includes('placeholder') ? '' : creds.url);
     setSupabaseKeyInput(creds.anonKey.includes('placeholder') ? '' : creds.anonKey);
-    setSupabaseModalVisible(true);
+    setCloudModalVisible(true);
   };
 
   const handleSaveSupabaseConfig = async () => {
     if (!supabaseUrlInput.trim().startsWith('http')) {
-      Alert.alert('입력 확인', '유효한 Supabase Project URL을 입력해 주세요. (예: https://xyz.supabase.co)');
+      Alert.alert('입력 확인', '유효한 Supabase Project URL을 입력해 주세요.');
       return;
     }
     if (supabaseKeyInput.trim().length < 20) {
@@ -185,8 +183,7 @@ export default function ProfileScreen() {
     const success = await saveSupabaseCredentials(supabaseUrlInput, supabaseKeyInput);
     if (success) {
       setIsConfigured(isSupabaseConfigured());
-      setSupabaseModalVisible(false);
-      Alert.alert('연결 완료 🚀', 'Supabase 프로젝트가 성공적으로 연결되었습니다! 이제 실시간 클라우드 백업을 사용할 수 있습니다.');
+      Alert.alert('연결 완료', 'Supabase 프로젝트가 연결되었습니다.');
     } else {
       Alert.alert('오류', '설정을 저장하지 못했습니다.');
     }
@@ -225,7 +222,7 @@ export default function ProfileScreen() {
       return;
     }
     if (newPassword !== newPasswordConfirm) {
-      Alert.alert('알림', '새 비밀번호와 비밀번호 확인이 일치하지 않습니다.');
+      Alert.alert('알림', '새 비밀번호와 확인 비밀번호가 일치하지 않습니다.');
       return;
     }
 
@@ -236,71 +233,34 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까? 기기에 저장된 여행 데이터는 유지됩니다.', [
+    Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까?', [
       { text: '취소', style: 'cancel' },
       {
         text: '로그아웃',
         style: 'destructive',
-        onPress: () => logout(),
+        onPress: () => {
+          setAccountSheetVisible(false);
+          logout();
+        },
       },
     ]);
   };
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      '회원 탈퇴 및 데이터 삭제',
-      '탈퇴 시 계정 정보 및 로컬 데이터가 영구적으로 삭제됩니다. 계속 진행할까요?',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '탈퇴하기',
-          style: 'destructive',
-          onPress: () => {
-            logout();
-            resetPlaces();
-            resetTrips();
-            resetWallet();
-            Alert.alert('탈퇴 완료', '회원 탈퇴 및 데이터 초기화가 완료되었습니다.');
-          },
-        },
-      ]
-    );
-  };
-
-  const handleSeedDemoData = () => {
-    Alert.alert(
-      '도쿄 예시 데이터 다시 불러오기',
-      '[도쿄 3박 4일 감성 여행] 공식 추천 핫플, 일정 및 가계부 데이터로 복원하시겠습니까?',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '불러오기',
-          style: 'default',
-          onPress: () => {
-            resetPlaces();
-            resetTrips();
-            resetWallet();
-            Alert.alert('예시 데이터 복원 완료 🎉', '도쿄 공식 여행 일정과 가계부가 준비되었습니다.');
-          },
-        },
-      ]
-    );
-  };
-
   const handleResetAllData = () => {
     Alert.alert(
-      '전체 데이터 초기화 (Reset All)',
-      '저장된 모든 장소 보관함, 여행 일정, 가계부 지출 내역이 영구히 초기화됩니다. 계속하시겠습니까?',
+      '전체 데이터 초기화',
+      '저장된 모든 장소 보관함, 여행 일정, 가계부 지출 내역이 초기화됩니다. 계속하시겠습니까?',
       [
         { text: '취소', style: 'cancel' },
         {
-          text: '전체 초기화',
+          text: '초기화',
           style: 'destructive',
           onPress: () => {
             resetPlaces();
             resetTrips();
             resetWallet();
-            Alert.alert('초기화 완료', '모든 여행 데이터가 초기 상태로 리셋되었습니다.');
+            setAccountSheetVisible(false);
+            Alert.alert('초기화 완료', '모든 데이터가 초기 상태로 정리되었습니다.');
           },
         },
       ]
@@ -308,1024 +268,606 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Header
-        title="마이 & 설정 ⚙️"
-        subtitle="계정 관리 및 여행 기본 환경 설정"
-        showLogo={false}
-      />
-
+    <View style={[styles.screen, { paddingTop: Math.max(insets.top, 16) + 12 }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 }]}
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* 1. User Profile Header Card */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatarWrap}>
-            <Image
-              source={{
-                uri:
-                  user?.avatarUrl ||
-                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop',
-              }}
-              style={styles.avatarImage}
-            />
-            <View style={styles.avatarMiniBadge}>
-              <Sparkles size={10} color="#FFFFFF" />
-            </View>
-          </View>
+        {/* Top-Left Bold Title (Reference Image 1: PROFILE) */}
+        <Text style={styles.pageTitle}>PROFILE</Text>
 
-          <View style={styles.profileTextWrap}>
-            <View style={styles.nameRow}>
-              <Text style={styles.userNameText}>
-                {user?.nickname || '게스트 여행자'}
-              </Text>
-              {isLoggedIn && user ? (
-                <View style={styles.verifiedBadge}>
-                  <Text style={styles.verifiedBadgeText}>동기화 회원</Text>
-                </View>
-              ) : (
-                <View style={styles.guestBadge}>
-                  <Text style={styles.guestBadgeText}>게스트 모드</Text>
-                </View>
-              )}
-            </View>
+        {/* Centered Circular Avatar + Nickname + Email (Reference Image 1) */}
+        <View style={styles.profileCenterBox}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleOpenEditNickname}
+            style={styles.avatarRing}
+          >
+            <User size={44} color="#D1D5DB" fill="#D1D5DB" />
+          </TouchableOpacity>
 
-            <Text style={styles.userEmailText} numberOfLines={1}>
-              {isLoggedIn && user ? user.email : '로컬 기기 전용 모드로 사용 중'}
-            </Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleOpenEditNickname}
+            style={styles.nicknameRow}
+          >
+            <Text style={styles.nicknameText}>{user?.nickname || '여행자'}</Text>
+            <ChevronRight size={18} color="#111827" strokeWidth={2.4} />
+          </TouchableOpacity>
 
-            {!isLoggedIn && (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => setAuthModalVisible(true)}
-                style={styles.loginCtaBtn}
-              >
-                <Lock size={12} color="#FFF" style={{ marginRight: 4 }} />
-                <Text style={styles.loginCtaText}>로그인하고 데이터 백업하기 🔒</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <Text style={styles.emailText}>{user?.email || 'user@pinchi.app'}</Text>
         </View>
 
-        {/* Quick Stats Pill Bar */}
-        <View style={styles.statsBar}>
-          <View style={styles.statBox}>
-            <MapPin size={18} color="#FF6B6B" />
-            <Text style={styles.statCount}>{places.length}</Text>
-            <Text style={styles.statLabel}>수집 핫플</Text>
-          </View>
+        {/* 3-Column Icon Quick Bar (Reference Image 1: 북마크 | 이벤트 | 공지사항) */}
+        <View style={styles.quickActionRow}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/(tabs)/places')}
+            style={styles.quickActionCol}
+          >
+            <Bookmark size={24} color="#6B7280" strokeWidth={1.7} />
+            <Text style={styles.quickActionLabel}>보관함</Text>
+          </TouchableOpacity>
 
-          <View style={styles.statDivider} />
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setEditTripModalVisible(true)}
+            style={styles.quickActionCol}
+          >
+            <Edit3 size={24} color="#6B7280" strokeWidth={1.7} />
+            <Text style={styles.quickActionLabel}>여행 수정</Text>
+          </TouchableOpacity>
 
-          <View style={styles.statBox}>
-            <Heart size={18} color="#2A9D8F" />
-            <Text style={styles.statCount}>{trips.length}</Text>
-            <Text style={styles.statLabel}>계획 중 여행</Text>
-          </View>
-
-          <View style={styles.statDivider} />
-
-          <View style={styles.statBox}>
-            <Coins size={18} color="#F77F00" />
-            <Text style={styles.statCount}>{expenses.length}</Text>
-            <Text style={styles.statLabel}>기록 지출</Text>
-          </View>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleOpenCloudModal}
+            style={styles.quickActionCol}
+          >
+            <Cloud size={24} color="#6B7280" strokeWidth={1.7} />
+            <Text style={styles.quickActionLabel}>클라우드 백업</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Cloud Sync & Backup Section (Supabase Cloud Central DB) */}
-        <View style={styles.sectionWrap}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeaderTitle}>클라우드 데이터 동기화</Text>
-            <View style={[styles.statusChip, isConfigured ? styles.statusChipConnected : styles.statusChipLocal]}>
-              <View style={[styles.statusDot, { backgroundColor: isConfigured ? '#10B981' : '#F59E0B' }]} />
-              <Text style={[styles.statusChipText, { color: isConfigured ? '#047857' : '#B45309' }]}>
-                {isConfigured ? 'Supabase 연동됨' : '로컬 백업 모드'}
-              </Text>
-            </View>
-          </View>
+        {/* Clean Divider Menu Rows (Reference Image 1: APP설정 / 고객센터 / 약관 확인) */}
+        <View style={styles.menuListContainer}>
+          <TouchableOpacity
+            activeOpacity={0.65}
+            onPress={() => setEditTripModalVisible(true)}
+            style={styles.menuRow}
+          >
+            <Text style={styles.menuRowTitle}>현재 여행 정보 수정</Text>
+            <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
+          </TouchableOpacity>
 
-          <View style={styles.cloudCard}>
-            <View style={styles.cloudInfoRow}>
-              <View style={styles.cloudIconWrap}>
-                <Cloud size={22} color="#FF6B6B" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cloudCardTitle}>중앙 클라우드 실시간 백업</Text>
-                <Text style={styles.cloudCardSubtitle} numberOfLines={1}>
-                  마지막 백업: {lastSyncText}
-                </Text>
-              </View>
-            </View>
+          <TouchableOpacity
+            activeOpacity={0.65}
+            onPress={() => setTripSwitcherVisible(true)}
+            style={styles.menuRow}
+          >
+            <Text style={styles.menuRowTitle}>내 여행 목록 · 새 여행 추가</Text>
+            <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
+          </TouchableOpacity>
 
-            <View style={styles.cloudActionGrid}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                disabled={isSyncing}
-                onPress={handleSyncToCloud}
-                style={[styles.cloudActionBtn, { backgroundColor: '#FF6B6B' }]}
-              >
-                {isSyncing ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <UploadCloud size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                    <Text style={styles.cloudActionBtnText}>지금 백업하기</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.65}
+            onPress={() => setAppSettingsModalVisible(true)}
+            style={styles.menuRow}
+          >
+            <Text style={styles.menuRowTitle}>APP 설정</Text>
+            <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
+          </TouchableOpacity>
 
-              <TouchableOpacity
-                activeOpacity={0.8}
-                disabled={isRestoring}
-                onPress={handleRestoreFromCloud}
-                style={[styles.cloudActionBtn, { backgroundColor: '#2A9D8F' }]}
-              >
-                {isRestoring ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <DownloadCloud size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                    <Text style={styles.cloudActionBtnText}>데이터 복원</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
+          <TouchableOpacity
+            activeOpacity={0.65}
+            onPress={handleOpenCloudModal}
+            style={styles.menuRow}
+          >
+            <Text style={styles.menuRowTitle}>클라우드 동기화 및 복원</Text>
+            <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={handleOpenSupabaseModal}
-              style={styles.supabaseConfigLink}
-            >
-              <Database size={14} color="#64748B" style={{ marginRight: 6 }} />
-              <Text style={styles.supabaseConfigLinkText}>
-                {isConfigured ? 'Supabase 프로젝트 설정 변경' : '내 Supabase 프로젝트 연결하기 (URL/Key)'}
-              </Text>
-              <ChevronRight size={14} color="#94A3B8" />
-            </TouchableOpacity>
-          </View>
-        </View>
+          <TouchableOpacity
+            activeOpacity={0.65}
+            onPress={handleOpenChangePassword}
+            style={styles.menuRow}
+          >
+            <Text style={styles.menuRowTitle}>비밀번호 변경</Text>
+            <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
+          </TouchableOpacity>
 
-        {/* 2. Account Management Section (Req [6]) */}
-        <View style={styles.sectionWrap}>
-          <Text style={styles.sectionHeaderTitle}>계정 관리</Text>
-
-          <View style={styles.menuCard}>
-            {/* Edit Nickname Row */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={handleOpenEditNickname}
-              style={[styles.menuRow, { borderBottomWidth: 1, borderColor: '#F1F5F9' }]}
-            >
-              <View style={styles.menuLeft}>
-                <Edit3 size={18} color="#FF6B6B" style={{ marginRight: 10 }} />
-                <View>
-                  <Text style={styles.menuTitle}>닉네임 변경</Text>
-                  <Text style={styles.menuSubtitle}>현재: {user?.nickname || '여행자'}</Text>
-                </View>
-              </View>
-              <ChevronRight size={16} color="#CBD5E1" />
-            </TouchableOpacity>
-
-            {/* Change Password Row */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={handleOpenChangePassword}
-              style={styles.menuRow}
-            >
-              <View style={styles.menuLeft}>
-                <KeyRound size={18} color="#4ECDC4" style={{ marginRight: 10 }} />
-                <View>
-                  <Text style={styles.menuTitle}>비밀번호 변경</Text>
-                  <Text style={styles.menuSubtitle}>계정 보안을 위한 비밀번호 업데이트</Text>
-                </View>
-              </View>
-              <ChevronRight size={16} color="#CBD5E1" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* 3. Travel Preferences Section */}
-        <View style={styles.sectionWrap}>
-          <Text style={styles.sectionHeaderTitle}>여행 기본 설정</Text>
-
-          <View style={styles.menuCard}>
-            {/* Base Currency Selection */}
-            <View style={styles.menuRow}>
-              <View style={styles.menuLeft}>
-                <Globe size={18} color="#FF6B6B" style={{ marginRight: 10 }} />
-                <View>
-                  <Text style={styles.menuTitle}>기본 기준 통화</Text>
-                  <Text style={styles.menuSubtitle}>가계부 및 예산 산정 기본 통화</Text>
-                </View>
-              </View>
-
-              <View style={styles.currencyToggleWrap}>
-                {(['KRW', 'JPY', 'USD'] as const).map((curr) => {
-                  const isSelected = defaultBaseCurrency === curr;
-                  return (
-                    <TouchableOpacity
-                      key={curr}
-                      onPress={() => updatePreferences({ defaultBaseCurrency: curr })}
-                      style={[
-                        styles.togglePill,
-                        isSelected && styles.togglePillActive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.togglePillText,
-                          isSelected && styles.togglePillTextActive,
-                        ]}
-                      >
-                        {curr}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Default Transport Mode */}
-            <View style={[styles.menuRow, { borderTopWidth: 1, borderColor: '#F1F5F9' }]}>
-              <View style={styles.menuLeft}>
-                <Coins size={18} color="#2A9D8F" style={{ marginRight: 10 }} />
-                <View>
-                  <Text style={styles.menuTitle}>기본 이동 수단</Text>
-                  <Text style={styles.menuSubtitle}>동선 플래너 자동 시간 계산 기준</Text>
-                </View>
-              </View>
-
-              <View style={styles.currencyToggleWrap}>
-                {(['TRANSIT', 'WALK'] as const).map((mode) => {
-                  const isSelected = defaultTransportMode === mode;
-                  return (
-                    <TouchableOpacity
-                      key={mode}
-                      onPress={() => updatePreferences({ defaultTransportMode: mode })}
-                      style={[
-                        styles.togglePill,
-                        isSelected && styles.togglePillActive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.togglePillText,
-                          isSelected && styles.togglePillTextActive,
-                        ]}
-                      >
-                        {mode === 'TRANSIT' ? '대중교통' : '도보'}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* 4. Data Management Section */}
-        <View style={styles.sectionWrap}>
-          <Text style={styles.sectionHeaderTitle}>데이터 관리</Text>
-
-          <View style={styles.menuCard}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={handleSeedDemoData}
-              style={[styles.menuRow, { borderBottomWidth: 1, borderColor: '#F1F5F9' }]}
-            >
-              <View style={styles.menuLeft}>
-                <RotateCcw size={18} color="#FF6B6B" style={{ marginRight: 10 }} />
-                <View>
-                  <Text style={styles.menuTitle}>도쿄 예시 데이터 다시 불러오기 (Seed Demo)</Text>
-                  <Text style={styles.menuSubtitle}>도쿄 3박 4일 공식 핫플 & 추천 동선 복원</Text>
-                </View>
-              </View>
-              <ChevronRight size={16} color="#CBD5E1" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={handleResetAllData}
-              style={styles.menuRow}
-            >
-              <View style={styles.menuLeft}>
-                <Trash2 size={18} color="#E11D48" style={{ marginRight: 10 }} />
-                <View>
-                  <Text style={[styles.menuTitle, { color: '#E11D48' }]}>전체 데이터 초기화 (Reset All)</Text>
-                  <Text style={styles.menuSubtitle}>보관함, 일정표, 가계부 지출 영구 리셋</Text>
-                </View>
-              </View>
-              <ChevronRight size={16} color="#CBD5E1" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* 5. Account Actions Section */}
-        <View style={styles.sectionWrap}>
-          <Text style={styles.sectionHeaderTitle}>계정 & 서비스</Text>
-
-          <View style={styles.menuCard}>
-            {isLoggedIn ? (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={handleLogout}
-                style={[styles.menuRow, { borderBottomWidth: 1, borderColor: '#F1F5F9' }]}
-              >
-                <View style={styles.menuLeft}>
-                  <LogOut size={18} color="#475569" style={{ marginRight: 10 }} />
-                  <Text style={styles.menuTitle}>로그아웃</Text>
-                </View>
-                <ChevronRight size={16} color="#CBD5E1" />
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setAuthModalVisible(true)}
-                style={[styles.menuRow, { borderBottomWidth: 1, borderColor: '#F1F5F9' }]}
-              >
-                <View style={styles.menuLeft}>
-                  <User size={18} color="#FF6B6B" style={{ marginRight: 10 }} />
-                  <Text style={[styles.menuTitle, { color: '#FF6B6B' }]}>로그인 / 간편 회원가입</Text>
-                </View>
-                <ChevronRight size={16} color="#CBD5E1" />
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={handleDeleteAccount}
-              style={styles.menuRow}
-            >
-              <View style={styles.menuLeft}>
-                <Shield size={18} color="#94A3B8" style={{ marginRight: 10 }} />
-                <Text style={[styles.menuTitle, { color: '#64748B' }]}>회원 탈퇴</Text>
-              </View>
-              <ChevronRight size={16} color="#CBD5E1" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* 6. App Info Footer */}
-        <View style={styles.appInfoFooter}>
-          <Text style={styles.versionText}>Pinch (핀치) v1.0.0-mvp</Text>
-          <Text style={styles.copyrightText}>
-            © 2026 Pinch Team. Pre-Trip Planning Companion. All rights reserved.
-          </Text>
+          <TouchableOpacity
+            activeOpacity={0.65}
+            onPress={() => setAccountSheetVisible(true)}
+            style={[styles.menuRow, { borderBottomWidth: 0 }]}
+          >
+            <Text style={styles.menuRowTitle}>계정 및 데이터 관리</Text>
+            <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* Auth Modal */}
-      <AuthModal
-        visible={authModalVisible}
-        onClose={() => setAuthModalVisible(false)}
+      {/* 내 여행 목록 모달 */}
+      <TripSwitcherModal
+        visible={tripSwitcherVisible}
+        onClose={() => setTripSwitcherVisible(false)}
       />
 
-      {/* [Req 6] Edit Nickname Modal (Zero Bottom Gap with SafeAreaInsets) */}
-      <Modal
-        visible={editNicknameModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setEditNicknameModalVisible(false)}
-      >
+      {/* 현재 여행 정보 수정 위저드 모달 */}
+      <CreateTripModal
+        visible={editTripModalVisible}
+        editTrip={currentTrip}
+        onClose={() => setEditTripModalVisible(false)}
+        onCreated={() => setEditTripModalVisible(false)}
+      />
+
+      {/* 닉네임 변경 모달 */}
+      <Modal visible={editNicknameModalVisible} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-              {/* Header */}
+            <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
-                <View style={styles.modalHeaderLeft}>
-                  <View style={styles.iconCircle}>
-                    <Edit3 size={18} color="#FF6B6B" />
-                  </View>
-                  <Text style={styles.modalTitle}>닉네임 변경</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setEditNicknameModalVisible(false)}
-                  style={styles.modalCloseBtn}
-                >
-                  <X size={18} color="#64748B" />
+                <Text style={styles.modalTitle}>프로필 닉네임 변경</Text>
+                <TouchableOpacity onPress={() => setEditNicknameModalVisible(false)}>
+                  <X size={20} color="#6B7280" />
                 </TouchableOpacity>
               </View>
-
-              <Text style={styles.modalSubtitle}>
-                핀치에서 사용할 새로운 닉네임을 입력해 주세요.
-              </Text>
-
-              <View style={styles.inputWrap}>
-                <TextInput
-                  value={newNicknameInput}
-                  onChangeText={setNewNicknameInput}
-                  placeholder="새 닉네임 입력"
-                  placeholderTextColor="#9CA3AF"
-                  style={styles.textInput}
-                  maxLength={20}
-                  autoFocus={true}
-                />
-              </View>
-
-              <View style={styles.modalBtnRow}>
-                <Button
-                  title="취소"
-                  variant="outline"
-                  size="md"
-                  onPress={() => setEditNicknameModalVisible(false)}
-                  style={{ flex: 1, marginRight: 8 }}
-                />
-                <Button
-                  title="저장하기 ✨"
-                  variant="primary"
-                  size="md"
-                  onPress={handleSaveNickname}
-                  style={{ flex: 1.5 }}
-                />
-              </View>
+              <TextInput
+                value={newNicknameInput}
+                onChangeText={setNewNicknameInput}
+                placeholder="새 닉네임 입력"
+                placeholderTextColor="#9CA3AF"
+                style={styles.modalInput}
+                autoFocus
+              />
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleSaveNickname}
+                style={styles.modalPrimaryBtn}
+              >
+                <Text style={styles.modalPrimaryBtnText}>저장하기</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* [Req 6] Change Password Modal (Zero Bottom Gap with SafeAreaInsets) */}
-      <Modal
-        visible={changePasswordModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setChangePasswordModalVisible(false)}
-      >
+      {/* 비밀번호 변경 모달 */}
+      <Modal visible={changePasswordModalVisible} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-              {/* Header */}
+            <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
-                <View style={styles.modalHeaderLeft}>
-                  <View style={[styles.iconCircle, { backgroundColor: 'rgba(78, 205, 196, 0.12)' }]}>
-                    <KeyRound size={18} color="#4ECDC4" />
-                  </View>
-                  <Text style={styles.modalTitle}>비밀번호 변경 🔒</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setChangePasswordModalVisible(false)}
-                  style={styles.modalCloseBtn}
-                >
-                  <X size={18} color="#64748B" />
+                <Text style={styles.modalTitle}>비밀번호 변경</Text>
+                <TouchableOpacity onPress={() => setChangePasswordModalVisible(false)}>
+                  <X size={20} color="#6B7280" />
                 </TouchableOpacity>
               </View>
-
-              <Text style={styles.modalSubtitle}>
-                계정 보안을 위해 6자리 이상의 새 비밀번호를 입력해 주세요.
-              </Text>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>현재 비밀번호</Text>
-                <View style={styles.inputWrap}>
-                  <TextInput
-                    value={currentPassword}
-                    onChangeText={setCurrentPassword}
-                    placeholder="현재 비밀번호 입력"
-                    placeholderTextColor="#9CA3AF"
-                    secureTextEntry={true}
-                    style={styles.textInput}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>새 비밀번호 (6자 이상)</Text>
-                <View style={styles.inputWrap}>
-                  <TextInput
-                    value={newPassword}
-                    onChangeText={setNewPassword}
-                    placeholder="새 비밀번호 입력"
-                    placeholderTextColor="#9CA3AF"
-                    secureTextEntry={true}
-                    style={styles.textInput}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>새 비밀번호 확인</Text>
-                <View style={styles.inputWrap}>
-                  <TextInput
-                    value={newPasswordConfirm}
-                    onChangeText={setNewPasswordConfirm}
-                    placeholder="새 비밀번호 다시 입력"
-                    placeholderTextColor="#9CA3AF"
-                    secureTextEntry={true}
-                    style={styles.textInput}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.modalBtnRow}>
-                <Button
-                  title="취소"
-                  variant="outline"
-                  size="md"
-                  onPress={() => setChangePasswordModalVisible(false)}
-                  style={{ flex: 1, marginRight: 8 }}
-                />
-                <Button
-                  title="변경하기 🔒"
-                  variant="primary"
-                  size="md"
-                  onPress={handleSavePassword}
-                  style={{ flex: 1.5 }}
-                />
-              </View>
+              <TextInput
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                placeholder="현재 비밀번호"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry
+                style={styles.modalInput}
+              />
+              <TextInput
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="새 비밀번호 (6자 이상)"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry
+                style={styles.modalInput}
+              />
+              <TextInput
+                value={newPasswordConfirm}
+                onChangeText={setNewPasswordConfirm}
+                placeholder="새 비밀번호 확인"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry
+                style={styles.modalInput}
+              />
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleSavePassword}
+                style={styles.modalPrimaryBtn}
+              >
+                <Text style={styles.modalPrimaryBtnText}>비밀번호 변경하기</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Supabase Config Modal (Zero Bottom Gap with SafeAreaInsets) */}
-      <Modal
-        visible={supabaseModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setSupabaseModalVisible(false)}
-      >
+      {/* APP 설정 모달 */}
+      <Modal visible={appSettingsModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>APP 설정</Text>
+              <TouchableOpacity onPress={() => setAppSettingsModalVisible(false)}>
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.settingLabel}>기본 기준 통화</Text>
+            <View style={styles.settingSegmentRow}>
+              {(['KRW', 'JPY', 'USD'] as const).map((curr) => {
+                const active = defaultBaseCurrency === curr;
+                return (
+                  <TouchableOpacity
+                    key={curr}
+                    onPress={() => updatePreferences({ defaultBaseCurrency: curr })}
+                    style={[styles.segmentBtn, active && styles.segmentBtnActive]}
+                  >
+                    <Text style={[styles.segmentBtnText, active && styles.segmentBtnTextActive]}>
+                      {curr}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.settingLabel, { marginTop: 16 }]}>기본 이동수단</Text>
+            <View style={styles.settingSegmentRow}>
+              {[
+                { key: 'TRANSIT' as const, label: '대중교통' },
+                { key: 'WALK' as const, label: '도보' },
+              ].map((m) => {
+                const active = defaultTransportMode === m.key;
+                return (
+                  <TouchableOpacity
+                    key={m.key}
+                    onPress={() => updatePreferences({ defaultTransportMode: m.key })}
+                    style={[styles.segmentBtn, active && styles.segmentBtnActive]}
+                  >
+                    <Text style={[styles.segmentBtnText, active && styles.segmentBtnTextActive]}>
+                      {m.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setAppSettingsModalVisible(false)}
+              style={[styles.modalPrimaryBtn, { marginTop: 22 }]}
+            >
+              <Text style={styles.modalPrimaryBtnText}>확인</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 클라우드 동기화 모달 */}
+      <Modal visible={cloudModalVisible} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-              {/* Header */}
+            <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
-                <View style={styles.modalHeaderLeft}>
-                  <View style={[styles.iconCircle, { backgroundColor: 'rgba(42, 157, 143, 0.12)' }]}>
-                    <Database size={18} color="#2A9D8F" />
-                  </View>
-                  <Text style={styles.modalTitle}>Supabase Cloud 설정 ☁️</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setSupabaseModalVisible(false)}
-                  style={styles.modalCloseBtn}
-                >
-                  <X size={18} color="#64748B" />
+                <Text style={styles.modalTitle}>클라우드 백업 및 복원</Text>
+                <TouchableOpacity onPress={() => setCloudModalVisible(false)}>
+                  <X size={20} color="#6B7280" />
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.modalSubtitle}>
-                본인의 Supabase 프로젝트 URL과 anon public key를 입력하면 중앙 클라우드 DB에 전체 여행 데이터가 실시간으로 백업 및 복원됩니다.
+              <Text style={styles.cloudStatusText}>
+                최근 동기화: {lastSyncText} ({isConfigured ? 'Supabase 연결됨' : '로컬 스냅샷'})
               </Text>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Supabase Project URL</Text>
-                <View style={styles.inputWrap}>
-                  <TextInput
-                    value={supabaseUrlInput}
-                    onChangeText={setSupabaseUrlInput}
-                    placeholder="https://xyzcompany.supabase.co"
-                    placeholderTextColor="#9CA3AF"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    style={styles.textInput}
-                  />
-                </View>
+              <View style={styles.cloudBtnRow}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  disabled={isSyncing}
+                  onPress={handleSyncToCloud}
+                  style={[styles.modalPrimaryBtn, { flex: 1, marginTop: 0 }]}
+                >
+                  {isSyncing ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <UploadCloud size={16} color="#FFFFFF" />
+                      <Text style={styles.modalPrimaryBtnText}>백업하기</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  disabled={isRestoring}
+                  onPress={handleRestoreFromCloud}
+                  style={styles.modalOutlineBtn}
+                >
+                  {isRestoring ? (
+                    <ActivityIndicator size="small" color="#1B2A4A" />
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <DownloadCloud size={16} color="#1B2A4A" />
+                      <Text style={styles.modalOutlineBtnText}>복원하기</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
               </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Anon Public API Key</Text>
-                <View style={styles.inputWrap}>
-                  <TextInput
-                    value={supabaseKeyInput}
-                    onChangeText={setSupabaseKeyInput}
-                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."
-                    placeholderTextColor="#9CA3AF"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    style={styles.textInput}
-                  />
-                </View>
-              </View>
+              <View style={styles.divider} />
 
-              <View style={styles.modalBtnRow}>
-                <Button
-                  title="닫기"
-                  variant="outline"
-                  size="md"
-                  onPress={() => setSupabaseModalVisible(false)}
-                  style={{ flex: 1, marginRight: 8 }}
-                />
-                <Button
-                  title="저장 및 연결 🚀"
-                  variant="primary"
-                  size="md"
-                  onPress={handleSaveSupabaseConfig}
-                  style={{ flex: 1.5 }}
-                />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <Database size={15} color="#1B2A4A" />
+                <Text style={styles.settingLabel}>Supabase 클라우드 연동 (선택)</Text>
               </View>
+              <TextInput
+                value={supabaseUrlInput}
+                onChangeText={setSupabaseUrlInput}
+                placeholder="https://your-project.supabase.co"
+                placeholderTextColor="#9CA3AF"
+                autoCapitalize="none"
+                style={styles.modalInput}
+              />
+              <TextInput
+                value={supabaseKeyInput}
+                onChangeText={setSupabaseKeyInput}
+                placeholder="Supabase anon public key"
+                placeholderTextColor="#9CA3AF"
+                autoCapitalize="none"
+                style={styles.modalInput}
+              />
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleSaveSupabaseConfig}
+                style={styles.modalOutlineFullBtn}
+              >
+                <Text style={styles.modalOutlineBtnText}>연동 정보 저장</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* 계정 및 데이터 관리 모달 */}
+      <Modal visible={accountSheetVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>계정 및 데이터 관리</Text>
+              <TouchableOpacity onPress={() => setAccountSheetVisible(false)}>
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleResetAllData}
+              style={styles.sheetActionRow}
+            >
+              <Trash2 size={18} color="#4B5563" />
+              <Text style={styles.sheetActionText}>전체 여행·장소 데이터 초기화</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleLogout}
+              style={[styles.sheetActionRow, { borderBottomWidth: 0 }]}
+            >
+              <LogOut size={18} color="#EF4444" />
+              <Text style={[styles.sheetActionText, { color: '#EF4444' }]}>로그아웃</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
-  profileCard: {
-    flexDirection: 'row',
+  pageTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#111827',
+    letterSpacing: 0.4,
+    marginBottom: 28,
+  },
+  profileCenterBox: {
     alignItems: 'center',
+    marginBottom: 32,
+  },
+  avatarRing: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-  },
-  avatarWrap: {
-    position: 'relative',
-    marginRight: 16,
-  },
-  avatarImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#E2E8F0',
-  },
-  avatarMiniBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#FF6B6B',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+    marginBottom: 18,
   },
-  profileTextWrap: {
-    flex: 1,
-  },
-  nameRow: {
+  nicknameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 3,
-  },
-  userNameText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginRight: 8,
-  },
-  verifiedBadge: {
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  verifiedBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  guestBadge: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  guestBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  userEmailText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#64748B',
+    gap: 4,
     marginBottom: 6,
   },
-  loginCtaBtn: {
-    alignSelf: 'flex-start',
+  nicknameText: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: -0.3,
+  },
+  emailText: {
+    fontSize: 13.5,
+    color: '#9CA3AF',
+    fontWeight: '400',
+  },
+  quickActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    marginTop: 2,
-  },
-  loginCtaText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  statsBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    justifyContent: 'space-around',
     paddingVertical: 14,
-    paddingHorizontal: 12,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
+    marginBottom: 18,
   },
-  statBox: {
-    flex: 1,
+  quickActionCol: {
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    minWidth: 80,
   },
-  statCount: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginTop: 4,
-    marginBottom: 1,
+  quickActionLabel: {
+    fontSize: 13.5,
+    fontWeight: '500',
+    color: '#1F2937',
   },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  statDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: '#F1F5F9',
-  },
-  sectionWrap: {
-    marginBottom: 20,
-  },
-  sectionHeaderTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#64748B',
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  menuCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    overflow: 'hidden',
+  menuListContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#F1F3F5',
   },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F3F5',
   },
-  menuLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  menuTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  menuSubtitle: {
-    fontSize: 11,
+  menuRowTitle: {
+    fontSize: 15.5,
     fontWeight: '500',
-    color: '#94A3B8',
-    marginTop: 2,
+    color: '#1F2937',
   },
-  currencyToggleWrap: {
-    flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    padding: 3,
-    borderRadius: 12,
-  },
-  togglePill: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 9,
-  },
-  togglePillActive: {
-    backgroundColor: '#FFFFFF',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  togglePillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  togglePillTextActive: {
-    color: '#FF6B6B',
-  },
-  appInfoFooter: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  versionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#94A3B8',
-    marginBottom: 4,
-  },
-  copyrightText: {
-    fontSize: 10,
-    color: '#CBD5E1',
-    textAlign: 'center',
-    lineHeight: 14,
-  },
-  // Modal Styles (Zero bottom gap + Safe Area)
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(17, 24, 39, 0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
-  modalSheet: {
-    width: '100%',
+  modalCard: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderRadius: 20,
     padding: 22,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  modalHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 107, 107, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
+    marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#111827',
   },
-  modalCloseBtn: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: '#F1F5F9',
-  },
-  modalSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginBottom: 16,
-    lineHeight: 18,
-  },
-  inputGroup: {
-    marginBottom: 12,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-    marginBottom: 6,
-  },
-  inputWrap: {
-    backgroundColor: '#F8FAFC',
+  modalInput: {
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    height: 46,
+    fontSize: 14,
+    color: '#111827',
     marginBottom: 10,
   },
-  textInput: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
-    padding: 0,
-  },
-  modalBtnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    marginHorizontal: 4,
-  },
-  statusChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  statusChipConnected: {
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  statusChipLocal: {
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 5,
-  },
-  statusChipText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  cloudCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-  },
-  cloudInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  cloudIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+  modalPrimaryBtn: {
+    backgroundColor: '#1B2A4A',
+    height: 48,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginTop: 8,
   },
-  cloudCardTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#1E293B',
-    marginBottom: 3,
-  },
-  cloudCardSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#64748B',
-  },
-  cloudActionGrid: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  cloudActionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 14,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-  },
-  cloudActionBtnText: {
-    fontSize: 13,
-    fontWeight: '800',
+  modalPrimaryBtnText: {
     color: '#FFFFFF',
+    fontSize: 14.5,
+    fontWeight: '800',
   },
-  supabaseConfigLink: {
-    flexDirection: 'row',
+  modalOutlineBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1B2A4A',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
+  },
+  modalOutlineFullBtn: {
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1B2A4A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
     marginTop: 4,
   },
-  supabaseConfigLinkText: {
-    fontSize: 12,
+  modalOutlineBtnText: {
+    color: '#1B2A4A',
+    fontSize: 14,
     fontWeight: '700',
-    color: '#64748B',
+  },
+  settingLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  settingSegmentRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  segmentBtn: {
     flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  segmentBtnActive: {
+    backgroundColor: '#1B2A4A',
+    borderColor: '#1B2A4A',
+  },
+  segmentBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6B7280',
+  },
+  segmentBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  cloudStatusText: {
+    fontSize: 12.5,
+    color: '#64748B',
+    marginBottom: 14,
+  },
+  cloudBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 18,
+  },
+  sheetActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  sheetActionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
   },
 });

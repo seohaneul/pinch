@@ -204,7 +204,7 @@ export const CalendarRangePicker: React.FC<CalendarRangePickerProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
-              <CalendarIcon size={20} color="#FF6B6B" style={{ marginRight: 8 }} />
+              <CalendarIcon size={20} color="#1B2A4A" style={{ marginRight: 8 }} />
               <Text style={styles.headerTitle}>여행 날짜 선택</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
@@ -390,13 +390,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFF5F5',
+    backgroundColor: '#F8FAFC',
     borderRadius: 18,
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginVertical: 12,
     borderWidth: 1,
-    borderColor: '#FFE4E6',
+    borderColor: '#EEF2F8',
   },
   summaryDateBox: {
     flex: 1,
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   summaryActiveText: {
-    color: '#FF6B6B',
+    color: '#1B2A4A',
     fontWeight: '800',
   },
   summaryArrow: {
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   badge: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
@@ -491,15 +491,15 @@ const styles = StyleSheet.create({
     marginVertical: 2,
   },
   inRangeCell: {
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
   },
   rangeStartCell: {
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
     borderTopLeftRadius: 24,
     borderBottomLeftRadius: 24,
   },
   rangeEndCell: {
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
     borderTopRightRadius: 24,
     borderBottomRightRadius: 24,
   },
@@ -511,11 +511,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayCircleHighlighted: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
   },
   todayCircle: {
     borderWidth: 1.5,
-    borderColor: '#FF6B6B',
+    borderColor: '#1B2A4A',
   },
   dayText: {
     fontSize: 13,
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
     color: '#1E293B',
   },
   todayText: {
-    color: '#FF6B6B',
+    color: '#1B2A4A',
     fontWeight: '800',
   },
   inRangeText: {
@@ -545,12 +545,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingVertical: 14,
     borderRadius: 16,
     marginTop: 14,
     elevation: 3,
-    shadowColor: '#FF6B6B',
+    shadowColor: '#1B2A4A',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 5,

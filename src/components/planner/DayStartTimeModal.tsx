@@ -88,7 +88,7 @@ export const DayStartTimeModal: React.FC<DayStartTimeModalProps> = ({
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
-                <Clock size={18} color="#FF6B6B" />
+                <Clock size={18} color="#1B2A4A" />
               </View>
               <View>
                 <Text style={styles.title}>DAY {dayNumber} 시작 시간 수정 ⏰</Text>
@@ -107,7 +107,7 @@ export const DayStartTimeModal: React.FC<DayStartTimeModalProps> = ({
             <View style={styles.mainBox}>
               <Text style={styles.mainLabel}>DAY {dayNumber} 일정 시작 시간 설정</Text>
               <View style={styles.timeInputRow}>
-                <Clock size={20} color="#FF6B6B" style={{ marginRight: 8 }} />
+                <Clock size={20} color="#1B2A4A" style={{ marginRight: 8 }} />
                 <TextInput
                   value={startTimeInput}
                   onChangeText={setStartTimeInput}
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 107, 107, 0.12)',
+    backgroundColor: 'rgba(27, 42, 74, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: '#1B2A4A',
     borderRadius: 14,
     paddingHorizontal: 20,
     paddingVertical: 8,
@@ -309,8 +309,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   presetChipActive: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
+    borderColor: '#1B2A4A',
   },
   presetChipText: {
     fontSize: 13,
@@ -343,13 +343,13 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     marginTop: 10,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingVertical: 14,
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF6B6B',
+    shadowColor: '#1B2A4A',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 5,

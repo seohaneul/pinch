@@ -310,7 +310,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
-                <Plus size={18} color="#FF6B6B" />
+                <Plus size={18} color="#1B2A4A" />
               </View>
               <View>
                 <Text style={styles.title}>DAY {dayNumber} 스팟 추가</Text>
@@ -330,7 +330,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
               onPress={() => setTab('pocket')}
               style={[styles.tabBtn, tab === 'pocket' && styles.tabBtnActive]}
             >
-              <Bookmark size={13} color={tab === 'pocket' ? '#FF6B6B' : '#6B7280'} style={{ marginRight: 4 }} />
+              <Bookmark size={13} color={tab === 'pocket' ? '#1B2A4A' : '#6B7280'} style={{ marginRight: 4 }} />
               <Text style={[styles.tabText, tab === 'pocket' && styles.tabTextActive]}>
                 보관함 ({displayedPocketPlaces.length})
               </Text>
@@ -340,7 +340,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
               onPress={() => setTab('search')}
               style={[styles.tabBtn, tab === 'search' && styles.tabBtnActive]}
             >
-              <Search size={13} color={tab === 'search' ? '#FF6B6B' : '#6B7280'} style={{ marginRight: 4 }} />
+              <Search size={13} color={tab === 'search' ? '#1B2A4A' : '#6B7280'} style={{ marginRight: 4 }} />
               <Text style={[styles.tabText, tab === 'search' && styles.tabTextActive]}>
                 장소 검색 추가
               </Text>
@@ -350,7 +350,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
               onPress={() => setTab('manual')}
               style={[styles.tabBtn, tab === 'manual' && styles.tabBtnActive]}
             >
-              <Plus size={13} color={tab === 'manual' ? '#FF6B6B' : '#6B7280'} style={{ marginRight: 4 }} />
+              <Plus size={13} color={tab === 'manual' ? '#1B2A4A' : '#6B7280'} style={{ marginRight: 4 }} />
               <Text style={[styles.tabText, tab === 'manual' && styles.tabTextActive]}>
                 직접 등록
               </Text>
@@ -523,7 +523,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                             {isLodging ? (
                               <Hotel size={20} color="#8B5CF6" />
                             ) : (
-                              <MapPin size={20} color="#FF6B6B" />
+                              <MapPin size={20} color="#1B2A4A" />
                             )}
                           </View>
                         )}
@@ -590,7 +590,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                           {isAlreadyAdded ? (
                             <Check size={16} color="#0284C7" />
                           ) : (
-                            <Plus size={16} color="#FF6B6B" />
+                            <Plus size={16} color="#1B2A4A" />
                           )}
                         </View>
                       </TouchableOpacity>
@@ -620,10 +620,10 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                           paddingVertical: 8,
                           borderRadius: 12,
                           borderWidth: 1,
-                          borderColor: '#FECDD3',
+                          borderColor: '#CBD5E1',
                         }}
                       >
-                        <Search size={14} color="#FF6B6B" style={{ marginRight: 6 }} />
+                        <Search size={14} color="#1B2A4A" style={{ marginRight: 6 }} />
                         <Text style={{ fontSize: 12, fontWeight: '700', color: '#E11D48' }}>
                           "{searchQuery}" 전체 장소 검색하기 ↗
                         </Text>
@@ -636,7 +636,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
           ) : tab === 'search' ? (
             <View style={{ flex: 1 }}>
               <View style={[styles.searchBar, { marginTop: 4, marginBottom: 8 }]}>
-                <Search size={16} color="#FF6B6B" style={{ marginRight: 8 }} />
+                <Search size={16} color="#1B2A4A" style={{ marginRight: 8 }} />
                 <TextInput
                   value={searchQueryOnline}
                   onChangeText={setSearchQueryOnline}
@@ -662,7 +662,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                 <TouchableOpacity
                   onPress={() => handleExecuteSearchOnline()}
                   style={{
-                    backgroundColor: '#FF6B6B',
+                    backgroundColor: '#1B2A4A',
                     paddingHorizontal: 10,
                     paddingVertical: 5,
                     borderRadius: 8,
@@ -697,7 +697,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                           paddingHorizontal: 9,
                           paddingVertical: 4,
                           borderRadius: 10,
-                          backgroundColor: '#FFF1F2',
+                          backgroundColor: '#F8FAFC',
                         }}
                         activeOpacity={0.7}
                       >
@@ -712,7 +712,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                 <Text style={{ fontSize: 11, color: '#94A3B8', fontWeight: '600' }}>
                   {isSearchingOnline ? '장소 검색 중...' : `검색 결과 ${searchResultsOnline.length}개`}
                 </Text>
-                {isSearchingOnline && <ActivityIndicator size="small" color="#FF6B6B" />}
+                {isSearchingOnline && <ActivityIndicator size="small" color="#1B2A4A" />}
               </View>
 
               <ScrollView
@@ -739,7 +739,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                       }}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <View style={{ backgroundColor: '#FFF1F2', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
+                        <View style={{ backgroundColor: '#F8FAFC', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
                           <Text style={{ fontSize: 10, fontWeight: '800', color: '#E11D48' }}>
                             {getKoreanCategory(item.category)}
                           </Text>
@@ -776,7 +776,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                             justifyContent: 'center',
                             paddingVertical: 8,
                             borderRadius: 10,
-                            backgroundColor: '#FF6B6B',
+                            backgroundColor: '#1B2A4A',
                           }}
                           activeOpacity={0.8}
                         >
@@ -911,7 +911,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 107, 107, 0.12)',
+    backgroundColor: 'rgba(27, 42, 74, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -961,7 +961,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   tabTextActive: {
-    color: '#FF6B6B',
+    color: '#1B2A4A',
   },
   quickLodgingBanner: {
     flexDirection: 'row',
@@ -1035,8 +1035,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   catFilterChipActive: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
+    borderColor: '#1B2A4A',
   },
   catFilterChipText: {
     fontSize: 12,
@@ -1070,7 +1070,7 @@ const styles = StyleSheet.create({
   },
   categoryBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255, 107, 107, 0.08)',
+    backgroundColor: 'rgba(27, 42, 74, 0.08)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -1079,7 +1079,7 @@ const styles = StyleSheet.create({
   categoryBadgeText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#FF6B6B',
+    color: '#1B2A4A',
   },
   placeNameText: {
     fontSize: 13,
@@ -1095,7 +1095,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(255, 107, 107, 0.12)',
+    backgroundColor: 'rgba(27, 42, 74, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
@@ -1153,8 +1153,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   catPillActive: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
+    borderColor: '#1B2A4A',
   },
   catPillText: {
     fontSize: 11,
@@ -1165,7 +1165,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   submitManualBtn: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     borderRadius: 16,
     paddingVertical: 14,
     alignItems: 'center',

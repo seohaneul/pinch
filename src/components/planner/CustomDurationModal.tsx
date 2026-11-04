@@ -75,7 +75,7 @@ export const CustomDurationModal: React.FC<CustomDurationModalProps> = ({
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
-                <Clock size={18} color="#FF6B6B" />
+                <Clock size={18} color="#1B2A4A" />
               </View>
               <View>
                 <Text style={styles.title}>체류 시간 직접 입력 ⏱️</Text>
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 107, 107, 0.12)',
+    backgroundColor: 'rgba(27, 42, 74, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -268,13 +268,13 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     marginTop: 16,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingVertical: 14,
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF6B6B',
+    shadowColor: '#1B2A4A',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 5,

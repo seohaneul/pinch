@@ -7,17 +7,175 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Sparkles, X, Mail, Lock, User as UserIcon, ArrowRight } from '@/components/common/CustomIcons';
+import { MapPin, X, Mail, Lock, User as UserIcon, ArrowRight } from '@/components/common/CustomIcons';
 
 interface AuthModalProps {
   visible: boolean;
   onClose: () => void;
 }
+
+/**
+ * 앱 진입 시 필수 로그인 화면 (Full-Screen Auth Gate)
+ */
+export const AuthGateScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const [tab, setTab] = useState<'login' | 'signup'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [nickname, setNickname] = useState('');
+
+  const { login, signup, isLoading } = useAuthStore();
+
+  const handleSubmit = async () => {
+    if (tab === 'login') {
+      await login(email, password);
+    } else {
+      await signup(nickname, email, password);
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={[
+        styles.gateScreen,
+        { paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 20) },
+      ]}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          contentContainerStyle={styles.gateScrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Top Brand Bar */}
+          <View style={styles.gateTopBar}>
+            <View style={styles.brandBadge}>
+              <MapPin size={18} color="#1B2A4A" fill="#1B2A4A" />
+              <Text style={styles.brandBadgeText}>PINCHI</Text>
+            </View>
+          </View>
+
+          <View style={styles.gateProgressTrack}>
+            <View style={[styles.gateProgressFill, { width: tab === 'login' ? '50%' : '100%' }]} />
+          </View>
+
+          {/* Center Hero Title (Reference Image 3 Style) */}
+          <View style={styles.gateHeroSection}>
+            <Text style={styles.gateTitle}>
+              {tab === 'login' ? '이메일로 로그인' : '새 계정 만들기'}
+            </Text>
+            <Text style={styles.gateSubtitle}>
+              {tab === 'login'
+                ? '로그인하고 나만의 첫 번째 여행 일정과\n흩어진 스팟들을 한곳에서 관리해보세요.'
+                : '간단한 정보만 입력하면 바로 첫 여행을\n추가하고 동선 플래너를 시작할 수 있어요.'}
+            </Text>
+          </View>
+
+          {/* Mode Switcher */}
+          <View style={styles.tabTrack}>
+            <TouchableOpacity
+              onPress={() => setTab('login')}
+              style={[styles.tabBtn, tab === 'login' && styles.tabBtnActive]}
+            >
+              <Text style={[styles.tabText, tab === 'login' && styles.tabTextActive]}>
+                로그인
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setTab('signup')}
+              style={[styles.tabBtn, tab === 'signup' && styles.tabBtnActive]}
+            >
+              <Text style={[styles.tabText, tab === 'signup' && styles.tabTextActive]}>
+                회원가입
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Form Fields */}
+          <View style={styles.formContainer}>
+            {tab === 'signup' && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>닉네임</Text>
+                <View style={styles.inputWrapper}>
+                  <UserIcon size={17} color="#64748B" style={{ marginRight: 10 }} />
+                  <TextInput
+                    value={nickname}
+                    onChangeText={setNickname}
+                    placeholder="사용하실 닉네임 (예: 민지)"
+                    placeholderTextColor="#9CA3AF"
+                    style={styles.textInput}
+                  />
+                </View>
+              </View>
+            )}
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>이메일 주소</Text>
+              <View style={styles.inputWrapper}>
+                <Mail size={17} color="#64748B" style={{ marginRight: 10 }} />
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="example@naver.com"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  style={styles.textInput}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>비밀번호</Text>
+              <View style={styles.inputWrapper}>
+                <Lock size={17} color="#64748B" style={{ marginRight: 10 }} />
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder={tab === 'signup' ? '비밀번호 (6자 이상)' : '비밀번호 입력'}
+                  placeholderTextColor="#9CA3AF"
+                  secureTextEntry
+                  style={styles.textInput}
+                />
+              </View>
+            </View>
+          </View>
+
+          <Text style={styles.legalNotice}>
+            로그인 시 서비스 이용약관 및 개인정보 처리방침에 동의하는 것으로 간주합니다.
+          </Text>
+
+          <TouchableOpacity
+            activeOpacity={0.88}
+            disabled={isLoading}
+            onPress={handleSubmit}
+            style={[styles.primaryBtn, isLoading && { opacity: 0.7 }]}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <>
+                <Text style={styles.primaryBtnText}>
+                  {tab === 'login' ? '로그인하고 시작하기' : '회원가입 완료하기'}
+                </Text>
+                <ArrowRight size={17} color="#FFFFFF" style={{ marginLeft: 6 }} />
+              </>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
+  );
+};
 
 export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
   const insets = useSafeAreaInsets();
@@ -26,7 +184,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
 
-  const { login, signup, continueAsGuest, isLoading } = useAuthStore();
+  const { login, signup, isLoading } = useAuthStore();
 
   const handleLogin = async () => {
     const success = await login(email, password);
@@ -47,24 +205,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
     }
   };
 
-  const handleGuest = () => {
-    continueAsGuest();
-    onClose();
-  };
-
   return (
     <Modal visible={visible} transparent animationType="slide">
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}>
-          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-            {/* Header */}
+        <View style={[styles.overlay, { backgroundColor: 'rgba(17, 24, 39, 0.45)' }]}>
+          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={styles.header}>
               <View style={styles.headerLeft}>
                 <View style={styles.iconCircle}>
-                  <Sparkles size={18} color="#FF6B6B" />
+                  <MapPin size={18} color="#1B2A4A" fill="#1B2A4A" />
                 </View>
                 <Text style={styles.headerTitle}>
-                  {tab === 'login' ? '핀치 로그인' : '핀치 간편 회원가입'}
+                  {tab === 'login' ? '핀치 로그인' : '핀치 회원가입'}
                 </Text>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -72,7 +224,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Tab Toggle */}
             <View style={styles.tabTrack}>
               <TouchableOpacity
                 onPress={() => setTab('login')}
@@ -92,7 +243,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Inputs */}
             {tab === 'signup' && (
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>닉네임</Text>
@@ -140,7 +290,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
               </View>
             </View>
 
-            {/* Submit Action */}
             <TouchableOpacity
               activeOpacity={0.85}
               disabled={isLoading}
@@ -158,15 +307,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
                 </>
               )}
             </TouchableOpacity>
-
-            {/* Guest Mode Action */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={handleGuest}
-              style={styles.guestBtn}
-            >
-              <Text style={styles.guestBtnText}>게스트로 계속 둘러보기</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </TouchableWithoutFeedback>
@@ -175,9 +315,73 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
 };
 
 const styles = StyleSheet.create({
+  gateScreen: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  gateScrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+    flexGrow: 1,
+  },
+  gateTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  brandBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  brandBadgeText: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#1B2A4A',
+    letterSpacing: 1,
+  },
+  gateProgressTrack: {
+    height: 3,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    marginBottom: 36,
+    overflow: 'hidden',
+  },
+  gateProgressFill: {
+    height: '100%',
+    backgroundColor: '#1B2A4A',
+  },
+  gateHeroSection: {
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  gateTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: -0.4,
+  },
+  gateSubtitle: {
+    fontSize: 13.5,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 8,
+  },
+  formContainer: {
+    marginTop: 4,
+    marginBottom: 18,
+  },
+  legalNotice: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
+  },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   sheet: {
@@ -201,7 +405,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    backgroundColor: '#EEF2F8',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -209,7 +413,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1E293B',
+    color: '#111827',
   },
   closeBtn: {
     padding: 6,
@@ -219,31 +423,31 @@ const styles = StyleSheet.create({
   tabTrack: {
     flexDirection: 'row',
     backgroundColor: '#F3F4F6',
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 4,
     marginBottom: 20,
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 9,
+    paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 9,
   },
   tabBtnActive: {
     backgroundColor: '#FFFFFF',
-    elevation: 2,
+    elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 2,
   },
   tabText: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
     color: '#6B7280',
   },
   tabTextActive: {
-    color: '#FF6B6B',
+    color: '#1B2A4A',
   },
   inputGroup: {
     marginBottom: 14,
@@ -251,7 +455,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#6B7280',
+    color: '#4B5563',
     marginBottom: 6,
   },
   inputWrapper: {
@@ -260,40 +464,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 48,
   },
   textInput: {
     flex: 1,
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-    padding: 0,
+    color: '#111827',
   },
   primaryBtn: {
-    backgroundColor: '#FF6B6B',
-    borderRadius: 16,
-    paddingVertical: 14,
+    backgroundColor: '#1B2A4A',
+    height: 52,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
-    marginBottom: 10,
+    marginTop: 6,
   },
   primaryBtnText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 15.5,
     fontWeight: '800',
-  },
-  guestBtn: {
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  guestBtnText: {
-    color: '#8D99AE',
-    fontSize: 13,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
   },
 });

@@ -97,7 +97,7 @@ export default function PlannerScreen() {
       id: m.id,
       name: m.name,
       avatarUrl: m.avatarUrl,
-      color: m.color || ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A06CD5', '#20BF55'][idx % 5],
+      color: m.color || ['#1B2A4A', '#4ECDC4', '#FFE66D', '#A06CD5', '#20BF55'][idx % 5],
     }))
     : members;
 
@@ -236,7 +236,7 @@ export default function PlannerScreen() {
         <Header title="동선 플래너 🗺️" subtitle="나만의 여행 일정과 최단 동선" />
         <View className="flex-1 items-center justify-center p-6">
           <View className="w-16 h-16 rounded-3xl bg-primary/10 items-center justify-center mb-4">
-            <Plane size={32} color="#FF6B6B" />
+            <Plane size={32} color="#1B2A4A" />
           </View>
           <Text className="text-base font-extrabold text-darkText mb-1.5">계획 중인 여행이 없습니다</Text>
           <Text className="text-xs text-mutedText text-center mb-5 leading-5">
@@ -262,12 +262,12 @@ export default function PlannerScreen() {
   return (
     <View className="flex-1 bg-background">
       <Header
-        title="동선 플래너 🗺️"
+        title="PLANNER"
         subtitle={currentTrip.title}
         rightAction={
           <TouchableOpacity
             onPress={handleOptimizeRoute}
-            className="flex-row items-center bg-primary px-3 py-2 rounded-2xl shadow-sm"
+            className="flex-row items-center bg-primary px-3.5 py-2 rounded-xl"
           >
             <Sparkles size={14} color="#FFFFFF" className="mr-1" />
             <Text className="text-xs font-bold text-white">동선 최적화</Text>
@@ -283,14 +283,14 @@ export default function PlannerScreen() {
           className="flex-row items-center justify-between bg-white px-3.5 py-2.5 rounded-2xl border border-gray-200 shadow-xs"
         >
           <View className="flex-row items-center flex-1 mr-2">
-            <MapPin size={14} color="#FF6B6B" className="mr-1.5" />
+            <MapPin size={14} color="#1B2A4A" className="mr-1.5" />
             <Text className="text-xs font-bold text-darkText flex-1" numberOfLines={1}>
               {currentTrip.title}
             </Text>
           </View>
           <View className="flex-row items-center bg-primary/10 px-2 py-1 rounded-lg">
             <Text className="text-[10px] font-bold text-primary mr-1">여행 변경</Text>
-            <ChevronDown size={11} color="#FF6B6B" />
+            <ChevronDown size={11} color="#1B2A4A" />
           </View>
         </TouchableOpacity>
       </View>
@@ -355,7 +355,7 @@ export default function PlannerScreen() {
           <View className="bg-white rounded-2xl border border-borderLine p-3 shadow-xs flex-row items-center justify-between">
             <View className="flex-row items-center flex-1 mr-2">
               <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center mr-2">
-                <Clock size={16} color="#FF6B6B" />
+                <Clock size={16} color="#1B2A4A" />
               </View>
               <View>
                 <View className="flex-row items-center">
@@ -377,7 +377,7 @@ export default function PlannerScreen() {
               onPress={() => setStartTimeModalVisible(true)}
               className="bg-primary/10 px-2.5 py-1.5 rounded-xl flex-row items-center"
             >
-              <Edit3 size={12} color="#FF6B6B" style={{ marginRight: 3 }} />
+              <Edit3 size={12} color="#1B2A4A" style={{ marginRight: 3 }} />
               <Text className="text-xs font-bold text-primary">시간 수정</Text>
             </TouchableOpacity>
           </View>
@@ -557,7 +557,7 @@ export default function PlannerScreen() {
               onPress={() => setAddSpotModalVisible(true)}
               className="flex-row items-center bg-primary/10 px-3 py-2 rounded-2xl border border-primary/20"
             >
-              <Plus size={14} color="#FF6B6B" />
+              <Plus size={14} color="#1B2A4A" />
               <Text className="text-xs font-bold color-primary ml-1">스팟 추가</Text>
             </TouchableOpacity>
           </View>
@@ -595,9 +595,9 @@ export default function PlannerScreen() {
                           <View className="flex-row items-center">
                             <View className="bg-primary/10 px-2 py-0.5 rounded-md mr-2 flex-row items-center">
                               {stop.category === 'FLIGHT' ? (
-                                <Plane size={11} color="#FF6B6B" />
+                                <Plane size={11} color="#1B2A4A" />
                               ) : (
-                                <Clock size={11} color="#FF6B6B" />
+                                <Clock size={11} color="#1B2A4A" />
                               )}
                               <Text className="text-[11px] font-bold color-primary ml-1">
                                 {stop.arrival_time} {stop.category === 'FLIGHT' ? '시간' : '도착'}
@@ -631,7 +631,7 @@ export default function PlannerScreen() {
                               onPress={() => removeScheduleItem(stop.id)}
                               className="p-1 bg-rose-50 rounded-lg"
                             >
-                              <Trash2 size={12} color="#E05353" />
+                              <Trash2 size={12} color="#111C33" />
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -692,7 +692,7 @@ export default function PlannerScreen() {
                               onPress={() => setCustomDurationStop(stop)}
                               className="px-1.5 py-0.5 rounded-md bg-primary/10 flex-row items-center"
                             >
-                              <Edit3 size={9} color="#FF6B6B" />
+                              <Edit3 size={9} color="#1B2A4A" />
                               <Text className="text-[10px] font-bold text-primary ml-0.5">
                                 직접
                               </Text>
@@ -716,7 +716,7 @@ export default function PlannerScreen() {
                               onPress={() => handleOpenExpenseModal(stop)}
                               className="bg-primary/10 px-2.5 py-1 rounded-full flex-row items-center"
                             >
-                              <Coins size={12} color="#FF6B6B" />
+                              <Coins size={12} color="#1B2A4A" />
                               <Text className="text-[11px] font-extrabold text-primary ml-1">
                                 지출 추가
                               </Text>
@@ -833,13 +833,13 @@ export default function PlannerScreen() {
                 onPress={() => setAddSpotModalVisible(true)}
                 className="mt-3 flex-row items-center justify-center bg-primary/10 border border-primary/25 rounded-2xl py-3.5"
               >
-                <Plus size={16} color="#FF6B6B" className="mr-1.5" />
+                <Plus size={16} color="#1B2A4A" className="mr-1.5" />
                 <Text className="text-sm font-extrabold text-primary">스팟 추가하기</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <EmptyState
-              icon={<MapPin size={28} color="#FF6B6B" />}
+              icon={<MapPin size={28} color="#1B2A4A" />}
               title={`DAY ${selectedDay} 동선이 비어있습니다`}
               description="보관함에서 핫플을 추가하거나 새 장소를 직접 등록해보세요."
               actionButton={
@@ -874,7 +874,7 @@ export default function PlannerScreen() {
           >
             <View className="flex-row items-center justify-between pb-3 border-b border-gray-100">
               <View className="flex-row items-center">
-                <Receipt size={18} color="#FF6B6B" />
+                <Receipt size={18} color="#1B2A4A" />
                 <Text className="text-base font-extrabold text-darkText ml-1.5">
                   일정 연동 지출 기록 💳
                 </Text>
@@ -891,7 +891,7 @@ export default function PlannerScreen() {
               <ScrollView showsVerticalScrollIndicator={false} className="mt-3">
                 <View className="p-3 bg-gray-50 rounded-2xl mb-3 border border-borderLine">
                   <View className="flex-row items-center mb-0.5">
-                    <MapPin size={12} color="#FF6B6B" />
+                    <MapPin size={12} color="#1B2A4A" />
                     <Text className="text-xs font-bold text-primary ml-1">
                       DAY {selectedStopForExpense.day_number} · #{selectedStopForExpense.order_index} 스팟
                     </Text>
@@ -1137,8 +1137,8 @@ const dayTabStyles = StyleSheet.create({
     borderWidth: 1,
   },
   tabActive: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
+    borderColor: '#1B2A4A',
   },
   tabInactive: {
     backgroundColor: '#F9FAFB',

@@ -158,7 +158,7 @@ export const PStyleCourseModal: React.FC<PStyleCourseModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerBadge}>
-              <Sparkles size={13} color="#FF6B6B" />
+              <Sparkles size={13} color="#1B2A4A" />
               <Text style={styles.headerBadgeText}>🤖 Gemini AI 맞춤 코스 기획</Text>
             </View>
             <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={styles.closeBtn}>
@@ -174,7 +174,7 @@ export const PStyleCourseModal: React.FC<PStyleCourseModalProps> = ({
             </Text>
 
             <View style={styles.tripInfoCard}>
-              <MapPin size={15} color="#FF6B6B" style={{ marginRight: 6 }} />
+              <MapPin size={15} color="#1B2A4A" style={{ marginRight: 6 }} />
               <Text style={styles.tripInfoDest} numberOfLines={1}>
                 {trip.destination || trip.title}
               </Text>
@@ -290,7 +290,7 @@ export const PStyleCourseModal: React.FC<PStyleCourseModalProps> = ({
             {/* Step 3: 실시간 추천 스팟 미리보기 배너 */}
             <View style={styles.previewSection}>
               <View style={styles.previewHeaderRow}>
-                <Sparkles size={14} color="#FF6B6B" style={{ marginRight: 6 }} />
+                <Sparkles size={14} color="#1B2A4A" style={{ marginRight: 6 }} />
                 <Text style={styles.previewTitle}>
                   '{currentStyleObj.label}' 코스 미리보기 ({previewData?.scheduleItems.length || 0}개 스팟)
                 </Text>
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   headerBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
   headerBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FF6B6B',
+    color: '#1B2A4A',
     marginLeft: 5,
   },
   closeBtn: {
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
@@ -549,8 +549,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   paceCardSelected: {
-    borderColor: '#FF6B6B',
-    backgroundColor: '#FFF5F5',
+    borderColor: '#1B2A4A',
+    backgroundColor: '#F8FAFC',
   },
   paceLeft: {
     flex: 1,
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   paceLabelSelected: {
-    color: '#FF6B6B',
+    color: '#1B2A4A',
     fontWeight: '800',
   },
   paceDesc: {
@@ -581,13 +581,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   paceRadioSelected: {
-    borderColor: '#FF6B6B',
+    borderColor: '#1B2A4A',
   },
   paceRadioInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
   },
   previewSection: {
     backgroundColor: '#F8FAFC',
@@ -674,12 +674,12 @@ const styles = StyleSheet.create({
     borderTopColor: '#F1F5F9',
   },
   applyBtn: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     borderRadius: 16,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF6B6B',
+    shadowColor: '#1B2A4A',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

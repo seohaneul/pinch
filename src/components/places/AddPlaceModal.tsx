@@ -278,7 +278,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
-                <Sparkles size={18} color="#FF6B6B" />
+                <Sparkles size={18} color="#1B2A4A" />
               </View>
               <Text style={styles.headerTitle}>새 장소 보관하기</Text>
             </View>
@@ -296,7 +296,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
             >
               <Search
                 size={14}
-                color={activeTab === 'search' ? '#FF6B6B' : '#64748B'}
+                color={activeTab === 'search' ? '#1B2A4A' : '#64748B'}
                 style={{ marginRight: 6 }}
               />
               <Text style={[styles.tabBtnText, activeTab === 'search' && styles.tabBtnTextActive]}>
@@ -311,7 +311,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
             >
               <LinkIcon
                 size={14}
-                color={activeTab === 'link' ? '#FF6B6B' : '#64748B'}
+                color={activeTab === 'link' ? '#1B2A4A' : '#64748B'}
                 style={{ marginRight: 6 }}
               />
               <Text style={[styles.tabBtnText, activeTab === 'link' && styles.tabBtnTextActive]}>
@@ -329,7 +329,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
 
               {/* Search Bar */}
               <View style={styles.searchBar}>
-                <Search size={16} color="#FF6B6B" style={{ marginRight: 8 }} />
+                <Search size={16} color="#1B2A4A" style={{ marginRight: 8 }} />
                 <TextInput
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -422,7 +422,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
                   <Text style={styles.statusText}>
                     {isSearching ? '장소 검색 중...' : `검색 결과 ${searchResults.length}개`}
                   </Text>
-                  {isSearching && <ActivityIndicator size="small" color="#FF6B6B" />}
+                  {isSearching && <ActivityIndicator size="small" color="#1B2A4A" />}
                 </View>
 
                 {/* Results ScrollView */}
@@ -455,7 +455,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
                             />
                           ) : (
                             <View style={styles.cardImagePlaceholder}>
-                              <MapPin size={22} color="#FF6B6B" />
+                              <MapPin size={22} color="#1B2A4A" />
                             </View>
                           )}
 
@@ -501,7 +501,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
                                   </>
                                 ) : (
                                   <>
-                                    <Bookmark size={12} color="#FF6B6B" style={{ marginRight: 3 }} />
+                                    <Bookmark size={12} color="#1B2A4A" style={{ marginRight: 3 }} />
                                     <Text style={styles.cardSaveBtnText}>보관함에 저장</Text>
                                   </>
                                 )}
@@ -583,7 +583,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
                 {/* Loading Indicator or Buttons */}
                 {loading ? (
                   <View style={styles.loadingBox}>
-                    <ActivityIndicator size="small" color="#FF6B6B" style={{ marginRight: 8 }} />
+                    <ActivityIndicator size="small" color="#1B2A4A" style={{ marginRight: 8 }} />
                     <Text style={styles.loadingText}>
                       AI가 링크에서 메타데이터와 위치 좌표를 분석 중입니다...
                     </Text>
@@ -698,7 +698,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   tabBtnTextActive: {
-    color: '#FF6B6B',
+    color: '#1B2A4A',
     fontWeight: '800',
   },
   subtitle: {
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderWidth: 1.5,
-    borderColor: '#FFE4E6',
+    borderColor: '#EEF2F8',
     marginBottom: 8,
   },
   searchInput: {
@@ -725,7 +725,7 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   searchSubmitBtn: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
@@ -746,7 +746,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
   },
   catChipActive: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
   },
   catChipText: {
     fontSize: 11,
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
   },
   popularChipText: {
     fontSize: 11,
@@ -822,7 +822,7 @@ const styles = StyleSheet.create({
     width: 76,
     height: 84,
     borderRadius: 10,
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -891,7 +891,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#FFF0F0',
     borderWidth: 1,
-    borderColor: '#FECDD3',
+    borderColor: '#CBD5E1',
   },
   cardSaveBtnActive: {
     backgroundColor: '#ECFDF5',
@@ -943,7 +943,7 @@ const styles = StyleSheet.create({
   },
   sampleChipActive: {
     backgroundColor: '#FFF0F0',
-    borderColor: '#FF6B6B',
+    borderColor: '#1B2A4A',
   },
   sampleChipText: {
     fontSize: 11,
@@ -951,7 +951,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sampleChipTextActive: {
-    color: '#FF6B6B',
+    color: '#1B2A4A',
     fontWeight: '700',
   },
   inputContainer: {
@@ -995,7 +995,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 11,
-    color: '#FF6B6B',
+    color: '#1B2A4A',
     fontWeight: '600',
     flex: 1,
   },
@@ -1024,7 +1024,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
   },
   submitBtnDisabled: {
     backgroundColor: '#CBD5E1',

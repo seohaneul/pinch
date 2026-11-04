@@ -231,7 +231,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
     const upper = cat ? cat.toUpperCase() : 'ATTRACTION';
     switch (upper) {
       case 'CAFE':
-        return { label: '☕ 감성 카페', bg: '#FFF1F2', color: '#E11D48', icon: Coffee };
+        return { label: '☕ 감성 카페', bg: '#F8FAFC', color: '#E11D48', icon: Coffee };
       case 'RESTAURANT':
         return { label: '🍴 현지 맛집', bg: '#FEF3C7', color: '#D97706', icon: Utensils };
       case 'ATTRACTION':
@@ -414,8 +414,8 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                   >
                     <Bookmark
                       size={18}
-                      color={placeRecord.isPinned ? '#FF6B6B' : '#FFFFFF'}
-                      fill={placeRecord.isPinned ? '#FF6B6B' : 'none'}
+                      color={placeRecord.isPinned ? '#1B2A4A' : '#FFFFFF'}
+                      fill={placeRecord.isPinned ? '#1B2A4A' : 'none'}
                     />
                   </TouchableOpacity>
                 )}
@@ -740,7 +740,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
             {/* SNS 핀치 코멘트 & 메모 */}
             <View style={styles.memoCard}>
               <View style={styles.memoHeader}>
-                <Sparkles size={14} color="#FF6B6B" style={{ marginRight: 6 }} />
+                <Sparkles size={14} color="#1B2A4A" style={{ marginRight: 6 }} />
                 <Text style={styles.memoHeaderTitle}>SNS 핀치 메모 & 코멘트</Text>
               </View>
               <Text style={styles.memoContent}>
@@ -752,7 +752,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
             <View style={styles.aiGuideCard}>
               <View style={styles.aiGuideHeader}>
                 <View style={styles.aiGuideBadge}>
-                  <Sparkles size={13} color="#FF6B6B" />
+                  <Sparkles size={13} color="#1B2A4A" />
                   <Text style={styles.aiGuideBadgeText}>AI 여행 가이드</Text>
                 </View>
 
@@ -764,10 +764,10 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                     style={styles.fetchAiBtn}
                   >
                     {isLoadingAi ? (
-                      <ActivityIndicator size="small" color="#FF6B6B" />
+                      <ActivityIndicator size="small" color="#1B2A4A" />
                     ) : (
                       <>
-                        <Sparkles size={11} color="#FF6B6B" />
+                        <Sparkles size={11} color="#1B2A4A" />
                         <Text style={styles.fetchAiBtnText}>심층 꿀팁 조회</Text>
                       </>
                     )}
@@ -798,7 +798,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                   <View style={styles.aiInfoRow}>
                     <View style={styles.aiInfoItem}>
                       <View style={styles.aiInfoItemIcon}>
-                        <Camera size={13} color="#FF6B6B" />
+                        <Camera size={13} color="#1B2A4A" />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.aiInfoLabel}>인생샷 포토존</Text>
@@ -845,7 +845,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
             {isAddingToSchedule && (
               <View style={styles.schedulePickerCard}>
                 <View style={styles.schedulePickerHeader}>
-                  <Calendar size={15} color="#FF6B6B" style={{ marginRight: 6 }} />
+                  <Calendar size={15} color="#1B2A4A" style={{ marginRight: 6 }} />
                   <Text style={styles.schedulePickerTitle}>
                     담을 일차 선택 ({currentTrip?.title || '여행'})
                   </Text>
@@ -1136,9 +1136,9 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   memoCard: {
-    backgroundColor: '#FFF5F5',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
-    borderColor: '#FFE4E6',
+    borderColor: '#EEF2F8',
     borderRadius: 18,
     padding: 14,
     marginBottom: 16,
@@ -1151,7 +1151,7 @@ const styles = StyleSheet.create({
   memoHeaderTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#FF6B6B',
+    color: '#1B2A4A',
   },
   memoContent: {
     fontSize: 13,
@@ -1178,7 +1178,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#FFE4E6',
+    borderColor: '#EEF2F8',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
@@ -1192,9 +1192,9 @@ const styles = StyleSheet.create({
   fetchAiBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#FFE4E6',
+    borderColor: '#EEF2F8',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -1202,7 +1202,7 @@ const styles = StyleSheet.create({
   fetchAiBtnText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#FF6B6B',
+    color: '#1B2A4A',
     marginLeft: 3,
   },
   aiGuideBody: {
@@ -1261,7 +1261,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -1315,7 +1315,7 @@ const styles = StyleSheet.create({
   schedulePickerCard: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: '#FF6B6B',
+    borderColor: '#1B2A4A',
     borderRadius: 20,
     padding: 16,
     marginBottom: 16,
@@ -1346,8 +1346,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dayTabBtnActive: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
+    borderColor: '#1B2A4A',
   },
   dayTabNumber: {
     fontSize: 12,
@@ -1367,7 +1367,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.85)',
   },
   confirmScheduleBtn: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingVertical: 12,
     borderRadius: 14,
     alignItems: 'center',
@@ -1408,11 +1408,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 14,
-    shadowColor: '#FF6B6B',
+    shadowColor: '#1B2A4A',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 5,
@@ -1429,7 +1429,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 14,
@@ -1501,7 +1501,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   photoThumbnailBtnActive: {
-    borderColor: '#FF6B6B',
+    borderColor: '#1B2A4A',
     transform: [{ scale: 1.04 }],
   },
   photoThumbnail: {
@@ -1510,7 +1510,7 @@ const styles = StyleSheet.create({
   },
   photoThumbnailSelectedOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255, 107, 107, 0.15)',
+    backgroundColor: 'rgba(27, 42, 74, 0.15)',
   },
   // Google Rating & Stats Bar
   googleRatingBar: {

@@ -193,7 +193,7 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
             style={styles.sourceUrlBanner}
           >
             <View style={styles.sourceBannerLeft}>
-              <ExternalLink size={16} color="#FF6B6B" style={{ marginRight: 8 }} />
+              <ExternalLink size={16} color="#1B2A4A" style={{ marginRight: 8 }} />
               <Text style={styles.sourceBannerText} numberOfLines={1}>
                 해당 릴스/블로그 원본 바로가기
               </Text>
@@ -204,10 +204,10 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
           <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollBody}>
             <View style={styles.listHeaderRow}>
               <Text style={styles.listHeaderTitle}>
-                발견된 장소 <Text style={{ color: '#FF6B6B' }}>{savedLink.extractedPlaces.length}곳</Text>
+                발견된 장소 <Text style={{ color: '#1B2A4A' }}>{savedLink.extractedPlaces.length}곳</Text>
               </Text>
               <TouchableOpacity onPress={handleAddAllPlaces} activeOpacity={0.7} style={styles.addAllBtn}>
-                <Sparkles size={12} color="#FF6B6B" style={{ marginRight: 4 }} />
+                <Sparkles size={12} color="#1B2A4A" style={{ marginRight: 4 }} />
                 <Text style={styles.addAllBtnText}>전체 한 번에 담기</Text>
               </TouchableOpacity>
             </View>
@@ -328,18 +328,18 @@ const styles = StyleSheet.create({
   },
   platformBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#FFF5F5',
+    backgroundColor: '#F8FAFC',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: '#FFE4E6',
+    borderColor: '#EEF2F8',
   },
   platformBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FF6B6B',
+    color: '#1B2A4A',
   },
   headerTitle: {
     fontSize: 17,
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
   sourceArrowText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#FF6B6B',
+    color: '#1B2A4A',
     marginLeft: 6,
   },
   scrollBody: {
@@ -402,17 +402,17 @@ const styles = StyleSheet.create({
   addAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#F8FAFC',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FFE4E6',
+    borderColor: '#EEF2F8',
   },
   addAllBtnText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#FF6B6B',
+    color: '#1B2A4A',
   },
   placeCard: {
     flexDirection: 'row',
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingVertical: 7,
     paddingHorizontal: 12,
     borderRadius: 10,

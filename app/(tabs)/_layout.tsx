@@ -1,31 +1,27 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { View, Text, Platform } from 'react-native';
-import { Compass, Bookmark, MapPin, Wallet, User, Sparkles } from '@/components/common/CustomIcons';
+import { View, Platform } from 'react-native';
+import { Home, Bookmark, MapPin, Wallet, User } from '@/components/common/CustomIcons';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#FF6B6B',
-        tabBarInactiveTintColor: '#8D99AE',
+        tabBarActiveTintColor: '#1B2A4A',
+        tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
-          borderTopColor: '#F0F0F5',
+          borderTopColor: '#F1F3F5',
           borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 88 : 68,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
-          paddingTop: 8,
-          elevation: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 10,
+          height: Platform.OS === 'ios' ? 86 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 26 : 9,
+          paddingTop: 7,
+          elevation: 0,
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
+          fontWeight: '700',
           marginTop: 2,
         },
       }}
@@ -35,8 +31,8 @@ export default function TabLayout() {
         options={{
           title: '홈',
           tabBarIcon: ({ color, focused }) => (
-            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : 'p-1.5'}>
-              <Compass size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.2 : 1.8} />
+            <View>
+              <Home size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.1 : 1.7} />
             </View>
           ),
         }}
@@ -46,8 +42,8 @@ export default function TabLayout() {
         options={{
           title: '보관함',
           tabBarIcon: ({ color, focused }) => (
-            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : 'p-1.5'}>
-              <Bookmark size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.2 : 1.8} />
+            <View>
+              <Bookmark size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.1 : 1.7} />
             </View>
           ),
         }}
@@ -57,8 +53,8 @@ export default function TabLayout() {
         options={{
           title: '일정/동선',
           tabBarIcon: ({ color, focused }) => (
-            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : 'p-1.5'}>
-              <MapPin size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.2 : 1.8} />
+            <View>
+              <MapPin size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.1 : 1.7} />
             </View>
           ),
         }}
@@ -68,8 +64,8 @@ export default function TabLayout() {
         options={{
           title: '가계부',
           tabBarIcon: ({ color, focused }) => (
-            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : 'p-1.5'}>
-              <Wallet size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.2 : 1.8} />
+            <View>
+              <Wallet size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.1 : 1.7} />
             </View>
           ),
         }}
@@ -77,10 +73,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: '마이',
+          title: ' 내 정보',
           tabBarIcon: ({ color, focused }) => (
-            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : 'p-1.5'}>
-              <User size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.2 : 1.8} />
+            <View>
+              <User size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.1 : 1.7} />
             </View>
           ),
         }}

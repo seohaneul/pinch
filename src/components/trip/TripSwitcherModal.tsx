@@ -10,9 +10,10 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Check, Plus, Trash2, Calendar, MapPin } from '@/components/common/CustomIcons';
+import { X, Plus, Trash2, Calendar, MapPin, Edit3 } from '@/components/common/CustomIcons';
 import { useTripStore } from '../../store/useTripStore';
 import { CreateTripModal } from './CreateTripModal';
+import type { Trip } from '../../types';
 
 interface TripSwitcherModalProps {
   visible: boolean;
@@ -23,6 +24,7 @@ export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, o
   const insets = useSafeAreaInsets();
   const { trips, activeTripId, setActiveTrip, deleteTrip } = useTripStore();
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
 
   const handleSelectTrip = (tripId: string) => {
     setActiveTrip(tripId);
@@ -56,7 +58,7 @@ export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, o
   return (
     <>
       <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
-        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.45)' }]}>
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(17, 24, 39, 0.45)' }]}>
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
@@ -66,7 +68,7 @@ export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, o
             {/* Header */}
             <View style={styles.header}>
               <View>
-                <Text style={styles.headerTitle}>내 여행 목록 🧳</Text>
+                <Text style={styles.headerTitle}>내 여행 목록</Text>
                 <Text style={styles.headerSubtitle}>
                   총 {trips.length}개의 여행이 등록되어 있습니다
                 </Text>
@@ -116,7 +118,7 @@ export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, o
                         </Text>
                         {isActive && (
                           <View style={styles.activePill}>
-                            <Text style={styles.activePillText}>진행중</Text>
+                            <Text style={styles.activePillText}>선택됨</Text>
                           </View>
                         )}
                       </View>
@@ -136,6 +138,18 @@ export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, o
                       </View>
                     </View>
 
+                    {/* Edit button */}
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setEditingTrip(trip);
+                      }}
+                      activeOpacity={0.7}
+                      style={styles.actionIconBtn}
+                    >
+                      <Edit3 size={15} color="#1B2A4A" />
+                    </TouchableOpacity>
+
                     {/* Delete button (only if more than 1 trip) */}
                     {trips.length > 1 && (
                       <TouchableOpacity
@@ -144,9 +158,9 @@ export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, o
                           handleDeleteTrip(trip.id, trip.title);
                         }}
                         activeOpacity={0.7}
-                        style={styles.deleteBtn}
+                        style={styles.actionIconBtn}
                       >
-                        <Trash2 size={16} color="#94A3B8" />
+                        <Trash2 size={15} color="#94A3B8" />
                       </TouchableOpacity>
                     )}
                   </TouchableOpacity>
@@ -157,22 +171,30 @@ export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, o
             {/* Create New Trip Button */}
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={() => setCreateModalVisible(true)}
+              onPress={() => {
+                setEditingTrip(null);
+                setCreateModalVisible(true);
+              }}
               style={styles.createBtn}
             >
               <Plus size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-              <Text style={styles.createBtnText}>새로운 여행 만들기 ✈️</Text>
+              <Text style={styles.createBtnText}>새로운 여행 추가하기</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Embedded Create Modal */}
+      {/* Embedded Create / Edit Wizard Modal */}
       <CreateTripModal
-        visible={createModalVisible}
-        onClose={() => setCreateModalVisible(false)}
+        visible={createModalVisible || !!editingTrip}
+        editTrip={editingTrip}
+        onClose={() => {
+          setCreateModalVisible(false);
+          setEditingTrip(null);
+        }}
         onCreated={() => {
           setCreateModalVisible(false);
+          setEditingTrip(null);
           onClose();
         }}
       />
@@ -184,32 +206,31 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalSheet: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     maxHeight: '85%',
     paddingBottom: 0,
-    paddingTop: 16,
+    paddingTop: 18,
     paddingHorizontal: 20,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 12,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderColor: '#F1F5F9',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1E293B',
+    color: '#111827',
   },
   headerSubtitle: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#64748B',
     marginTop: 2,
   },
@@ -230,19 +251,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     marginBottom: 10,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
   },
   tripCardActive: {
-    borderColor: '#FF6B6B',
-    backgroundColor: '#FFF5F5',
+    borderColor: '#1B2A4A',
+    backgroundColor: '#F8FAFC',
   },
   tripCover: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     marginRight: 12,
   },
   tripInfo: {
@@ -254,20 +275,20 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   tripTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1E293B',
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
     flex: 1,
   },
   activePill: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    backgroundColor: '#1B2A4A',
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
     borderRadius: 10,
     marginLeft: 6,
   },
   activePillText: {
-    fontSize: 9,
+    fontSize: 9.5,
     fontWeight: '800',
     color: '#FFFFFF',
   },
@@ -277,34 +298,34 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   metaText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
+    fontSize: 11.5,
+    color: '#475569',
+    fontWeight: '600',
   },
   metaSubText: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#94A3B8',
   },
-  deleteBtn: {
-    padding: 8,
-    marginLeft: 4,
+  actionIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
   },
   createBtn: {
     marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B6B',
-    paddingVertical: 14,
-    borderRadius: 16,
-    elevation: 3,
-    shadowColor: '#FF6B6B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    backgroundColor: '#1B2A4A',
+    paddingVertical: 15,
+    borderRadius: 12,
   },
   createBtnText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
   },

@@ -30,7 +30,7 @@ export const ClipboardToast: React.FC<ClipboardToastProps> = ({
     <View className="mx-4 mb-3 bg-darkText p-3.5 rounded-2xl shadow-xl border border-gray-700 flex-row items-center justify-between">
       <View className="flex-row items-center flex-1 mr-3">
         <View className="w-9 h-9 rounded-xl bg-primary/20 items-center justify-center mr-3 border border-primary/40">
-          <Sparkles size={18} color="#FF6B6B" />
+          <Sparkles size={18} color="#1B2A4A" />
         </View>
         <View className="flex-1">
           <View className="flex-row items-center mb-0.5">

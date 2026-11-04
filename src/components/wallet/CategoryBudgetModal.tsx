@@ -51,7 +51,7 @@ const CATEGORY_ITEMS: {
   bg: string;
   defaultAmount: number;
 }[] = [
-    { key: 'FOOD', label: '식비', icon: Utensils, color: '#FF6B6B', bg: '#FFF1F2', defaultAmount: 400000 },
+    { key: 'FOOD', label: '식비', icon: Utensils, color: '#1B2A4A', bg: '#F8FAFC', defaultAmount: 400000 },
     { key: 'LODGING', label: '숙소', icon: HomeIcon, color: '#A29BFE', bg: '#F5F3FF', defaultAmount: 600000 },
     { key: 'FLIGHT', label: '항공권', icon: Plane, color: '#0284C7', bg: '#F0F9FF', defaultAmount: 450000 },
     { key: 'TRANSPORT', label: '교통', icon: Car, color: '#4ECDC4', bg: '#F0FDFA', defaultAmount: 250000 },
@@ -194,7 +194,7 @@ export const CategoryBudgetModal: React.FC<CategoryBudgetModalProps> = ({
           <View style={styles.header}>
             <View>
               <View style={styles.titleRow}>
-                <Coins size={18} color="#FF6B6B" style={{ marginRight: 6 }} />
+                <Coins size={18} color="#1B2A4A" style={{ marginRight: 6 }} />
                 <Text style={styles.title}>카테고리별 예산 설정 💰</Text>
               </View>
               <Text style={styles.subtitle}>
@@ -855,13 +855,13 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     marginTop: 12,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     paddingVertical: 14,
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF6B6B',
+    shadowColor: '#1B2A4A',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 5,

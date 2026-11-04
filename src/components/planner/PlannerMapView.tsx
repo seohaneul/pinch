@@ -154,7 +154,7 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
         {/* Top Header Overlay */}
         <View style={styles.overlayHeader} pointerEvents="box-none">
           <View style={styles.overlayBadge}>
-            <Sparkles size={13} color="#FF6B6B" />
+            <Sparkles size={13} color="#1B2A4A" />
             <Text style={styles.overlayText}>
               DAY {selectedDay} 실시간 동선 ({validStops.length}스팟)
             </Text>
@@ -207,7 +207,7 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
       width: 32px;
       height: 32px;
       border-radius: 50%;
-      background-color: #FF6B6B;
+      background-color: #1B2A4A;
       color: #FFFFFF;
       font-size: 13px;
       font-weight: 800;
@@ -322,7 +322,7 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
             '<div class="popup-title">#' + stop.order_index + ' ' + stop.place_name + '</div>' +
             '<div class="popup-time">' + (stop.arrival_time ? '도착 ' + stop.arrival_time : '') + '</div>' +
             '<div style="display:flex;gap:6px;margin-top:6px;">' +
-              '<a href="javascript:void(0)" class="popup-btn" style="background:#FF6B6B;color:#FFFFFF;flex:1;text-align:center;" onclick="sendDetailMessage(' + idx + ')">상세보기 ✨</a>' +
+              '<a href="javascript:void(0)" class="popup-btn" style="background:#1B2A4A;color:#FFFFFF;flex:1;text-align:center;" onclick="sendDetailMessage(' + idx + ')">상세보기 ✨</a>' +
               '<a href="javascript:void(0)" class="popup-btn" style="flex:1;text-align:center;" onclick="sendNavMessage(' + stop.latitude + ',' + stop.longitude + ',\\'' + encodeURIComponent(stop.place_name) + '\\')">길찾기 ↗</a>' +
             '</div>' +
           '</div>';
@@ -338,7 +338,7 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
 
       if (latlngs.length > 1) {
         var polyline = L.polyline(latlngs, {
-          color: '#FF6B6B',
+          color: '#1B2A4A',
           weight: 4,
           opacity: 0.9,
           dashArray: '8, 8',
@@ -439,7 +439,7 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
       {/* Top Floating Badge & Expand Button */}
       <View style={styles.overlayHeader} pointerEvents="box-none">
         <View style={styles.overlayBadge}>
-          <Sparkles size={13} color="#FF6B6B" />
+          <Sparkles size={13} color="#1B2A4A" />
           <Text style={styles.overlayText}>
             DAY {selectedDay} 실시간 동선 ({validStops.length}스팟)
           </Text>
@@ -644,7 +644,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#1B2A4A',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
