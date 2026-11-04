@@ -1,14 +1,16 @@
+/**
+ * Pinchi Custom Icon Set
+ *
+ * 스타일 규칙 ("Soft Mono"):
+ *  - 단색(한 가지 색)만 사용한다.
+ *  - 기본 상태: 둥근 2px 외곽선 + 같은 색의 은은한 면 채움(20% 불투명도)
+ *  - `fill` prop 전달 시(활성/선택 상태): 면이 솔리드로 채워지고 내부 디테일은 흰색으로 반전
+ *  - 모서리/끝은 모두 round 처리하여 여행 앱의 부드럽고 친근한 톤 유지
+ *
+ * 사용법은 기존 lucide 아이콘과 동일: <MapPin size={20} color="#FF6B6B" fill="#FF6B6B" />
+ */
 import React from 'react';
-import Svg, {
-  Path,
-  Circle,
-  Rect,
-  Polyline,
-  Polygon,
-  Line,
-  G,
-  SvgProps,
-} from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Ellipse, G, SvgProps } from 'react-native-svg';
 
 export interface IconProps extends Omit<SvgProps, 'color'> {
   size?: number | string;
@@ -19,1322 +21,646 @@ export interface IconProps extends Omit<SvgProps, 'color'> {
   className?: string;
 }
 
-const defaultProps = {
-  size: 20,
-  color: '#2B2D42',
-  strokeWidth: 2,
+const DEFAULT_COLOR = '#2B2D42';
+const TINT_OPACITY = 0.2;
+
+interface Kit {
+  c: string;
+  sw: number;
+  solid: boolean;
+  tint: string;
+  tintOpacity: number;
+  inner: string;
+}
+
+const isWhite = (v: any) =>
+  typeof v === 'string' && ['#fff', '#ffffff', 'white'].includes(v.toLowerCase());
+
+/** 면(바디): 은은한 채움 + 외곽선 */
+const b = (k: Kit) => ({
+  fill: k.tint,
+  fillOpacity: k.tintOpacity,
+  stroke: k.c,
+  strokeWidth: k.sw,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+});
+
+/** 선: onBody=true 이면 솔리드 상태에서 흰색으로 반전되는 내부 디테일 */
+const l = (k: Kit, onBody = false) => ({
   fill: 'none',
-};
+  stroke: onBody ? k.inner : k.c,
+  strokeWidth: k.sw,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+});
+
+/** 점(채움 전용) */
+const d = (k: Kit, onBody = false) => ({ fill: onBody ? k.inner : k.c });
+
+/** 외곽선 없이 면만 */
+const t = (k: Kit) => ({ fill: k.tint, fillOpacity: k.tintOpacity });
+
+function makeIcon(name: string, draw: (k: Kit) => React.ReactNode): React.FC<IconProps> {
+  const Icon: React.FC<IconProps> = ({
+    size = 20,
+    color = DEFAULT_COLOR,
+    strokeWidth = 2,
+    fill = 'none',
+    style,
+    className: _className,
+    ...rest
+  }) => {
+    const solid = !!fill && fill !== 'none' && fill !== 'transparent';
+    const kit: Kit = {
+      c: color,
+      sw: Number(strokeWidth),
+      solid,
+      tint: solid ? fill : color,
+      tintOpacity: solid ? 1 : TINT_OPACITY,
+      inner: solid ? (isWhite(fill) ? 'rgba(0,0,0,0.22)' : '#FFFFFF') : color,
+    };
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
+        {draw(kit)}
+      </Svg>
+    );
+  };
+  Icon.displayName = name;
+  return Icon;
+}
 
 // ==============================================================================
-// 1. Navigation & Brand Icons
+// 1. 탭 & 브랜드
 // ==============================================================================
 
-/** 홈: 여행 나침반 & 중심 핀 */
-export const Compass: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => {
-  const isFilled = fill && fill !== 'none';
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-      <Circle
-        cx="12"
-        cy="12"
-        r="9.5"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        fill={isFilled ? color : 'none'}
-      />
-      {isFilled ? (
-        <>
-          <Polygon
-            points="12,5.5 14.5,12 12,10 9.5,12"
-            fill="#FFFFFF"
-          />
-          <Polygon
-            points="12,18.5 14.5,12 12,14 9.5,12"
-            fill="#FFFFFF"
-            fillOpacity={0.6}
-          />
-          <Circle cx="12" cy="12" r="1.8" fill={color} />
-        </>
-      ) : (
-        <>
-          <Polygon
-            points="16.5,7.5 13.5,13.5 7.5,16.5 10.5,10.5"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinejoin="round"
-            fill={color}
-            fillOpacity={0.15}
-          />
-          <Circle cx="12" cy="12" r="1.5" fill={color} />
-        </>
-      )}
-    </Svg>
-  );
-};
+export const Compass = makeIcon('Compass', (k) => (
+  <>
+    <Circle cx="12" cy="12" r="9" {...b(k)} />
+    <G transform="rotate(40 12 12)">
+      <Path d="M12 6.2l2.3 5.8H9.7z" {...d(k, true)} />
+      <Path d="M12 17.8l2.3-5.8H9.7z" {...l(k, true)} strokeWidth={k.sw * 0.75} />
+    </G>
+  </>
+));
 
-/** 보관함: 소프트 리본 북마크 */
-export const Bookmark: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => {
-  const isFilled = fill && fill !== 'none';
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-      <Path
-        d="M19 21l-7-4.5L5 21V5a2.5 2.5 0 0 1 2.5-2.5h9A2.5 2.5 0 0 1 19 5v16z"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill={isFilled ? color : 'none'}
-      />
-      {isFilled && (
-        <Circle cx="12" cy="8" r="1.8" fill="#FFFFFF" />
-      )}
-    </Svg>
-  );
-};
+export const Bookmark = makeIcon('Bookmark', (k) => (
+  <>
+    <Path d="M6 4.8A1.8 1.8 0 0 1 7.8 3h8.4A1.8 1.8 0 0 1 18 4.8V20.2l-6-3.9-6 3.9z" {...b(k)} />
+    <Circle cx="12" cy="9" r="1.6" {...d(k, true)} />
+  </>
+));
 
-/** 일정/동선: 부드러운 위치 마커 핀 */
-export const MapPin: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => {
-  const isFilled = fill && fill !== 'none';
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-      <Path
-        d="M12 21.5c3.5-4.5 7.5-8.8 7.5-12.5a7.5 7.5 0 1 0-15 0c0 3.7 4 8 7.5 12.5z"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill={isFilled ? color : 'none'}
-      />
-      <Circle
-        cx="12"
-        cy="9"
-        r="2.8"
-        stroke={isFilled ? '#FFFFFF' : color}
-        strokeWidth={isFilled ? 0 : strokeWidth}
-        fill={isFilled ? '#FFFFFF' : 'none'}
-      />
-    </Svg>
-  );
-};
+export const MapPin = makeIcon('MapPin', (k) => (
+  <>
+    <Path d="M12 19.8S5.5 14.4 5.5 9.5a6.5 6.5 0 0 1 13 0c0 4.9-6.5 10.3-6.5 10.3z" {...b(k)} />
+    <Circle cx="12" cy="9.5" r="2.3" {...l(k, true)} />
+    <Path d="M9.5 22.2h5" {...l(k)} />
+  </>
+));
 
-/** 가계부: 둥근 폴드 지갑 */
-export const Wallet: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => {
-  const isFilled = fill && fill !== 'none';
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-      <Path
-        d="M20 7H4.5A2.5 2.5 0 0 0 2 9.5v8A2.5 2.5 0 0 0 4.5 20H20a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill={isFilled ? color : 'none'}
-      />
-      <Path
-        d="M16 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        fill={isFilled ? color : 'none'}
-      />
-      <Path
-        d="M16.5 14.5h5.5v-5h-5.5a2.5 2.5 0 0 0 0 5z"
-        stroke={isFilled ? '#FFFFFF' : color}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill={isFilled ? '#FFFFFF' : 'none'}
-      />
-      <Circle cx="19" cy="12" r="1" fill={isFilled ? color : color} />
-    </Svg>
-  );
-};
+export const Wallet = makeIcon('Wallet', (k) => (
+  <>
+    <Path d="M5.5 6.2l9.3-2.9a1.6 1.6 0 0 1 2 1.1l.5 1.8" {...l(k)} />
+    <Rect x="3" y="6.2" width="18" height="14" rx="3.5" {...b(k)} />
+    <Rect x="14.5" y="10.9" width="6.5" height="4.6" rx="2.3" {...l(k, true)} />
+    <Circle cx="17" cy="13.2" r="0.9" {...d(k, true)} />
+  </>
+));
 
-/** 프로필/마이: 아늑한 사용자 실루엣 */
-export const User: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => {
-  const isFilled = fill && fill !== 'none';
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-      <Circle
-        cx="12"
-        cy="7"
-        r="4.2"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill={isFilled ? color : 'none'}
-      />
-      <Path
-        d="M20 21v-1.5a5.5 5.5 0 0 0-5.5-5.5h-5A5.5 5.5 0 0 0 4 19.5V21"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill={isFilled ? color : 'none'}
-      />
-    </Svg>
-  );
-};
+export const User = makeIcon('User', (k) => (
+  <>
+    <Circle cx="12" cy="8" r="3.8" {...b(k)} />
+    <Path d="M4.6 20.2c.7-3.8 3.7-5.8 7.4-5.8s6.7 2 7.4 5.8a.9.9 0 0 1-.9 1H5.5a.9.9 0 0 1-.9-1z" {...b(k)} />
+  </>
+));
 
-/** 멀티 유저: 2인 사용자 */
-export const Users: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M16 21v-1.5a4.5 4.5 0 0 0-4.5-4.5H5.5A4.5 4.5 0 0 0 1 19.5V21" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Circle cx="8.5" cy="7" r="4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Path d="M23 21v-1.5a4 4 0 0 0-3-3.87" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Path d="M16 3.13a4 4 0 0 1 0 7.75" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
+export const Users = makeIcon('Users', (k) => (
+  <>
+    <Path d="M15.6 5.2a3.2 3.2 0 0 1 0 6.2" {...l(k)} />
+    <Path d="M17.6 14.8c2.1.6 3.5 2.2 3.9 4.5" {...l(k)} />
+    <Circle cx="9" cy="8.5" r="3.3" {...b(k)} />
+    <Path d="M2.6 19.9c.6-3.3 3.1-5.1 6.4-5.1s5.8 1.8 6.4 5.1a.8.8 0 0 1-.8.9H3.4a.8.8 0 0 1-.8-.9z" {...b(k)} />
+  </>
+));
 
-/** 스마트 핀치 / AI: 소프트 스타 스파클 */
-export const Sparkles: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
+// ==============================================================================
+// 2. 장소 & 카테고리
+// ==============================================================================
+
+export const Home = makeIcon('Home', (k) => (
+  <>
+    <Path d="M16.5 7.4V4.6" {...l(k)} />
+    <Path d="M4 10.6 12 4l8 6.6V18.8a2.2 2.2 0 0 1-2.2 2.2H6.2A2.2 2.2 0 0 1 4 18.8z" {...b(k)} />
+    <Path d="M10 21v-4.2a2 2 0 0 1 4 0V21" {...l(k, true)} />
+  </>
+));
+
+export const Building = makeIcon('Building', (k) => (
+  <>
+    <Path d="M15 9h2.6A1.4 1.4 0 0 1 19 10.4V21h-4z" {...b(k)} />
+    <Rect x="5" y="3" width="10" height="18" rx="2" {...b(k)} />
+    {[7, 10.5, 14].map((y) => (
+      <React.Fragment key={y}>
+        <Circle cx="8.5" cy={y} r="0.95" {...d(k, true)} />
+        <Circle cx="11.5" cy={y} r="0.95" {...d(k, true)} />
+      </React.Fragment>
+    ))}
+    <Path d="M3 21h18" {...l(k)} />
+  </>
+));
+
+export const Hotel = makeIcon('Hotel', (k) => (
+  <>
+    <Path d="M3 6.5v14M21 18v2.5" {...l(k)} />
+    <Path d="M3 12.5h15a3 3 0 0 1 3 3V18H3z" {...b(k)} />
+    <Rect x="5.5" y="8.8" width="5" height="3.7" rx="1.6" {...b(k)} />
+  </>
+));
+
+export const Utensils = makeIcon('Utensils', (k) => (
+  <>
+    <Path d="M6.5 3v5a2.5 2.5 0 0 0 5 0V3M9 3v4.5M9 10.5V21" {...l(k)} />
+    <Path d="M17.2 3c-2.2 1-3.6 3.6-3.6 6.8V13h3.6z" {...b(k)} />
+    <Path d="M17.2 13v8" {...l(k)} />
+  </>
+));
+
+export const Coffee = makeIcon('Coffee', (k) => (
+  <>
+    <Path d="M8 2.5c-.6.8-.6 1.7 0 2.5M11.5 2.5c-.6.8-.6 1.7 0 2.5" {...l(k)} />
+    <Path d="M15.5 10.5H17a2.5 2.5 0 0 1 0 5h-1.8" {...l(k)} />
+    <Path d="M4.5 8.5h11v6a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z" {...b(k)} />
+    <Path d="M3.5 22h14" {...l(k)} />
+  </>
+));
+
+export const Camera = makeIcon('Camera', (k) => (
+  <>
     <Path
-      d="M12 3c0 4.5-3.5 8-8 8 4.5 0 8 3.5 8 8 0-4.5 3.5-8 8-8-4.5 0-8-3.5-8-8z"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill={fill !== 'none' ? fill : 'none'}
+      d="M3 9a2.5 2.5 0 0 1 2.5-2.5h1.8l1.5-2h6.4l1.5 2h1.8A2.5 2.5 0 0 1 21 9v8.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"
+      {...b(k)}
     />
+    <Circle cx="12" cy="13" r="3.3" {...l(k, true)} />
+    <Circle cx="17.6" cy="9.6" r="0.9" {...d(k, true)} />
+  </>
+));
+
+export const ShoppingBag = makeIcon('ShoppingBag', (k) => (
+  <>
+    <Path d="M5 8h14l-1 11.3a2 2 0 0 1-2 1.7H8a2 2 0 0 1-2-1.7z" {...b(k)} />
+    <Path d="M9 11V6.5a3 3 0 0 1 6 0V11" {...l(k, true)} />
+  </>
+));
+
+export const Sparkles = makeIcon('Sparkles', (k) => (
+  <>
+    <Path d="M10 3.5c.5 3.6 2 5.1 5.5 5.5-3.5.5-5 2-5.5 5.5-.5-3.5-2-5-5.5-5.5 3.5-.4 5-1.9 5.5-5.5z" {...b(k)} />
+    <Path d="M17.5 13c.3 2 1.2 2.9 3 3.2-1.8.3-2.7 1.2-3 3.2-.3-2-1.2-2.9-3-3.2 1.8-.3 2.7-1.2 3-3.2z" {...b(k)} />
+    <Circle cx="5.5" cy="18.5" r="1.1" {...d(k)} />
+  </>
+));
+
+export const Star = makeIcon('Star', (k) => (
+  <Path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.6l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" {...b(k)} />
+));
+
+export const Heart = makeIcon('Heart', (k) => (
+  <>
+    <Path d="M12 20s-8-4.6-8-10.4A4.4 4.4 0 0 1 12 7a4.4 4.4 0 0 1 8 2.6C20 15.4 12 20 12 20z" {...b(k)} />
+    <Path d="M7.2 9.4a1.9 1.9 0 0 1 1.6-1.5" {...l(k, true)} />
+  </>
+));
+
+export const Tag = makeIcon('Tag', (k) => (
+  <>
     <Path
-      d="M19 3c0 1.5-1 2.5-2.5 2.5 1.5 0 2.5 1 2.5 2.5 0-1.5 1-2.5 2.5-2.5-1.5 0-2.5-1-2.5-2.5z"
-      fill={color}
+      d="M3.5 4.8v6.1a2 2 0 0 0 .6 1.4l8.4 8.4a1.8 1.8 0 0 0 2.6 0l5.6-5.6a1.8 1.8 0 0 0 0-2.6L12.3 4.1a2 2 0 0 0-1.4-.6H4.8a1.3 1.3 0 0 0-1.3 1.3z"
+      {...b(k)}
     />
-  </Svg>
-);
+    <Circle cx="8" cy="8" r="1.4" {...l(k, true)} />
+  </>
+));
 
-// ==============================================================================
-// 2. Core Actions & UI Controls
-// ==============================================================================
-
-export const Plus: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M12 5v14M5 12h14" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const X: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M18 6L6 18M6 6l12 12" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const Check: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M20 6L9 17l-5-5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const CheckCircle: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth={strokeWidth} fill={fill !== 'none' ? fill : 'none'} />
-    <Path d="M8 12l2.5 2.5L16 9" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const CheckCircle2: React.FC<IconProps> = CheckCircle;
-
-export const Search: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Circle cx="11" cy="11" r="7.2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M20.5 20.5L16.2 16.2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
-
-export const Trash2: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Line x1="10" y1="11" x2="10" y2="17" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="14" y1="11" x2="14" y2="17" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
-
-export const Edit3: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
+export const Ticket = makeIcon('Ticket', (k) => (
+  <>
     <Path
-      d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 18.5l-4 1 1-4 12.5-12z"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      d="M3 8a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2a2 2 0 0 0 0 4v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2a2 2 0 0 0 0-4z"
+      {...b(k)}
     />
-  </Svg>
-);
+    <Path d="M14.5 7.8v1.4M14.5 11.3v1.4M14.5 14.8v1.4" {...l(k, true)} />
+  </>
+));
 
-export const Share2: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Circle cx="18" cy="5" r="3" stroke={color} strokeWidth={strokeWidth} />
-    <Circle cx="6" cy="12" r="3" stroke={color} strokeWidth={strokeWidth} />
-    <Circle cx="18" cy="19" r="3" stroke={color} strokeWidth={strokeWidth} />
-    <Line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
+export const Image = makeIcon('Image', (k) => (
+  <>
+    <Rect x="3" y="4" width="18" height="16" rx="3" {...b(k)} />
+    <Circle cx="8.5" cy="9" r="1.8" {...d(k, true)} />
+    <Path d="M3.8 17.5l4.7-4.7 4 4 2.5-2.5 5.2 5" {...l(k, true)} />
+  </>
+));
 
-export const Copy: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Rect x="9" y="9" width="12" height="12" rx="2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Globe = makeIcon('Globe', (k) => (
+  <>
+    <Circle cx="12" cy="12" r="9" {...b(k)} />
+    <Path d="M12 3.2c-2.4 2.4-3.7 5.4-3.7 8.8s1.3 6.4 3.7 8.8c2.4-2.4 3.7-5.4 3.7-8.8S14.4 5.6 12 3.2z" {...l(k, true)} />
+    <Path d="M3.4 12h17.2" {...l(k, true)} />
+  </>
+));
 
-export const Clipboard: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Rect x="4" y="5" width="16" height="16" rx="2.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M9 3h6a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
-  </Svg>
-);
+export const Map = makeIcon('Map', (k) => (
+  <>
+    <Path d="M3.5 6.2 9 4l6 2.5 5.5-2.2v13.5L15 20l-6-2.5-5.5 2.2z" {...b(k)} />
+    <Path d="M9 4v13.5M15 6.5V20" {...l(k, true)} />
+  </>
+));
 
-export const ClipboardPaste: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M15 4h1a2 2 0 0 1 2 2v2M8 4H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Path d="M9 3h6a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
-    <Path d="M12 11h6M12 15h4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
+export const Layers = makeIcon('Layers', (k) => (
+  <>
+    <Path d="M3 12.5l9 5 9-5M3 17l9 5 9-5" {...l(k)} />
+    <Path d="M12 3l9 5-9 5-9-5z" {...b(k)} />
+  </>
+));
 
-export const Link: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const ExternalLink: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const RotateCw: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M21 4v5h-5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M20.5 13.5A9 9 0 1 1 18 8l3 1" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const RotateCcw: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M3 4v5h5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M3.5 13.5A9 9 0 1 0 6 8L3 9" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const RefreshCw: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M21 3v5h-5M3 21v-5h5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M20.5 10A9 9 0 0 0 5.6 5.6L3 8M3.5 14A9 9 0 0 0 18.4 18.4L21 16" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const Filter: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const Sliders: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Line x1="4" y1="21" x2="4" y2="14" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="4" y1="10" x2="4" y2="3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="12" y1="21" x2="12" y2="12" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="12" y1="8" x2="12" y2="3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="20" y1="21" x2="20" y2="16" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="20" y1="12" x2="20" y2="3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="1" y1="14" x2="7" y2="14" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="9" y1="8" x2="15" y2="8" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="17" y1="16" x2="23" y2="16" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
-
-export const Maximize2: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const Minimize2: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Navigation = makeIcon('Navigation', (k) => (
+  <Path d="M12 3l6.9 17.2a.6.6 0 0 1-.8.8L12 17.6 5.9 21a.6.6 0 0 1-.8-.8z" {...b(k)} />
+));
 
 // ==============================================================================
-// 3. Chevrons & Arrows
+// 3. 교통수단
 // ==============================================================================
 
-export const ChevronDown: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M6 9l6 6 6-6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Plane = makeIcon('Plane', (k) => (
+  <Path
+    d="M20.9 4.2c-.7-.7-2-.6-2.9.3L14.5 8 5.8 5.6 4 7.4l7 4.3-3.3 3.3H5.2L4 16.2l3.3 1.5 1.5 3.3 1.2-1.2v-2.5l3.3-3.3 4.3 7 1.8-1.8L17 10.5l3.5-3.6c.9-.9 1.1-2 .4-2.7z"
+    {...b(k)}
+  />
+));
 
-export const ChevronUp: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M18 15l-6-6-6 6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Train = makeIcon('Train', (k) => (
+  <>
+    <Path d="M8 17l-2.5 4M16 17l2.5 4" {...l(k)} />
+    <Rect x="5" y="3" width="14" height="14" rx="4" {...b(k)} />
+    <Rect x="7.5" y="6" width="9" height="4.5" rx="1.5" {...l(k, true)} />
+    <Circle cx="8.8" cy="13.5" r="1" {...d(k, true)} />
+    <Circle cx="15.2" cy="13.5" r="1" {...d(k, true)} />
+  </>
+));
 
-export const ChevronLeft: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M15 18l-6-6 6-6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Bus = makeIcon('Bus', (k) => (
+  <>
+    <Path d="M7 18.5v2M17 18.5v2" {...l(k)} />
+    <Rect x="4" y="3.5" width="16" height="15" rx="3.5" {...b(k)} />
+    <Path d="M4.5 11h15M8.5 6.5h7" {...l(k, true)} />
+    <Circle cx="7.6" cy="15" r="1" {...d(k, true)} />
+    <Circle cx="16.4" cy="15" r="1" {...d(k, true)} />
+  </>
+));
 
-export const ChevronRight: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M9 18l6-6-6-6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const ArrowRight: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M5 12h14M12 5l7 7-7 7" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const ArrowUpRight: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M7 17L17 7M7 7h10v10" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const ArrowDownRight: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M7 7l10 10M17 7v10H7" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const ArrowUpDown: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const MoveDown: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M12 5v14M7 14l5 5 5-5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-export const MoveUp: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M12 19V5M7 10l5-5 5 5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-// ==============================================================================
-// 4. Travel & Mobility
-// ==============================================================================
-
-/** 항공기 */
-export const Plane: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
+export const Car = makeIcon('Car', (k) => (
+  <>
     <Path
-      d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 20 2.5s-3.5-1-5 0.5L11.5 6.5 3.3 4.7c-.8-.2-1.6.3-1.8 1.1s.3 1.6 1.1 1.8l6.8 3.8-3.5 3.5-2.5-.5c-.6-.1-1.2.2-1.4.8s.2 1.2.8 1.4l3 1.5 1.5 3c.2.6.8 1 1.4.8s.9-.8.8-1.4l-.5-2.5 3.5-3.5 3.8 6.8c.2.8 1 1.3 1.8 1.1s1.3-1 .8-1.8z"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill={fill !== 'none' ? fill : 'none'}
+      d="M3 15.5v-2.3a2 2 0 0 1 .6-1.4l2-2 1.6-3.4A2 2 0 0 1 9 5.3h6a2 2 0 0 1 1.8 1.1l1.6 3.4 2 2a2 2 0 0 1 .6 1.4v2.3a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 15.5z"
+      {...b(k)}
     />
-  </Svg>
-);
+    <Path d="M6.5 10h11" {...l(k, true)} />
+    <Circle cx="7.5" cy="17.5" r="1.9" {...b(k)} />
+    <Circle cx="16.5" cy="17.5" r="1.9" {...b(k)} />
+  </>
+));
 
-/** 길찾기 네비게이션 화살표 */
-export const Navigation: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Polygon points="3 11 22 2 13 21 11 13 3 11" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" fill={fill !== 'none' ? fill : 'none'} />
-  </Svg>
-);
+export const Bike = makeIcon('Bike', (k) => (
+  <>
+    <Circle cx="6" cy="16.5" r="3.5" {...b(k)} />
+    <Circle cx="18" cy="16.5" r="3.5" {...b(k)} />
+    <Path d="M6 16.5 9.5 9h5.5l3 7.5M9.5 9l3.2 7.5H6M8 6.5h3M15 9l-1-3h2.5" {...l(k)} />
+  </>
+));
 
-/** 자동차 */
-export const Car: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M5 16h14a2 2 0 0 0 2-2l-1.5-6a2 2 0 0 0-2-1.5H6.5a2 2 0 0 0-2 1.5L3 14a2 2 0 0 0 2 2z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Circle cx="7.5" cy="16.5" r="2.2" stroke={color} strokeWidth={strokeWidth} />
-    <Circle cx="16.5" cy="16.5" r="2.2" stroke={color} strokeWidth={strokeWidth} />
-    <Path d="M8.5 6.8L7.5 12h9l-1-5.2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
+export const Ship = makeIcon('Ship', (k) => (
+  <>
+    <Path d="M12 8.5V4.5h3" {...l(k)} />
+    <Rect x="7" y="8.5" width="10" height="5.5" rx="1.5" {...b(k)} />
+    <Path d="M3 14h18l-2.2 4.6a2 2 0 0 1-1.8 1.2H7a2 2 0 0 1-1.8-1.2z" {...b(k)} />
+    <Path d="M4 22.2c1.3 0 1.3-.8 2.7-.8s1.3.8 2.6.8 1.3-.8 2.7-.8 1.3.8 2.6.8 1.3-.8 2.7-.8 1.3.8 2.7.8" {...l(k)} />
+  </>
+));
 
-/** 기차 / 지하철 */
-export const Train: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Rect x="5" y="3" width="14" height="15" rx="3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M7 6h10v5H7z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Circle cx="8.5" cy="14.5" r="1.2" fill={color} />
-    <Circle cx="15.5" cy="14.5" r="1.2" fill={color} />
-    <Path d="M4 21l4-2M20 21l-4-2M8 19h8" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
-
-/** 버스 */
-export const Bus: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Rect x="4" y="3" width="16" height="15" rx="3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M4 10h16M7 6h10" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Circle cx="7.5" cy="14.5" r="1.2" fill={color} />
-    <Circle cx="16.5" cy="14.5" r="1.2" fill={color} />
-    <Path d="M6 18v2M18 18v2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
-
-/** 선박 / 페리 */
-export const Ship: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M3 17l2 3.5h14l2-3.5-2-4H5l-2 4z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M7 9.5h10v3.5H7zM10 5.5h4v4h-4z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M2 21c3-1 5 1 8 0s5 1 8 0 3 1 4 0" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
-
-/** 자전거 */
-export const Bike: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Circle cx="5.5" cy="16.5" r="3.5" stroke={color} strokeWidth={strokeWidth} />
-    <Circle cx="18.5" cy="16.5" r="3.5" stroke={color} strokeWidth={strokeWidth} />
-    <Path d="M5.5 16.5l4-7h5l4 7M9.5 9.5l4.5 7M14 9.5l-4.5 7M14 9.5V7h2M8 7h3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-/** 도보 발자국 */
-export const Footprints: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M6 14.5a2 2 0 0 1 2-2 1.5 1.5 0 0 1 1.5 1.5c0 2-1 3.5-2 4.5S6 16.5 6 14.5z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Circle cx="7.5" cy="10" r="1.1" fill={color} />
-    <Path d="M14 8.5a2 2 0 0 1 2-2 1.5 1.5 0 0 1 1.5 1.5c0 2-1 3.5-2 4.5S14 10.5 14 8.5z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Circle cx="15.5" cy="4" r="1.1" fill={color} />
-  </Svg>
-);
-
-/** 지도 맵 */
-export const Map: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Polygon points="1 6 1 21 8 17 16 21 23 17 23 2 16 6 8 2 1 6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Line x1="8" y1="2" x2="8" y2="17" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="16" y1="6" x2="16" y2="21" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
+export const Footprints = makeIcon('Footprints', (k) => (
+  <>
+    <Ellipse cx="8" cy="8" rx="2.8" ry="4.3" {...b(k)} />
+    <Rect x="6" y="13.8" width="4" height="3" rx="1.5" {...b(k)} />
+    <Ellipse cx="16" cy="11.5" rx="2.8" ry="4.3" {...b(k)} />
+    <Rect x="14" y="17.3" width="4" height="3" rx="1.5" {...b(k)} />
+  </>
+));
 
 // ==============================================================================
-// 5. Spots, Food & Lifestyle Categories
+// 4. 일정 & 시간
 // ==============================================================================
 
-/** 카페 & 커피 */
-export const Coffee: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M4 8h12a1 1 0 0 1 1 1v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9a1 1 0 0 1 1-1z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" fill={fill !== 'none' ? fill : 'none'} />
-    <Path d="M17 10h2a2.5 2.5 0 0 1 0 5h-2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Path d="M8 3c0 1.5 1 1.5 1 3M12 3c0 1.5 1 1.5 1 3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
+export const Calendar = makeIcon('Calendar', (k) => (
+  <>
+    <Rect x="3.5" y="5" width="17" height="15.5" rx="3" {...b(k)} />
+    <Path d="M3.5 10h17" {...l(k, true)} />
+    <Path d="M8 3v4M16 3v4" {...l(k)} />
+    <Circle cx="8" cy="14" r="1" {...d(k, true)} />
+    <Circle cx="12" cy="14" r="1" {...d(k, true)} />
+    <Circle cx="16" cy="14" r="1" {...d(k, true)} />
+    <Circle cx="8" cy="17.2" r="1" {...d(k, true)} />
+  </>
+));
 
-/** 레스토랑 & 식사 */
-export const Utensils: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M5 3v5a2 2 0 0 0 2 2v11M5 3v3M7 3v3M9 3v3M17 3c0 5 1.5 6 1.5 8v10M17 3a2 2 0 0 1 2 2v6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Clock = makeIcon('Clock', (k) => (
+  <>
+    <Circle cx="12" cy="12" r="9" {...b(k)} />
+    <Path d="M12 7.5V12l3 2" {...l(k, true)} />
+  </>
+));
 
-/** 숙소 & 호텔 */
-export const Hotel: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M4 21V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M9 8v5M15 8v5M9 10.5h6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Path d="M10 21v-4h4v4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
+// ==============================================================================
+// 5. 돈 & 가계부
+// ==============================================================================
 
-/** 빌딩 / 도시 */
-export const Building: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M4 21V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M8 7h2M14 7h2M8 11h2M14 11h2M8 15h2M14 15h2M10 21v-3h4v3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Coins = makeIcon('Coins', (k) => (
+  <>
+    <Circle cx="15" cy="9" r="5.5" {...b(k)} />
+    <Circle cx="9" cy="15" r="5.5" {...b(k)} />
+    <Path d="M9 12.8v4.4" {...l(k, true)} />
+  </>
+));
 
-/** 집 / 홈 */
-export const Home: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M3 10.5L12 3l9 7.5V20a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 20V10.5z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" fill={fill !== 'none' ? fill : 'none'} />
-    <Path d="M9 21.5v-6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-/** 쇼핑백 */
-export const ShoppingBag: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M4 8l1.5 13a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1L20 8H4z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M8 8V5a4 4 0 0 1 8 0v3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
-
-/** 카메라 */
-export const Camera: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M4 7h3l2-3h6l2 3h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Circle cx="12" cy="14" r="3.5" stroke={color} strokeWidth={strokeWidth} />
-  </Svg>
-);
-
-/** 이미지 사진 액자 */
-export const Image: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Rect x="3" y="4" width="18" height="16" rx="2.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Circle cx="8.5" cy="8.5" r="1.5" fill={color} />
-    <Path d="M21 16l-5.5-5.5-8.5 8.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-/** 티켓 / 바우처 */
-export const Ticket: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M3 8a3 3 0 0 0 0 6v5a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-5a3 3 0 0 0 0-6V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v4z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Line x1="13" y1="5" x2="13" y2="19" stroke={color} strokeWidth={strokeWidth} strokeDasharray="2,2" strokeLinecap="round" />
-  </Svg>
-);
-
-/** 태그 */
-export const Tag: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Circle cx="7" cy="7" r="1.5" fill={color} />
-  </Svg>
-);
-
-/** 코인 & 지출 */
-export const Coins: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Circle cx="15.5" cy="8.5" r="5.5" stroke={color} strokeWidth={strokeWidth} />
-    <Circle cx="8.5" cy="15.5" r="5.5" stroke={color} strokeWidth={strokeWidth} />
-    <Path d="M8.5 13.5v4M7 15.5h3M15.5 6.5v4M14 8.5h3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
-
-/** 달러 기호 */
-export const DollarSign: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Line x1="12" y1="2" x2="12" y2="22" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H7" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
-
-/** 영수증 */
-export const Receipt: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M4 2v18l3-1.5 3 1.5 3-1.5 3 1.5 4-2V2l-4 2-3-1.5-3 1.5-3-1.5L4 2z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Line x1="8" y1="7" x2="16" y2="7" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="8" y1="11" x2="16" y2="11" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="8" y1="15" x2="13" y2="15" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
-
-/** 파이 차트 */
-export const PieChart: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M21.21 15.89A10 10 0 1 1 8 2.83" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M22 12A10 10 0 0 0 12 2v10z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-/** 시계 & 일정 시간 */
-export const Clock: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth={strokeWidth} />
-    <Polyline points="12 6.5 12 12 15.5 14" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-/** 캘린더 달력 */
-export const Calendar: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Rect x="3" y="4" width="18" height="17" rx="2.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Line x1="8" y1="2" x2="8" y2="5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="16" y1="2" x2="16" y2="5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="3" y1="9" x2="21" y2="9" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Circle cx="8" cy="13" r="0.8" fill={color} />
-    <Circle cx="12" cy="13" r="0.8" fill={color} />
-    <Circle cx="16" cy="13" r="0.8" fill={color} />
-    <Circle cx="8" cy="16.5" r="0.8" fill={color} />
-    <Circle cx="12" cy="16.5" r="0.8" fill={color} />
-  </Svg>
-);
-
-/** 별점 */
-export const Star: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Polygon
-      points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill={fill !== 'none' ? fill : 'none'}
-    />
-  </Svg>
-);
-
-/** 하트 */
-export const Heart: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
+export const DollarSign = makeIcon('DollarSign', (k) => (
+  <>
+    <Circle cx="12" cy="12" r="9" {...b(k)} />
     <Path
-      d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill={fill !== 'none' ? fill : 'none'}
+      d="M14.5 9.2c-.4-1-1.4-1.6-2.5-1.6-1.5 0-2.6.8-2.6 2s1 1.7 2.6 2.1 2.6.9 2.6 2.1-1.1 2.1-2.6 2.1c-1.2 0-2.2-.6-2.6-1.6M12 6v1.6M12 16.4V18"
+      {...l(k, true)}
+      strokeWidth={k.sw * 0.85}
     />
-  </Svg>
-);
+  </>
+));
 
-/** 전화 */
-export const Phone: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
+export const Receipt = makeIcon('Receipt', (k) => (
+  <>
+    <Path d="M5.5 3h13v18l-2.2-1.5-2.2 1.5-2.1-1.5L9.9 21l-2.2-1.5L5.5 21z" {...b(k)} />
+    <Path d="M9 8h6M9 11.5h6M9 15h3.5" {...l(k, true)} />
+  </>
+));
+
+export const PieChart = makeIcon('PieChart', (k) => (
+  <>
+    <Circle cx="11" cy="13" r="8" {...b(k)} />
+    <Path d="M14 2.5V10h7.5A7.5 7.5 0 0 0 14 2.5z" {...b(k)} />
+  </>
+));
+
+// ==============================================================================
+// 6. 상태 & 피드백
+// ==============================================================================
+
+export const Check = makeIcon('Check', (k) => <Path d="M5 12.5l4.5 4.5L19 7.5" {...l(k)} />);
+
+export const CheckCircle = makeIcon('CheckCircle', (k) => (
+  <>
+    <Circle cx="12" cy="12" r="9" {...b(k)} />
+    <Path d="M8 12.3l2.8 2.8 5.4-5.6" {...l(k, true)} />
+  </>
+));
+
+export const CheckCircle2 = CheckCircle;
+
+export const Info = makeIcon('Info', (k) => (
+  <>
+    <Circle cx="12" cy="12" r="9" {...b(k)} />
+    <Path d="M12 11v5.5" {...l(k, true)} />
+    <Circle cx="12" cy="7.8" r="1.1" {...d(k, true)} />
+  </>
+));
+
+export const Shield = makeIcon('Shield', (k) => (
+  <Path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z" {...b(k)} />
+));
+
+export const ShieldCheck = makeIcon('ShieldCheck', (k) => (
+  <>
+    <Path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z" {...b(k)} />
+    <Path d="M9 12l2.2 2.2L15.5 10" {...l(k, true)} />
+  </>
+));
+
+export const Lock = makeIcon('Lock', (k) => (
+  <>
+    <Path d="M8 10V7.5a4 4 0 0 1 8 0V10" {...l(k)} />
+    <Rect x="4.5" y="10" width="15" height="11" rx="3" {...b(k)} />
+    <Path d="M12 14.5V17" {...l(k, true)} />
+  </>
+));
+
+export const KeyRound = makeIcon('KeyRound', (k) => (
+  <>
+    <Path d="M12 12l8-8M17 7l2.5 2.5M15 9l1.8 1.8" {...l(k)} />
+    <Circle cx="8.5" cy="15.5" r="4.8" {...b(k)} />
+    <Circle cx="8.5" cy="15.5" r="1.4" {...l(k, true)} />
+  </>
+));
+
+export const Zap = makeIcon('Zap', (k) => <Path d="M13.5 2.5 4.5 13.5h7l-1 8 9-11h-7z" {...b(k)} />);
+
+export const Cloud = makeIcon('Cloud', (k) => (
+  <Path d="M7 19a4.5 4.5 0 0 1-.8-8.9A6 6 0 0 1 17.6 9a5.1 5.1 0 0 1-.1 10z" {...b(k)} />
+));
+
+export const DownloadCloud = makeIcon('DownloadCloud', (k) => (
+  <>
+    <Path d="M7 19a4.5 4.5 0 0 1-.8-8.9A6 6 0 0 1 17.6 9a5.1 5.1 0 0 1-.1 10z" {...b(k)} />
+    <Path d="M12 11.5V17M9.5 14.5 12 17l2.5-2.5" {...l(k, true)} />
+  </>
+));
+
+export const UploadCloud = makeIcon('UploadCloud', (k) => (
+  <>
+    <Path d="M7 19a4.5 4.5 0 0 1-.8-8.9A6 6 0 0 1 17.6 9a5.1 5.1 0 0 1-.1 10z" {...b(k)} />
+    <Path d="M12 17v-5.5M9.5 14 12 11.5l2.5 2.5" {...l(k, true)} />
+  </>
+));
+
+export const Database = makeIcon('Database', (k) => (
+  <>
+    <Path d="M4.5 6c0-1.7 3.4-3 7.5-3s7.5 1.3 7.5 3v12c0 1.7-3.4 3-7.5 3s-7.5-1.3-7.5-3z" {...b(k)} />
+    <Path d="M4.5 6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3" {...l(k, true)} />
+  </>
+));
+
+// ==============================================================================
+// 7. 문서 & 커뮤니케이션
+// ==============================================================================
+
+export const Clipboard = makeIcon('Clipboard', (k) => (
+  <>
+    <Rect x="5" y="4.5" width="14" height="17" rx="2.5" {...b(k)} />
+    <Rect x="8.5" y="2.5" width="7" height="4" rx="1.5" {...b(k)} />
+    <Path d="M9 11h6M9 15h4" {...l(k, true)} />
+  </>
+));
+
+export const ClipboardPaste = makeIcon('ClipboardPaste', (k) => (
+  <>
+    <Rect x="5" y="4.5" width="14" height="17" rx="2.5" {...b(k)} />
+    <Rect x="8.5" y="2.5" width="7" height="4" rx="1.5" {...b(k)} />
+    <Path d="M12 10v6.5M9.5 14l2.5 2.5 2.5-2.5" {...l(k, true)} />
+  </>
+));
+
+export const Copy = makeIcon('Copy', (k) => (
+  <>
+    <Path d="M15 5.5V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h.5" {...l(k)} />
+    <Rect x="8.5" y="8.5" width="12" height="12" rx="2.5" {...b(k)} />
+  </>
+));
+
+export const FileText = makeIcon('FileText', (k) => (
+  <>
+    <Path d="M14 3H7a2.5 2.5 0 0 0-2.5 2.5v13A2.5 2.5 0 0 0 7 21h10a2.5 2.5 0 0 0 2.5-2.5V8.5z" {...b(k)} />
+    <Path d="M14 3v5.5h5.5M8.5 13h7M8.5 16.5H13" {...l(k, true)} />
+  </>
+));
+
+export const Edit3 = makeIcon('Edit3', (k) => (
+  <>
+    <Path d="M15.5 4.5a2.1 2.1 0 0 1 3 3L8.5 17.5 4.5 19l1.5-4z" {...b(k)} />
+    <Path d="M13.5 6.5l3 3" {...l(k, true)} />
+    <Path d="M12.5 20.5H20" {...l(k)} />
+  </>
+));
+
+export const Mail = makeIcon('Mail', (k) => (
+  <>
+    <Rect x="3" y="5" width="18" height="14" rx="3" {...b(k)} />
+    <Path d="M3.8 7 12 13l8.2-6" {...l(k, true)} />
+  </>
+));
+
+export const Phone = makeIcon('Phone', (k) => (
+  <Path
+    d="M8.5 3.5H6A2 2 0 0 0 4 5.6C4.4 13.6 10.4 19.6 18.4 20a2 2 0 0 0 2.1-2v-2.5a1.5 1.5 0 0 0-1.1-1.4l-2.8-.8a1.5 1.5 0 0 0-1.5.4l-1.2 1.2a12 12 0 0 1-4.9-4.9l1.2-1.2a1.5 1.5 0 0 0 .4-1.5l-.8-2.8A1.5 1.5 0 0 0 8.5 3.5z"
+    {...b(k)}
+  />
+));
+
+export const MessageSquareQuote = makeIcon('MessageSquareQuote', (k) => (
+  <>
     <Path
-      d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5V14a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4.2A2.5 2.5 0 0 1 4 14z"
+      {...b(k)}
     />
-  </Svg>
-);
+    <Path d="M9.5 8.3v2.4c0 1-.5 1.7-1.3 2M15 8.3v2.4c0 1-.5 1.7-1.3 2" {...l(k, true)} />
+  </>
+));
 
-/** 메일 */
-export const Mail: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Rect x="3" y="5" width="18" height="14" rx="2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M3 7l9 6 9-6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Link = makeIcon('Link', (k) => (
+  <G transform="rotate(-45 12 12)">
+    <Rect x="2.5" y="8.5" width="10.5" height="7" rx="3.5" {...l(k)} />
+    <Rect x="11" y="8.5" width="10.5" height="7" rx="3.5" {...l(k)} />
+  </G>
+));
 
-/** 자물쇠 */
-export const Lock: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Rect x="4" y="11" width="16" height="10" rx="2.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M7 11V7a5 5 0 0 1 10 0v4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Circle cx="12" cy="16" r="1.5" fill={color} />
-  </Svg>
-);
+export const ExternalLink = makeIcon('ExternalLink', (k) => (
+  <>
+    <Rect x="3.5" y="6" width="14.5" height="14.5" rx="2.5" {...t(k)} />
+    <Path d="M18 13.5V18a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 18V8.5A2.5 2.5 0 0 1 6 6h4.5" {...l(k)} />
+    <Path d="M14 3.5h6.5V10M20.5 3.5 11 13" {...l(k)} />
+  </>
+));
 
-/** 열쇠 */
-export const KeyRound: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Circle cx="7.5" cy="15.5" r="4.5" stroke={color} strokeWidth={strokeWidth} />
-    <Path d="M10.8 12.2L20 3M17 6l2 2M14 9l2 2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Share2 = makeIcon('Share2', (k) => (
+  <>
+    <Path d="M8.5 10.7l7-3.9M8.5 13.3l7 3.9" {...l(k)} />
+    <Circle cx="18" cy="5.5" r="2.8" {...b(k)} />
+    <Circle cx="6" cy="12" r="2.8" {...b(k)} />
+    <Circle cx="18" cy="18.5" r="2.8" {...b(k)} />
+  </>
+));
 
-/** 로그아웃 */
-export const LogOut: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Polyline points="16 17 21 12 16 7" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Line x1="21" y1="12" x2="9" y2="12" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
+export const LogOut = makeIcon('LogOut', (k) => (
+  <>
+    <Rect x="4" y="3.5" width="6.5" height="17" rx="2.5" {...t(k)} />
+    <Path d="M10 20.5H6.5A2.5 2.5 0 0 1 4 18V6a2.5 2.5 0 0 1 2.5-2.5H10" {...l(k)} />
+    <Path d="M10 12h10.5M16.5 8l4 4-4 4" {...l(k)} />
+  </>
+));
 
-/** 방패 / 보안 */
-export const Shield: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+// ==============================================================================
+// 8. 컨트롤 & 액션
+// ==============================================================================
 
-/** 인증 방패 */
-export const ShieldCheck: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M9 12l2 2 4-4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Search = makeIcon('Search', (k) => (
+  <>
+    <Path d="M15.5 15.5l5 5" {...l(k)} />
+    <Circle cx="10.5" cy="10.5" r="6.5" {...b(k)} />
+    <Path d="M7.8 9.2a3 3 0 0 1 2.2-1.6" {...l(k, true)} />
+  </>
+));
 
-/** 레이어 층 */
-export const Layers: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Polygon points="12 2 2 7 12 12 22 7 12 2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Polyline points="2 17 12 22 22 17" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Polyline points="2 12 12 17 22 12" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Filter = makeIcon('Filter', (k) => <Path d="M3.5 4.5h17l-6.5 8v6l-4 2.5v-8.5z" {...b(k)} />);
 
-/** 클라우드 구름 */
-export const Cloud: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Sliders = makeIcon('Sliders', (k) => (
+  <>
+    <Path d="M4 7h16M4 17h16" {...l(k)} />
+    <Circle cx="9" cy="7" r="2.6" {...b(k)} />
+    <Circle cx="15" cy="17" r="2.6" {...b(k)} />
+  </>
+));
 
-/** 클라우드 업로드 */
-export const UploadCloud: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M16 16l-4-4-4 4M12 12v9" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Trash2 = makeIcon('Trash2', (k) => (
+  <>
+    <Path d="M3.5 6.5h17M9 6.5v-2A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5v2" {...l(k)} />
+    <Path d="M5.5 6.5h13l-.9 12.6a2 2 0 0 1-2 1.9H8.4a2 2 0 0 1-2-1.9z" {...b(k)} />
+    <Path d="M10 10.5v6M14 10.5v6" {...l(k, true)} />
+  </>
+));
 
-/** 클라우드 다운로드 */
-export const DownloadCloud: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M8 17l4 4 4-4M12 12v9" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const Plus = makeIcon('Plus', (k) => <Path d="M12 5v14M5 12h14" {...l(k)} />);
 
-/** 데이터베이스 */
-export const Database: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M21 5c0 1.66-4 3-9 3s-9-1.34-9-3 4-3 9-3 9 1.34 9 3z" stroke={color} strokeWidth={strokeWidth} />
-    <Path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5M3 12c0 1.66 4 3 9 3s9-1.34 9-3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+export const X = makeIcon('X', (k) => <Path d="M6.5 6.5l11 11M17.5 6.5l-11 11" {...l(k)} />);
 
-/** 지구본 */
-export const Globe: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth={strokeWidth} />
-    <Line x1="2.5" y1="12" x2="21.5" y2="12" stroke={color} strokeWidth={strokeWidth} />
-    <Path d="M12 2.5a15.3 15.3 0 0 1 4 9.5 15.3 15.3 0 0 1-4 9.5 15.3 15.3 0 0 1-4-9.5 15.3 15.3 0 0 1 4-9.5z" stroke={color} strokeWidth={strokeWidth} />
-  </Svg>
-);
+export const Maximize2 = makeIcon('Maximize2', (k) => (
+  <Path d="M14 4h6v6M10 20H4v-6M20 4l-6.5 6.5M4 20l6.5-6.5" {...l(k)} />
+));
 
-/** 번개 */
-export const Zap: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  fill = defaultProps.fill,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" fill={fill !== 'none' ? fill : 'none'} />
-  </Svg>
-);
+export const Minimize2 = makeIcon('Minimize2', (k) => (
+  <Path d="M4 14h6v6M20 10h-6V4M10 14l-6.5 6.5M14 10l6.5-6.5" {...l(k)} />
+));
 
-/** 인포메이션 안내 */
-export const Info: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth={strokeWidth} />
-    <Line x1="12" y1="16" x2="12" y2="12" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Circle cx="12" cy="8" r="0.8" fill={color} />
-  </Svg>
-);
+export const RefreshCw = makeIcon('RefreshCw', (k) => (
+  <Path
+    d="M20 11.5A8 8 0 0 0 6 6.6L4 8.5M4 4v4.5h4.5M4 12.5a8 8 0 0 0 14 4.9l2-1.9M20 20v-4.5h-4.5"
+    {...l(k)}
+  />
+));
 
-/** 후기 말풍선 */
-export const MessageSquareQuote: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M8 9h2v2H8zm6 0h2v2h-2z" fill={color} />
-  </Svg>
-);
+export const RotateCcw = makeIcon('RotateCcw', (k) => (
+  <Path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5M4 4v4.5h4.5" {...l(k)} />
+));
 
-/** 텍스트 파일 문서 */
-export const FileText: React.FC<IconProps> = ({
-  size = defaultProps.size,
-  color = defaultProps.color,
-  strokeWidth = defaultProps.strokeWidth,
-  style,
-  ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Polyline points="14 2 14 8 20 8" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-    <Line x1="16" y1="13" x2="8" y2="13" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="16" y1="17" x2="8" y2="17" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Line x1="10" y1="9" x2="8" y2="9" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
-);
+export const RotateCw = makeIcon('RotateCw', (k) => (
+  <Path d="M20 12a8 8 0 1 1-2.4-5.7L20 8.5M20 4v4.5h-4.5" {...l(k)} />
+));
+
+// ==============================================================================
+// 9. 방향 (Chevron / Arrow)
+// ==============================================================================
+
+export const ChevronDown = makeIcon('ChevronDown', (k) => <Path d="M6.5 9.5 12 15l5.5-5.5" {...l(k)} />);
+export const ChevronUp = makeIcon('ChevronUp', (k) => <Path d="M6.5 14.5 12 9l5.5 5.5" {...l(k)} />);
+export const ChevronLeft = makeIcon('ChevronLeft', (k) => <Path d="M14.5 6.5 9 12l5.5 5.5" {...l(k)} />);
+export const ChevronRight = makeIcon('ChevronRight', (k) => <Path d="M9.5 6.5 15 12l-5.5 5.5" {...l(k)} />);
+
+export const ArrowRight = makeIcon('ArrowRight', (k) => <Path d="M4.5 12h15M13.5 6l6 6-6 6" {...l(k)} />);
+export const ArrowUpRight = makeIcon('ArrowUpRight', (k) => <Path d="M7 17 17 7M8.5 7H17v8.5" {...l(k)} />);
+export const ArrowDownRight = makeIcon('ArrowDownRight', (k) => <Path d="M7 7l10 10M17 8.5V17H8.5" {...l(k)} />);
+export const ArrowUpDown = makeIcon('ArrowUpDown', (k) => (
+  <Path d="M7.5 4v16M4 7.5 7.5 4 11 7.5M16.5 20V4M13 16.5l3.5 3.5 3.5-3.5" {...l(k)} />
+));
+export const MoveUp = makeIcon('MoveUp', (k) => <Path d="M12 20V4M8 8l4-4 4 4" {...l(k)} />);
+export const MoveDown = makeIcon('MoveDown', (k) => <Path d="M12 4v16M8 16l4 4 4-4" {...l(k)} />);
