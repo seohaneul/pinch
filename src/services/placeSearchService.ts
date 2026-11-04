@@ -1,12 +1,7 @@
 import type { PlaceCategory } from '../types';
 import { inferCategory } from './parserService';
 
-const LIVE_GOOGLE_MAPS_KEY = 'AIzaSyC1SGJjPTvl-Ovr4dJ4jGB-qXgMMLPk0FI';
-const GOOGLE_API_KEY =
-  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY &&
-  !process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY.includes('placeholder')
-    ? process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
-    : LIVE_GOOGLE_MAPS_KEY;
+const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 export interface SearchPlaceResult {
   id: string;

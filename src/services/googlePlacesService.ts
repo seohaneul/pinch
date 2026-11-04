@@ -2,12 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { GooglePlaceDetails, PlaceReview } from '../types';
 
 const CACHE_PREFIX = 'pinch_real_place_cache_v8_';
-const LIVE_GOOGLE_MAPS_KEY = 'AIzaSyC1SGJjPTvl-Ovr4dJ4jGB-qXgMMLPk0FI';
-const GOOGLE_API_KEY =
-  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY &&
-  !process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY.includes('placeholder')
-    ? process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
-    : LIVE_GOOGLE_MAPS_KEY;
+const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 
 /**
