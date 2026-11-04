@@ -35,8 +35,8 @@ export default function TabLayout() {
         options={{
           title: '홈',
           tabBarIcon: ({ color, focused }) => (
-            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : ''}>
-              <Compass size={focused ? 22 : 20} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : 'p-1.5'}>
+              <Compass size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.2 : 1.8} />
             </View>
           ),
         }}
@@ -46,8 +46,8 @@ export default function TabLayout() {
         options={{
           title: '보관함',
           tabBarIcon: ({ color, focused }) => (
-            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : ''}>
-              <Bookmark size={focused ? 22 : 20} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : 'p-1.5'}>
+              <Bookmark size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.2 : 1.8} />
             </View>
           ),
         }}
@@ -57,8 +57,8 @@ export default function TabLayout() {
         options={{
           title: '일정/동선',
           tabBarIcon: ({ color, focused }) => (
-            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : ''}>
-              <MapPin size={focused ? 22 : 20} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : 'p-1.5'}>
+              <MapPin size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.2 : 1.8} />
             </View>
           ),
         }}
@@ -68,8 +68,8 @@ export default function TabLayout() {
         options={{
           title: '가계부',
           tabBarIcon: ({ color, focused }) => (
-            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : ''}>
-              <Wallet size={focused ? 22 : 20} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : 'p-1.5'}>
+              <Wallet size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.2 : 1.8} />
             </View>
           ),
         }}
@@ -79,8 +79,8 @@ export default function TabLayout() {
         options={{
           title: '마이',
           tabBarIcon: ({ color, focused }) => (
-            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : ''}>
-              <User size={focused ? 22 : 20} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <View className={focused ? 'bg-primary/10 p-1.5 rounded-xl' : 'p-1.5'}>
+              <User size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.2 : 1.8} />
             </View>
           ),
         }}

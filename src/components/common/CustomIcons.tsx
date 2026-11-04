@@ -38,20 +38,47 @@ export const Compass: React.FC<IconProps> = ({
   fill = defaultProps.fill,
   style,
   ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Circle cx="12" cy="12" r="9.2" stroke={color} strokeWidth={strokeWidth} fill={fill !== 'none' ? fill : 'none'} />
-    <Polygon
-      points="16.2,7.8 13.5,13.5 7.8,16.2 10.5,10.5"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinejoin="round"
-      fill={fill !== 'none' ? fill : color}
-      fillOpacity={fill !== 'none' ? 1 : 0.25}
-    />
-    <Circle cx="12" cy="12" r="1.5" fill={color} />
-  </Svg>
-);
+}) => {
+  const isFilled = fill && fill !== 'none';
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
+      <Circle
+        cx="12"
+        cy="12"
+        r="9.5"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        fill={isFilled ? color : 'none'}
+      />
+      {isFilled ? (
+        <>
+          <Polygon
+            points="12,5.5 14.5,12 12,10 9.5,12"
+            fill="#FFFFFF"
+          />
+          <Polygon
+            points="12,18.5 14.5,12 12,14 9.5,12"
+            fill="#FFFFFF"
+            fillOpacity={0.6}
+          />
+          <Circle cx="12" cy="12" r="1.8" fill={color} />
+        </>
+      ) : (
+        <>
+          <Polygon
+            points="16.5,7.5 13.5,13.5 7.5,16.5 10.5,10.5"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinejoin="round"
+            fill={color}
+            fillOpacity={0.15}
+          />
+          <Circle cx="12" cy="12" r="1.5" fill={color} />
+        </>
+      )}
+    </Svg>
+  );
+};
 
 /** 보관함: 소프트 리본 북마크 */
 export const Bookmark: React.FC<IconProps> = ({
@@ -61,18 +88,24 @@ export const Bookmark: React.FC<IconProps> = ({
   fill = defaultProps.fill,
   style,
   ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path
-      d="M19 21l-7-4.5L5 21V5a2.5 2.5 0 0 1 2.5-2.5h9A2.5 2.5 0 0 1 19 5v16z"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill={fill !== 'none' ? fill : 'none'}
-    />
-  </Svg>
-);
+}) => {
+  const isFilled = fill && fill !== 'none';
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
+      <Path
+        d="M19 21l-7-4.5L5 21V5a2.5 2.5 0 0 1 2.5-2.5h9A2.5 2.5 0 0 1 19 5v16z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={isFilled ? color : 'none'}
+      />
+      {isFilled && (
+        <Circle cx="12" cy="8" r="1.8" fill="#FFFFFF" />
+      )}
+    </Svg>
+  );
+};
 
 /** 일정/동선: 부드러운 위치 마커 핀 */
 export const MapPin: React.FC<IconProps> = ({
@@ -82,19 +115,29 @@ export const MapPin: React.FC<IconProps> = ({
   fill = defaultProps.fill,
   style,
   ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path
-      d="M12 21.5c3.5-4.5 7.5-8.8 7.5-12.5a7.5 7.5 0 1 0-15 0c0 3.7 4 8 7.5 12.5z"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill={fill !== 'none' ? fill : 'none'}
-    />
-    <Circle cx="12" cy="9" r="2.8" stroke={color} strokeWidth={strokeWidth} fill={fill !== 'none' ? '#FFFFFF' : 'none'} />
-  </Svg>
-);
+}) => {
+  const isFilled = fill && fill !== 'none';
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
+      <Path
+        d="M12 21.5c3.5-4.5 7.5-8.8 7.5-12.5a7.5 7.5 0 1 0-15 0c0 3.7 4 8 7.5 12.5z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={isFilled ? color : 'none'}
+      />
+      <Circle
+        cx="12"
+        cy="9"
+        r="2.8"
+        stroke={isFilled ? '#FFFFFF' : color}
+        strokeWidth={isFilled ? 0 : strokeWidth}
+        fill={isFilled ? '#FFFFFF' : 'none'}
+      />
+    </Svg>
+  );
+};
 
 /** 가계부: 둥근 폴드 지갑 */
 export const Wallet: React.FC<IconProps> = ({
@@ -104,32 +147,37 @@ export const Wallet: React.FC<IconProps> = ({
   fill = defaultProps.fill,
   style,
   ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Path
-      d="M20 7H4.5A2.5 2.5 0 0 0 2 9.5v8A2.5 2.5 0 0 0 4.5 20H20a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill={fill !== 'none' ? fill : 'none'}
-    />
-    <Path
-      d="M16 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-    />
-    <Path
-      d="M17 14h5v-4h-5a2 2 0 0 0 0 4z"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Circle cx="19.5" cy="12" r="0.8" fill={color} />
-  </Svg>
-);
+}) => {
+  const isFilled = fill && fill !== 'none';
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
+      <Path
+        d="M20 7H4.5A2.5 2.5 0 0 0 2 9.5v8A2.5 2.5 0 0 0 4.5 20H20a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={isFilled ? color : 'none'}
+      />
+      <Path
+        d="M16 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        fill={isFilled ? color : 'none'}
+      />
+      <Path
+        d="M16.5 14.5h5.5v-5h-5.5a2.5 2.5 0 0 0 0 5z"
+        stroke={isFilled ? '#FFFFFF' : color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={isFilled ? '#FFFFFF' : 'none'}
+      />
+      <Circle cx="19" cy="12" r="1" fill={isFilled ? color : color} />
+    </Svg>
+  );
+};
 
 /** 프로필/마이: 아늑한 사용자 실루엣 */
 export const User: React.FC<IconProps> = ({
@@ -139,18 +187,31 @@ export const User: React.FC<IconProps> = ({
   fill = defaultProps.fill,
   style,
   ...rest
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
-    <Circle cx="12" cy="7" r="4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" fill={fill !== 'none' ? fill : 'none'} />
-    <Path
-      d="M20 21v-1.5a5.5 5.5 0 0 0-5.5-5.5h-5A5.5 5.5 0 0 0 4 19.5V21"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
+}) => {
+  const isFilled = fill && fill !== 'none';
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
+      <Circle
+        cx="12"
+        cy="7"
+        r="4.2"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={isFilled ? color : 'none'}
+      />
+      <Path
+        d="M20 21v-1.5a5.5 5.5 0 0 0-5.5-5.5h-5A5.5 5.5 0 0 0 4 19.5V21"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={isFilled ? color : 'none'}
+      />
+    </Svg>
+  );
+};
 
 /** 멀티 유저: 2인 사용자 */
 export const Users: React.FC<IconProps> = ({
