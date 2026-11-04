@@ -60,7 +60,7 @@ import {
   Hotel,
   Plane,
   Edit3,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 
 export default function PlannerScreen() {
   const insets = useSafeAreaInsets();

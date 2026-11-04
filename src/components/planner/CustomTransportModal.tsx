@@ -20,7 +20,7 @@ import {
   Ship,
   Bike,
   Clock,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 
 interface CustomTransportModalProps {
   visible: boolean;

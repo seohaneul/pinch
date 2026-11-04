@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MapPin, Sparkles } from 'lucide-react-native';
+import { MapPin, Sparkles } from '@/components/common/CustomIcons';
 
 interface HeaderProps {
   title: string;

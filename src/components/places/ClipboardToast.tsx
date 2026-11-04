@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Sparkles, X, Link as LinkIcon } from 'lucide-react-native';
+import { Sparkles, X, Link as LinkIcon } from '@/components/common/CustomIcons';
 import { detectSnsPlatform } from '../../services/parserService';
 
 interface ClipboardToastProps {

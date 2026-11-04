@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, Text, Platform } from 'react-native';
-import { Compass, Bookmark, MapPin, Wallet, User, Sparkles } from 'lucide-react-native';
+import { Compass, Bookmark, MapPin, Wallet, User, Sparkles } from '@/components/common/CustomIcons';
 
 export default function TabLayout() {
   return (

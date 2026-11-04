@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Link, Stack } from 'expo-router';
-import { Compass } from 'lucide-react-native';
+import { Compass } from '@/components/common/CustomIcons';
 
 export default function NotFoundScreen() {
   return (

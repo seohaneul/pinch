@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Sparkles, X, Mail, Lock, User as UserIcon, ArrowRight } from 'lucide-react-native';
+import { Sparkles, X, Mail, Lock, User as UserIcon, ArrowRight } from '@/components/common/CustomIcons';
 
 interface AuthModalProps {
   visible: boolean;

@@ -11,7 +11,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, ExternalLink, Plus, Check, MapPin, Sparkles, Star } from 'lucide-react-native';
+import { X, ExternalLink, Plus, Check, MapPin, Sparkles, Star } from '@/components/common/CustomIcons';
 import type { SavedLink, ExtractedPlaceItem, Place } from '../../types';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import { useTripStore } from '../../store/useTripStore';

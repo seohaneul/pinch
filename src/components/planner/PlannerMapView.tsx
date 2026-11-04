@@ -16,7 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MapPin,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 import { openInGoogleMaps, openMultiStopRouteInGoogleMaps } from '../../utils/mapUtils';
 import { useTripStore } from '../../store/useTripStore';
 

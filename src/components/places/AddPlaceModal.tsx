@@ -26,7 +26,7 @@ import {
   Star,
   Bookmark,
   Plus,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import { useTripStore } from '../../store/useTripStore';
 import { searchPlaces, SearchPlaceResult } from '../../services/placeSearchService';

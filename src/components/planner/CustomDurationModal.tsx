@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Clock, Check, Plus, Sparkles } from 'lucide-react-native';
+import { X, Clock, Check, Plus, Sparkles } from '@/components/common/CustomIcons';
 
 interface CustomDurationModalProps {
   visible: boolean;

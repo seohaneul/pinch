@@ -37,7 +37,7 @@ import {
   ArrowRight,
   Plane,
   Plus,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 
 export default function HomeScreen() {
   const router = useRouter();

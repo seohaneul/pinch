@@ -29,7 +29,7 @@ import {
   Tag,
   Star,
   Compass,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 import { searchPlaces, SearchPlaceResult } from '../../services/placeSearchService';
 
 interface AddSpotModalProps {

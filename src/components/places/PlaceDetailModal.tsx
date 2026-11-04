@@ -39,7 +39,7 @@ import {
   ChevronDown,
   ChevronUp,
   Image as ImageIcon,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 import type { Place, ExtractedPlaceItem, GooglePlaceDetails } from '../../types';
 import { openInGoogleMaps } from '../../utils/mapUtils';
 import { fetchPlaceDetailedBriefing, type PlaceAiBriefing } from '../../services/geminiService';

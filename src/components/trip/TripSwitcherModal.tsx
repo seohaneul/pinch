@@ -10,7 +10,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Check, Plus, Trash2, Calendar, MapPin } from 'lucide-react-native';
+import { X, Check, Plus, Trash2, Calendar, MapPin } from '@/components/common/CustomIcons';
 import { useTripStore } from '../../store/useTripStore';
 import { CreateTripModal } from './CreateTripModal';
 

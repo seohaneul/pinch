@@ -26,7 +26,7 @@ import {
   Search,
   Star,
   Edit3,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 import type { LodgingInfo, DaySchedule } from '../../types';
 import { CalendarRangePicker } from '../common/CalendarRangePicker';
 import { searchAccommodations, SearchPlaceResult } from '../../services/placeSearchService';

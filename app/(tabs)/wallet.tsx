@@ -56,7 +56,7 @@ import {
   Plane,
   PieChart,
   Tag,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 
 const CATEGORIES: { key: WalletCategory; label: string; icon: any; color: string; bg: string }[] = [
   { key: 'FOOD', label: '식비', icon: Utensils, color: '#FF6B6B', bg: 'bg-rose-50' },

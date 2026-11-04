@@ -14,7 +14,7 @@ import {
   calculateTotalRouteTravelTime,
   solveTSPNearestNeighbor,
 } from '../../utils/geoUtils';
-import { Sparkles, ArrowRight, X, Clock, CheckCircle, Navigation } from 'lucide-react-native';
+import { Sparkles, ArrowRight, X, Clock, CheckCircle, Navigation } from '@/components/common/CustomIcons';
 
 interface OptimizeConfirmModalProps {
   visible: boolean;

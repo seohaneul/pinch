@@ -25,7 +25,7 @@ import {
   Search,
   Plus,
   Globe,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 import { useRouter } from 'expo-router';
 import type { Trip } from '../../types';
 import { useTripStore } from '../../store/useTripStore';

@@ -27,7 +27,7 @@ import {
   ChevronDown,
   ChevronUp,
   Tag,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 import type { CurrencyCode } from '../../utils/settlementUtils';
 import { CURRENCY_SYMBOLS, DEFAULT_EXCHANGE_RATES } from '../../utils/settlementUtils';
 import { useWalletStore } from '../../store/useWalletStore';

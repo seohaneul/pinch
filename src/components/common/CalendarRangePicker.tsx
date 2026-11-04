@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, Check } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, Check } from '@/components/common/CustomIcons';
 
 interface CalendarRangePickerProps {
   visible: boolean;

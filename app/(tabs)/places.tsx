@@ -43,7 +43,7 @@ import {
   ChevronDown,
   Layers,
   Link as LinkIcon,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 
 const CATEGORIES: { label: string; value: CategoryFilter }[] = [
   { label: '전체', value: 'ALL' },

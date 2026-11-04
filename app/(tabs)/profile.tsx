@@ -54,7 +54,7 @@ import {
   Database,
   Sliders,
   CheckCircle2,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();

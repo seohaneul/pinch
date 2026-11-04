@@ -28,7 +28,7 @@ import {
   Search,
   Globe,
   Navigation,
-} from 'lucide-react-native';
+} from '@/components/common/CustomIcons';
 import type { FlightInfo, SingleFlightLeg, DaySchedule } from '../../types';
 import {
   POPULAR_AIRPORTS,
