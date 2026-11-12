@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
   StyleSheet,
   TouchableWithoutFeedback,
   Keyboard,
-  ActivityIndicator,
+  Image,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,18 +19,6 @@ import { usePlaceStore } from '../../src/store/usePlaceStore';
 import { useTripStore } from '../../src/store/useTripStore';
 import { useWalletStore } from '../../src/store/useWalletStore';
 import { useAuthStore } from '../../src/store/useAuthStore';
-import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
-import { CreateTripModal } from '../../src/components/trip/CreateTripModal';
-import {
-  isSupabaseConfigured,
-  getSupabaseCredentials,
-  saveSupabaseCredentials,
-} from '../../src/utils/supabase';
-import {
-  syncToCloud,
-  syncFromCloud,
-  getLastSyncTime,
-} from '../../src/services/cloudSyncService';
 import {
   User,
   ChevronRight,
@@ -38,36 +27,37 @@ import {
   Trash2,
   X,
   Edit3,
-  Cloud,
-  UploadCloud,
-  DownloadCloud,
-  Database,
+  Check,
+  Plane,
+  Globe,
+  Sparkles,
+  Camera,
 } from '@/components/common/CustomIcons';
+
+const AVATAR_PRESETS = [
+  { id: 'preset:navy', bg: '#1B2A4A', color: '#FFFFFF', label: '네이비' },
+  { id: 'preset:sky', bg: '#E0F2FE', color: '#0369A1', label: '스카이' },
+  { id: 'preset:mint', bg: '#CCFBF1', color: '#0F766E', label: '민트' },
+  { id: 'preset:rose', bg: '#FFE4E6', color: '#BE123C', label: '로즈' },
+  { id: 'preset:amber', bg: '#FEF3C7', color: '#B45309', label: '앰버' },
+  { id: 'preset:slate', bg: '#F1F5F9', color: '#334155', label: '슬레이트' },
+];
 
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
-  const [editTripModalVisible, setEditTripModalVisible] = useState(false);
   const [editNicknameModalVisible, setEditNicknameModalVisible] = useState(false);
+  const [editPhotoModalVisible, setEditPhotoModalVisible] = useState(false);
+  const [socialConnectModalVisible, setSocialConnectModalVisible] = useState(false);
   const [changePasswordModalVisible, setChangePasswordModalVisible] = useState(false);
   const [appSettingsModalVisible, setAppSettingsModalVisible] = useState(false);
-  const [cloudModalVisible, setCloudModalVisible] = useState(false);
   const [accountSheetVisible, setAccountSheetVisible] = useState(false);
-
-  // Cloud Sync state
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
-  const [lastSyncText, setLastSyncText] = useState('동기화 기록 없음');
-  const [isConfigured, setIsConfigured] = useState(false);
-
-  // Supabase Config form
-  const [supabaseUrlInput, setSupabaseUrlInput] = useState('');
-  const [supabaseKeyInput, setSupabaseKeyInput] = useState('');
 
   // Form states
   const [newNicknameInput, setNewNicknameInput] = useState('');
+  const [avatarUrlInput, setAvatarUrlInput] = useState('');
+  const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
@@ -77,116 +67,63 @@ export default function ProfileScreen() {
     defaultBaseCurrency,
     defaultTransportMode,
     logout,
+    loginWithSocial,
     updatePreferences,
     updateNickname,
+    updateAvatar,
     changePassword,
   } = useAuthStore();
 
-  const { places, resetToDefaults: resetPlaces, restorePlaces } = usePlaceStore();
-  const {
-    trips,
-    currentTrip,
-    scheduleItems,
-    resetToDefaults: resetTrips,
-    restoreTripsData,
-  } = useTripStore();
-  const { expenses, resetToDefaults: resetWallet, restoreExpenses } = useWalletStore();
+  const { resetToDefaults: resetPlaces } = usePlaceStore();
+  const { resetToDefaults: resetTrips } = useTripStore();
+  const { resetToDefaults: resetWallet } = useWalletStore();
 
-  const refreshSyncInfo = async () => {
-    const time = await getLastSyncTime();
-    setLastSyncText(time);
-    setIsConfigured(isSupabaseConfigured());
-  };
-
-  useEffect(() => {
-    refreshSyncInfo();
-  }, []);
-
-  const handleSyncToCloud = async () => {
-    setIsSyncing(true);
-    try {
-      const result = await syncToCloud({
-        userId: user?.id,
-        trips,
-        places,
-        scheduleItems: scheduleItems || [],
-        expenses: expenses || [],
-      });
-      await refreshSyncInfo();
-      Alert.alert(
-        result.isRemote ? '클라우드 백업 완료' : '로컬 스냅샷 저장 완료',
-        result.message
-      );
-    } catch (err: any) {
-      Alert.alert('동기화 실패', err?.message || '클라우드 백업 중 오류가 발생했습니다.');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleRestoreFromCloud = () => {
-    Alert.alert(
-      '클라우드 데이터 복원',
-      '클라우드에 백업된 최신 여행 일정, 보관함 장소, 가계부 지출을 복원하시겠습니까?',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '복원하기',
-          style: 'default',
-          onPress: async () => {
-            setIsRestoring(true);
-            try {
-              const result = await syncFromCloud(user?.id);
-              if (result.success && result.data) {
-                if (result.data.trips) {
-                  restoreTripsData(result.data.trips, result.data.scheduleItems);
-                }
-                if (result.data.places) {
-                  restorePlaces(result.data.places);
-                }
-                if (result.data.expenses) {
-                  restoreExpenses(result.data.expenses);
-                }
-                await refreshSyncInfo();
-                Alert.alert('복원 완료', result.message);
-              } else {
-                Alert.alert('복원 실패', result.message);
-              }
-            } catch (err: any) {
-              Alert.alert('복원 오류', err?.message || '데이터 복원 중 문제가 발생했습니다.');
-            } finally {
-              setIsRestoring(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleOpenCloudModal = () => {
-    const creds = getSupabaseCredentials();
-    setSupabaseUrlInput(creds.url.includes('placeholder') ? '' : creds.url);
-    setSupabaseKeyInput(creds.anonKey.includes('placeholder') ? '' : creds.anonKey);
-    setCloudModalVisible(true);
-  };
-
-  const handleSaveSupabaseConfig = async () => {
-    if (!supabaseUrlInput.trim().startsWith('http')) {
-      Alert.alert('입력 확인', '유효한 Supabase Project URL을 입력해 주세요.');
-      return;
-    }
-    if (supabaseKeyInput.trim().length < 20) {
-      Alert.alert('입력 확인', '유효한 Supabase anon public key를 입력해 주세요.');
-      return;
-    }
-
-    const success = await saveSupabaseCredentials(supabaseUrlInput, supabaseKeyInput);
-    if (success) {
-      setIsConfigured(isSupabaseConfigured());
-      Alert.alert('연결 완료', 'Supabase 프로젝트가 연결되었습니다.');
+  const handleOpenEditPhoto = () => {
+    const currentAvatar = user?.avatarUrl || '';
+    if (currentAvatar.startsWith('preset:')) {
+      setSelectedPreset(currentAvatar);
+      setAvatarUrlInput('');
     } else {
-      Alert.alert('오류', '설정을 저장하지 못했습니다.');
+      setSelectedPreset('');
+      setAvatarUrlInput(currentAvatar);
     }
+    setEditPhotoModalVisible(true);
+  };
+
+  const handlePickWebFile = () => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e: any) => {
+        const file = e?.target?.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            updateAvatar(reader.result);
+            setEditPhotoModalVisible(false);
+            Alert.alert('완료', '프로필 사진이 변경되었습니다.');
+          }
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    }
+  };
+
+  const handleSaveAvatar = () => {
+    const targetAvatar = selectedPreset || avatarUrlInput.trim();
+    updateAvatar(targetAvatar);
+    setEditPhotoModalVisible(false);
+    Alert.alert('완료', '프로필 사진이 업데이트되었습니다.');
+  };
+
+  const handleResetAvatar = () => {
+    updateAvatar('');
+    setSelectedPreset('');
+    setAvatarUrlInput('');
+    setEditPhotoModalVisible(false);
   };
 
   const handleOpenEditNickname = () => {
@@ -228,7 +165,17 @@ export default function ProfileScreen() {
 
     const res = changePassword(currentPassword, newPassword);
     if (res.success) {
+      Alert.alert('완료', res.message);
       setChangePasswordModalVisible(false);
+    } else {
+      Alert.alert('알림', res.message);
+    }
+  };
+
+  const handleConnectSocial = async (provider: 'google' | 'kakao') => {
+    const ok = await loginWithSocial(provider);
+    if (ok) {
+      setSocialConnectModalVisible(false);
     }
   };
 
@@ -267,23 +214,50 @@ export default function ProfileScreen() {
     );
   };
 
+  const renderAvatarContent = () => {
+    const avatarUrl = user?.avatarUrl;
+    if (avatarUrl && avatarUrl.startsWith('preset:')) {
+      const preset = AVATAR_PRESETS.find((p) => p.id === avatarUrl) || AVATAR_PRESETS[0];
+      const initial = (user?.nickname || '여').trim().charAt(0).toUpperCase();
+      return (
+        <View style={[styles.presetAvatarFill, { backgroundColor: preset.bg }]}>
+          <Text style={[styles.presetAvatarInitial, { color: preset.color }]}>{initial}</Text>
+        </View>
+      );
+    }
+    if (avatarUrl) {
+      return <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />;
+    }
+    return <User size={44} color="#D1D5DB" fill="#D1D5DB" />;
+  };
+
+  const providerLabel =
+    user?.provider === 'kakao'
+      ? '카카오 로그인 연동됨'
+      : user?.provider === 'google'
+        ? 'Google 로그인 연동됨'
+        : '이메일 계정';
+
   return (
     <View style={[styles.screen, { paddingTop: Math.max(insets.top, 16) + 12 }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Top-Left Bold Title (Reference Image 1: PROFILE) */}
+        {/* Top-Left Bold Title */}
         <Text style={styles.pageTitle}>PROFILE</Text>
 
-        {/* Centered Circular Avatar + Nickname + Email (Reference Image 1) */}
+        {/* Centered Circular Avatar + Photo Edit + Nickname + Email */}
         <View style={styles.profileCenterBox}>
           <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={handleOpenEditNickname}
+            activeOpacity={0.85}
+            onPress={handleOpenEditPhoto}
             style={styles.avatarRing}
           >
-            <User size={44} color="#D1D5DB" fill="#D1D5DB" />
+            {renderAvatarContent()}
+            <View style={styles.avatarEditBadge}>
+              <Camera size={13} color="#FFFFFF" />
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -296,9 +270,13 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <Text style={styles.emailText}>{user?.email || 'user@pinchi.app'}</Text>
+
+          <View style={styles.providerPill}>
+            <Text style={styles.providerPillText}>{providerLabel}</Text>
+          </View>
         </View>
 
-        {/* 3-Column Icon Quick Bar (Reference Image 1: 북마크 | 이벤트 | 공지사항) */}
+        {/* Quick Bar (여행 수정 & 클라우드 백업 삭제됨) */}
         <View style={styles.quickActionRow}>
           <TouchableOpacity
             activeOpacity={0.7}
@@ -311,40 +289,49 @@ export default function ProfileScreen() {
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => setEditTripModalVisible(true)}
+            onPress={handleOpenEditPhoto}
             style={styles.quickActionCol}
           >
             <Edit3 size={24} color="#6B7280" strokeWidth={1.7} />
-            <Text style={styles.quickActionLabel}>여행 수정</Text>
+            <Text style={styles.quickActionLabel}>프로필 사진</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={handleOpenCloudModal}
+            onPress={() => setSocialConnectModalVisible(true)}
             style={styles.quickActionCol}
           >
-            <Cloud size={24} color="#6B7280" strokeWidth={1.7} />
-            <Text style={styles.quickActionLabel}>클라우드 백업</Text>
+            <Globe size={24} color="#6B7280" strokeWidth={1.7} />
+            <Text style={styles.quickActionLabel}>소셜 연동</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Clean Divider Menu Rows (Reference Image 1: APP설정 / 고객센터 / 약관 확인) */}
+        {/* Clean Divider Menu Rows (여행정보 수정, 여행추가, 클라우드 백업 삭제됨) */}
         <View style={styles.menuListContainer}>
           <TouchableOpacity
             activeOpacity={0.65}
-            onPress={() => setEditTripModalVisible(true)}
+            onPress={handleOpenEditPhoto}
             style={styles.menuRow}
           >
-            <Text style={styles.menuRowTitle}>현재 여행 정보 수정</Text>
+            <Text style={styles.menuRowTitle}>프로필 사진 수정</Text>
             <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
           </TouchableOpacity>
 
           <TouchableOpacity
             activeOpacity={0.65}
-            onPress={() => setTripSwitcherVisible(true)}
+            onPress={() => setSocialConnectModalVisible(true)}
             style={styles.menuRow}
           >
-            <Text style={styles.menuRowTitle}>내 여행 목록 · 새 여행 추가</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={styles.menuRowTitle}>Google · 카카오 로그인 연동</Text>
+              {user?.provider && user.provider !== 'email' && (
+                <View style={styles.connectedMiniTag}>
+                  <Text style={styles.connectedMiniTagText}>
+                    {user.provider === 'kakao' ? 'KAKAO' : 'GOOGLE'}
+                  </Text>
+                </View>
+              )}
+            </View>
             <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
           </TouchableOpacity>
 
@@ -354,15 +341,6 @@ export default function ProfileScreen() {
             style={styles.menuRow}
           >
             <Text style={styles.menuRowTitle}>APP 설정</Text>
-            <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.65}
-            onPress={handleOpenCloudModal}
-            style={styles.menuRow}
-          >
-            <Text style={styles.menuRowTitle}>클라우드 동기화 및 복원</Text>
             <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
           </TouchableOpacity>
 
@@ -386,19 +364,138 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {/* 내 여행 목록 모달 */}
-      <TripSwitcherModal
-        visible={tripSwitcherVisible}
-        onClose={() => setTripSwitcherVisible(false)}
-      />
+      {/* 프로필 사진 수정 모달 */}
+      <Modal visible={editPhotoModalVisible} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>프로필 사진 수정</Text>
+                <TouchableOpacity onPress={() => setEditPhotoModalVisible(false)}>
+                  <X size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
 
-      {/* 현재 여행 정보 수정 위저드 모달 */}
-      <CreateTripModal
-        visible={editTripModalVisible}
-        editTrip={currentTrip}
-        onClose={() => setEditTripModalVisible(false)}
-        onCreated={() => setEditTripModalVisible(false)}
-      />
+              <Text style={styles.settingLabel}>컬러 아바타 선택</Text>
+              <View style={styles.presetGrid}>
+                {AVATAR_PRESETS.map((preset) => {
+                  const isSelected = selectedPreset === preset.id;
+                  const initial = (user?.nickname || '여').trim().charAt(0).toUpperCase();
+                  return (
+                    <TouchableOpacity
+                      key={preset.id}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        setSelectedPreset(preset.id);
+                        setAvatarUrlInput('');
+                      }}
+                      style={[
+                        styles.presetCircle,
+                        { backgroundColor: preset.bg },
+                        isSelected && styles.presetCircleActive,
+                      ]}
+                    >
+                      <Text style={[styles.presetCircleText, { color: preset.color }]}>
+                        {initial}
+                      </Text>
+                      {isSelected && (
+                        <View style={styles.presetCheckBadge}>
+                          <Check size={10} color="#FFFFFF" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {Platform.OS === 'web' && (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={handlePickWebFile}
+                  style={styles.uploadPhotoBtn}
+                >
+                  <Camera size={16} color="#1B2A4A" />
+                  <Text style={styles.uploadPhotoBtnText}>기기에서 이미지 파일 선택하기</Text>
+                </TouchableOpacity>
+              )}
+
+              <Text style={[styles.settingLabel, { marginTop: 12 }]}>이미지 URL 직접 입력</Text>
+              <TextInput
+                value={avatarUrlInput}
+                onChangeText={(val) => {
+                  setAvatarUrlInput(val);
+                  if (val.trim()) setSelectedPreset('');
+                }}
+                placeholder="https://example.com/my-photo.jpg"
+                placeholderTextColor="#9CA3AF"
+                autoCapitalize="none"
+                style={styles.modalInput}
+              />
+
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={handleResetAvatar}
+                  style={[styles.modalOutlineBtn, { marginTop: 0 }]}
+                >
+                  <Text style={styles.modalOutlineBtnText}>기본 이미지로</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={handleSaveAvatar}
+                  style={[styles.modalPrimaryBtn, { flex: 1, marginTop: 0 }]}
+                >
+                  <Text style={styles.modalPrimaryBtnText}>저장하기</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* 구글 & 카카오 소셜 로그인 연동 모달 */}
+      <Modal visible={socialConnectModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>소셜 로그인 계정 연동</Text>
+              <TouchableOpacity onPress={() => setSocialConnectModalVisible(false)}>
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.socialDescText}>
+              카카오 또는 Google 계정을 연동하면 기기를 변경해도 간편하게 로그인할 수 있습니다.
+            </Text>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => handleConnectSocial('kakao')}
+              style={styles.kakaoConnectBtn}
+            >
+              <View style={styles.kakaoCircle}>
+                <Text style={styles.kakaoCircleText}>K</Text>
+              </View>
+              <Text style={styles.kakaoConnectText}>
+                {user?.provider === 'kakao' ? '카카오 계정 연동됨' : '카카오 계정으로 연동하기'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => handleConnectSocial('google')}
+              style={styles.googleConnectBtn}
+            >
+              <View style={styles.googleCircle}>
+                <Text style={styles.googleCircleText}>G</Text>
+              </View>
+              <Text style={styles.googleConnectText}>
+                {user?.provider === 'google' ? 'Google 계정 연동됨' : 'Google 계정으로 연동하기'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* 닉네임 변경 모달 */}
       <Modal visible={editNicknameModalVisible} transparent animationType="fade">
@@ -489,25 +586,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.settingLabel}>기본 기준 통화</Text>
-            <View style={styles.settingSegmentRow}>
-              {(['KRW', 'JPY', 'USD'] as const).map((curr) => {
-                const active = defaultBaseCurrency === curr;
-                return (
-                  <TouchableOpacity
-                    key={curr}
-                    onPress={() => updatePreferences({ defaultBaseCurrency: curr })}
-                    style={[styles.segmentBtn, active && styles.segmentBtnActive]}
-                  >
-                    <Text style={[styles.segmentBtnText, active && styles.segmentBtnTextActive]}>
-                      {curr}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <Text style={[styles.settingLabel, { marginTop: 16 }]}>기본 이동수단</Text>
+            <Text style={styles.settingLabel}>기본 이동수단</Text>
             <View style={styles.settingSegmentRow}>
               {[
                 { key: 'TRANSIT' as const, label: '대중교통' },
@@ -537,90 +616,6 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
-
-      {/* 클라우드 동기화 모달 */}
-      <Modal visible={cloudModalVisible} transparent animationType="fade">
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>클라우드 백업 및 복원</Text>
-                <TouchableOpacity onPress={() => setCloudModalVisible(false)}>
-                  <X size={20} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.cloudStatusText}>
-                최근 동기화: {lastSyncText} ({isConfigured ? 'Supabase 연결됨' : '로컬 스냅샷'})
-              </Text>
-
-              <View style={styles.cloudBtnRow}>
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  disabled={isSyncing}
-                  onPress={handleSyncToCloud}
-                  style={[styles.modalPrimaryBtn, { flex: 1, marginTop: 0 }]}
-                >
-                  {isSyncing ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <UploadCloud size={16} color="#FFFFFF" />
-                      <Text style={styles.modalPrimaryBtnText}>백업하기</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  disabled={isRestoring}
-                  onPress={handleRestoreFromCloud}
-                  style={styles.modalOutlineBtn}
-                >
-                  {isRestoring ? (
-                    <ActivityIndicator size="small" color="#1B2A4A" />
-                  ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <DownloadCloud size={16} color="#1B2A4A" />
-                      <Text style={styles.modalOutlineBtnText}>복원하기</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <Database size={15} color="#1B2A4A" />
-                <Text style={styles.settingLabel}>Supabase 클라우드 연동 (선택)</Text>
-              </View>
-              <TextInput
-                value={supabaseUrlInput}
-                onChangeText={setSupabaseUrlInput}
-                placeholder="https://your-project.supabase.co"
-                placeholderTextColor="#9CA3AF"
-                autoCapitalize="none"
-                style={styles.modalInput}
-              />
-              <TextInput
-                value={supabaseKeyInput}
-                onChangeText={setSupabaseKeyInput}
-                placeholder="Supabase anon public key"
-                placeholderTextColor="#9CA3AF"
-                autoCapitalize="none"
-                style={styles.modalInput}
-              />
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={handleSaveSupabaseConfig}
-                style={styles.modalOutlineFullBtn}
-              >
-                <Text style={styles.modalOutlineBtnText}>연동 정보 저장</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableWithoutFeedback>
       </Modal>
 
       {/* 계정 및 데이터 관리 모달 */}
@@ -688,6 +683,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 18,
+    position: 'relative',
+  },
+  avatarImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  presetAvatarFill: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  presetAvatarInitial: {
+    fontSize: 36,
+    fontWeight: '900',
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#1B2A4A',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   nicknameRow: {
     flexDirection: 'row',
@@ -705,6 +730,18 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     color: '#9CA3AF',
     fontWeight: '400',
+  },
+  providerPill: {
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#EEF2F8',
+  },
+  providerPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1B2A4A',
   },
   quickActionRow: {
     flexDirection: 'row',
@@ -740,6 +777,17 @@ const styles = StyleSheet.create({
     fontSize: 15.5,
     fontWeight: '500',
     color: '#1F2937',
+  },
+  connectedMiniTag: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: '#EEF2F8',
+  },
+  connectedMiniTagText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#1B2A4A',
   },
   modalOverlay: {
     flex: 1,
@@ -792,30 +840,134 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1B2A4A',
+    borderColor: '#D1D5DB',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-  },
-  modalOutlineFullBtn: {
-    height: 46,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#1B2A4A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    marginTop: 4,
   },
   modalOutlineBtnText: {
-    color: '#1B2A4A',
+    color: '#374151',
     fontSize: 14,
     fontWeight: '700',
   },
-  settingLabel: {
+  presetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 14,
+  },
+  presetCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  presetCircleActive: {
+    borderWidth: 2.5,
+    borderColor: '#1B2A4A',
+  },
+  presetCircleText: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  presetCheckBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#1B2A4A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  uploadPhotoBtn: {
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1B2A4A',
+    backgroundColor: '#F8FAFC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  uploadPhotoBtnText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#1B2A4A',
+  },
+  socialDescText: {
     fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 19,
+    marginBottom: 16,
+  },
+  kakaoConnectBtn: {
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#FEE500',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  kakaoCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#191919',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  kakaoCircleText: {
+    color: '#FEE500',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  kakaoConnectText: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#191919',
+  },
+  googleConnectBtn: {
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  googleCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#EEF2F8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleCircleText: {
+    color: '#1B2A4A',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  googleConnectText: {
+    fontSize: 14.5,
     fontWeight: '700',
     color: '#374151',
+  },
+  settingLabel: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#4B5563',
     marginBottom: 8,
   },
   settingSegmentRow: {
@@ -824,38 +976,25 @@ const styles = StyleSheet.create({
   },
   segmentBtn: {
     flex: 1,
-    paddingVertical: 10,
+    height: 42,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    alignItems: 'center',
     backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   segmentBtnActive: {
-    backgroundColor: '#1B2A4A',
     borderColor: '#1B2A4A',
+    backgroundColor: '#EEF2F8',
   },
   segmentBtnText: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
     color: '#6B7280',
   },
   segmentBtnTextActive: {
-    color: '#FFFFFF',
-  },
-  cloudStatusText: {
-    fontSize: 12.5,
-    color: '#64748B',
-    marginBottom: 14,
-  },
-  cloudBtnRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginVertical: 18,
+    color: '#1B2A4A',
   },
   sheetActionRow: {
     flexDirection: 'row',
@@ -863,11 +1002,11 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#F3F4F6',
   },
   sheetActionText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#374151',
   },
 });

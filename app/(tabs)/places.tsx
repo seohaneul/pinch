@@ -121,21 +121,11 @@ export default function PlacesScreen() {
   };
 
   // 여행별 엄격한 격리 필터링
-  const currentTripId = activeTripId || currentTrip?.id || 't_tokyo';
+  const currentTripId = activeTripId || currentTrip?.id || 't_first';
 
-  const tripPlaces = places.filter((place) => {
-    if (currentTripId === 't_tokyo') {
-      return !place.trip_id || place.trip_id === 't_tokyo';
-    }
-    return place.trip_id === currentTripId;
-  });
+  const tripPlaces = places.filter((place) => place.trip_id === currentTripId);
 
-  const tripLinks = savedLinks.filter((link) => {
-    if (currentTripId === 't_tokyo') {
-      return !link.trip_id || link.trip_id === 't_tokyo';
-    }
-    return link.trip_id === currentTripId;
-  });
+  const tripLinks = savedLinks.filter((link) => link.trip_id === currentTripId);
 
   // 전체 보관함 장소를 현재 여행으로 복사/추가
   const handleCopyPlaceToCurrentTrip = (place: Place) => {
@@ -246,44 +236,7 @@ export default function PlacesScreen() {
       <Header
         title="BOOKMARK"
         subtitle={`${currentTrip?.title || '여행'} · 스팟 ${tripPlaces.length}곳 · 링크 ${tripLinks.length}개`}
-        rightAction={
-          <TouchableOpacity
-            onPress={() => {
-              setModalInitialTab('search');
-              setModalVisible(true);
-            }}
-            style={styles.addHeaderBtnUnified}
-            activeOpacity={0.85}
-            accessibilityLabel="장소 및 링크 추가"
-          >
-            <Plus size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
-            <Text style={styles.addHeaderBtnText}>스팟 추가</Text>
-          </TouchableOpacity>
-        }
       />
-
-      {/* 여행 전환 바 */}
-      <View style={styles.tripBar}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => setTripSwitcherVisible(true)}
-          style={styles.tripBadge}
-        >
-          <View style={styles.tripDot} />
-          <Text style={styles.tripBadgeText} numberOfLines={1}>
-            {currentTrip?.title || '도쿄 3박 4일 감성 여행'}
-          </Text>
-          <ChevronDown size={14} color="#1B2A4A" style={{ marginLeft: 4 }} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => setTripSwitcherVisible(true)}
-          style={styles.switchTripBtn}
-        >
-          <Text style={styles.switchTripBtnText}>여행 변경</Text>
-        </TouchableOpacity>
-      </View>
 
       {/* 2단 세그먼트 탭: [📍 저장한 장소] vs [🔗 여행 링크 보관함] */}
       <View style={styles.segmentContainer}>

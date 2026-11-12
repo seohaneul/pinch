@@ -122,6 +122,7 @@ export interface Trip {
   id: string;
   title: string;
   destination: string;
+  destinations?: string[];
   startDate: string;
   endDate: string;
   coverImage?: string;
@@ -133,6 +134,7 @@ export interface Trip {
   createdAt: string;
   currency?: 'KRW' | 'JPY' | 'USD' | 'EUR';
   lodging?: LodgingInfo;
+  lodgings?: LodgingInfo[];
   categoryBudgets?: Record<string, number>;
   flightInfo?: FlightInfo;
   flightArrival?: {
@@ -153,6 +155,7 @@ export interface SingleFlightLeg {
   arrivalAirport: string; // e.g. GUM (괌)
   arrivalDate: string; // e.g. 2026-11-11
   arrivalTime: string; // e.g. 04:00
+  arrivalNextDay?: boolean; // +1일 익일 도착 여부
   bufferMinutes?: number; // e.g. 90분
   terminal?: string; // e.g. 제2터미널
   memo?: string;
@@ -175,6 +178,7 @@ export interface FlightInfo {
   departureTime?: string;
   arrivalDate?: string;
   arrivalTime?: string;
+  arrivalNextDay?: boolean;
   bufferMinutes?: number;
   terminal?: string;
   memo?: string;

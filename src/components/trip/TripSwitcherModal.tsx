@@ -5,12 +5,11 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  Image,
   Alert,
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Plus, Trash2, Calendar, MapPin, Edit3 } from '@/components/common/CustomIcons';
+import { X, Plus, Trash2, Calendar, MapPin, Edit3, Plane } from '@/components/common/CustomIcons';
 import { useTripStore } from '../../store/useTripStore';
 import { CreateTripModal } from './CreateTripModal';
 import type { Trip } from '../../types';
@@ -97,19 +96,9 @@ export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, o
                       isActive && styles.tripCardActive,
                     ]}
                   >
-                    <Image
-                      source={{
-                        uri:
-                          (!failedCoverIds[trip.id] && trip.coverImage)
-                            ? trip.coverImage
-                            : 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=600&auto=format&fit=crop',
-                      }}
-                      style={styles.tripCover}
-                      resizeMode="cover"
-                      onError={() =>
-                        setFailedCoverIds((prev) => ({ ...prev, [trip.id]: true }))
-                      }
-                    />
+                    <View style={[styles.tripIconBadge, isActive && styles.tripIconBadgeActive]}>
+                      <Plane size={20} color={isActive ? '#FFFFFF' : '#1B2A4A'} />
+                    </View>
 
                     <View style={styles.tripInfo}>
                       <View style={styles.titleRow}>
@@ -260,11 +249,17 @@ const styles = StyleSheet.create({
     borderColor: '#1B2A4A',
     backgroundColor: '#F8FAFC',
   },
-  tripCover: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+  tripIconBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
+  },
+  tripIconBadgeActive: {
+    backgroundColor: '#1B2A4A',
   },
   tripInfo: {
     flex: 1,

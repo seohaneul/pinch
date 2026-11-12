@@ -5,7 +5,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Image,
   Alert,
   Share,
   StyleSheet,
@@ -24,7 +23,6 @@ import { CreateTripModal } from '../../src/components/trip/CreateTripModal';
 import { LinkPlacesModal } from '../../src/components/places/LinkPlacesModal';
 import { PlaceSearchModal } from '../../src/components/places/PlaceSearchModal';
 import type { SavedLink } from '../../src/types';
-import { resolveDestinationCoverImage } from '../../src/services/destinationSearchService';
 import {
   Bookmark,
   Wallet,
@@ -37,6 +35,7 @@ import {
   Edit3,
   Share2,
   Search,
+  MapPin,
 } from '@/components/common/CustomIcons';
 
 export default function HomeScreen() {
@@ -49,7 +48,6 @@ export default function HomeScreen() {
   const [wizardInitialStep, setWizardInitialStep] = useState<1 | 2 | 3 | 4>(1);
   const [selectedLinkForPlaces, setSelectedLinkForPlaces] = useState<SavedLink | null>(null);
   const [placeSearchVisible, setPlaceSearchVisible] = useState(false);
-  const [coverImageError, setCoverImageError] = useState(false);
 
   const { currentTrip, scheduleItems, getTripFlight, getDayLodging } = useTripStore();
   const { places } = usePlaceStore();
@@ -59,14 +57,9 @@ export default function HomeScreen() {
 
   const currentTripId = currentTrip?.id || 't_first';
   const currentTripScheduleItems = scheduleItems.filter(
-    (s) => !s.trip_id || s.trip_id === currentTripId
+    (s) => s.trip_id === currentTripId && s.category !== 'FLIGHT'
   );
-  const tripPlaces = places.filter((p) => {
-    if (currentTripId === 't_tokyo') {
-      return !p.trip_id || p.trip_id === 't_tokyo';
-    }
-    return p.trip_id === currentTripId;
-  });
+  const tripPlaces = places.filter((p) => p.trip_id === currentTripId);
 
   const tripFlight = getTripFlight(currentTripId);
   const tripLodging = currentTrip?.lodging || getDayLodging(1);
@@ -137,12 +130,7 @@ export default function HomeScreen() {
     }
   };
 
-  const coverUri =
-    !coverImageError && currentTrip?.coverImage
-      ? currentTrip.coverImage
-      : resolveDestinationCoverImage(currentTrip?.destination || '도쿄');
-
-  const hasFlight = !!tripFlight?.outbound?.flightNumber;
+  const hasFlight = !!(tripFlight?.outbound?.flightNumber || tripFlight?.departureAirport);
   const hasLodging = !!tripLodging?.name;
 
   return (
@@ -202,18 +190,19 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* 히어로 요약: 좌측 원형 썸네일 + 우측 3단 타이포 (레퍼런스 4 구조) */}
+          {/* 히어로 요약: 좌측 남색 아이콘 배지 + 우측 3단 타이포 (여행 이미지 삭제) */}
           <View style={styles.heroProfileRow}>
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={() => openEditTripAtStep(1)}
               style={styles.heroCircleFrame}
             >
-              <Image
-                source={{ uri: coverUri }}
-                style={styles.heroCircleImg}
-                onError={() => setCoverImageError(true)}
-              />
+              <View style={styles.heroNavyBadge}>
+                <Plane size={26} color="#FFFFFF" />
+                <Text style={styles.heroDDayBadgeText}>
+                  {calculateDDay(currentTrip?.startDate)}
+                </Text>
+              </View>
             </TouchableOpacity>
 
             <View style={styles.heroTextCol}>
@@ -338,13 +327,21 @@ export default function HomeScreen() {
             <TouchableOpacity
               activeOpacity={0.9}
               onPress={() => router.push('/(tabs)/planner')}
-              style={styles.featureImageBox}
+              style={styles.featureSummaryBanner}
             >
-              <Image
-                source={{ uri: coverUri }}
-                style={styles.featureImage}
-                resizeMode="cover"
-              />
+              <View style={styles.featureSummaryTopRow}>
+                <View style={styles.featureSummaryIconCircle}>
+                  <MapPin size={18} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.featureSummaryRouteText} numberOfLines={1}>
+                    {currentTrip?.destination || '여행지 미정'}
+                  </Text>
+                  <Text style={styles.featureSummarySubText} numberOfLines={1}>
+                    {currentTrip?.startDate} ~ {currentTrip?.endDate} · {dayCount}일 코스
+                  </Text>
+                </View>
+              </View>
               <View style={styles.featureImageCaptionBar}>
                 <Text style={styles.featureImageCaptionText} numberOfLines={1}>
                   {currentTrip?.title || '나의 여행'} ({dayCount}일 일정 · 스팟{' '}
@@ -431,7 +428,7 @@ export default function HomeScreen() {
                 <Text style={styles.infoSummaryKey}>항공편</Text>
                 <Text style={styles.infoSummaryVal}>
                   {hasFlight
-                    ? `${tripFlight?.outbound?.departureAirport} → ${tripFlight?.outbound?.arrivalAirport} (${tripFlight?.outbound?.flightNumber})`
+                    ? `${tripFlight?.outbound?.departureAirport || tripFlight?.departureAirport} → ${tripFlight?.outbound?.arrivalAirport || tripFlight?.arrivalAirport}${tripFlight?.outbound?.arrivalNextDay || tripFlight?.arrivalNextDay ? ' (+1일)' : ''}`
                     : '미등록 (나중에 설정 가능)'}
                 </Text>
               </View>
@@ -543,20 +540,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroCircleFrame: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
-    borderWidth: 1.2,
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    borderWidth: 1.5,
     borderColor: '#1B2A4A',
     padding: 3,
     marginRight: 16,
     backgroundColor: '#FFFFFF',
   },
-  heroCircleImg: {
+  heroNavyBadge: {
     width: '100%',
     height: '100%',
-    borderRadius: 38,
-    backgroundColor: '#E5E7EB',
+    borderRadius: 36,
+    backgroundColor: '#1B2A4A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  heroDDayBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#93C5FD',
   },
   heroTextCol: {
     flex: 1,
@@ -673,25 +678,43 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 14,
   },
-  featureImageBox: {
-    height: 172,
+  featureSummaryBanner: {
     borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: '#E5E7EB',
-    position: 'relative',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  featureImage: {
-    width: '100%',
-    height: '100%',
+  featureSummaryTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 12,
+  },
+  featureSummaryIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#1B2A4A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureSummaryRouteText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  featureSummarySubText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+    marginTop: 2,
   },
   featureImageCaptionBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(27, 42, 74, 0.84)',
+    backgroundColor: '#1B2A4A',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 11,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

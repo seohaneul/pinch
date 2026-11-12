@@ -36,6 +36,7 @@ import {
 } from '../../src/utils/settlementUtils';
 import type { ScheduleItem, Place } from '../../src/types';
 import { openInGoogleMaps, openGoogleMapsDirections } from '../../src/utils/mapUtils';
+import { formatAmountInput, resolveCurrencyByDestination } from '../../src/utils/formatUtils';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import { PlaceDetailModal } from '../../src/components/places/PlaceDetailModal';
 import {
@@ -134,10 +135,24 @@ export default function PlannerScreen() {
   const tripFlight = getTripFlight(currentTrip?.id);
 
 
-  // Get current day's sorted schedule items (filtered by active trip)
+  // Get current day's sorted schedule items (filtered by active trip, excluding FLIGHT stops)
   const dayStops = scheduleItems
-    .filter((s) => s.day_number === selectedDay && (!s.trip_id || s.trip_id === currentTrip?.id))
+    .filter(
+      (s) =>
+        s.day_number === selectedDay &&
+        (!s.trip_id || s.trip_id === currentTrip?.id) &&
+        s.category !== 'FLIGHT'
+    )
     .sort((a, b) => a.order_index - b.order_index);
+
+  const getStopCategoryLabel = (cat?: string) => {
+    const u = (cat || '').toUpperCase();
+    if (u === 'CAFE') return '카페';
+    if (u === 'RESTAURANT') return '맛집';
+    if (u === 'LODGING' || u === 'STAY') return '숙소';
+    if (u === 'SHOPPING') return '쇼핑';
+    return '명소';
+  };
 
   // Safe schedules list — guards against currentTrip being null during hydration
   const tripSchedules = currentTrip?.schedules ?? [];
@@ -150,7 +165,10 @@ export default function PlannerScreen() {
     setSelectedStopForExpense(stop);
     setExpenseTitle(stop.place_name ? `${stop.place_name} 지출` : '일정 지출');
     setExpenseAmountStr('');
-    setExpenseCurrency('JPY');
+    const autoCurr =
+      (currentTrip?.currency as CurrencyCode) ||
+      resolveCurrencyByDestination(currentTrip?.destination || '');
+    setExpenseCurrency(autoCurr);
     const defaultCat: WalletCategory =
       stop.category === 'CAFE' || stop.category === 'RESTAURANT'
         ? 'FOOD'
@@ -209,7 +227,11 @@ export default function PlannerScreen() {
   };
 
   const handleOpenPlaceDetail = (stop: ScheduleItem) => {
-    const fullPlace = places.find((p) => p.name === stop.place_name || p.id === stop.place_id);
+    const fullPlace = places.find(
+      (p) =>
+        p.trip_id === (stop.trip_id || currentTrip?.id) &&
+        (p.name === stop.place_name || p.id === stop.place_id)
+    );
     setSelectedPlaceForDetail(
       fullPlace || {
         id: stop.place_id || stop.id,
@@ -222,9 +244,9 @@ export default function PlannerScreen() {
         memo: stop.memo || `${stop.place_name} (DAY ${stop.day_number} 일정)`,
         imageUrl: stop.imageUrl,
         rating: 4.8,
-        isPinned: true,
+        isPinned: false,
         createdAt: new Date().toISOString(),
-        tags: ['일정', stop.category],
+        tags: ['일정', getStopCategoryLabel(stop.category)],
       }
     );
   };
@@ -275,26 +297,6 @@ export default function PlannerScreen() {
         }
       />
 
-      {/* Active Trip Selector Bar */}
-      <View className="px-4 pt-3 pb-1">
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => setTripSwitcherVisible(true)}
-          className="flex-row items-center justify-between bg-white px-3.5 py-2.5 rounded-2xl border border-gray-200 shadow-xs"
-        >
-          <View className="flex-row items-center flex-1 mr-2">
-            <MapPin size={14} color="#1B2A4A" className="mr-1.5" />
-            <Text className="text-xs font-bold text-darkText flex-1" numberOfLines={1}>
-              {currentTrip.title}
-            </Text>
-          </View>
-          <View className="flex-row items-center bg-primary/10 px-2 py-1 rounded-lg">
-            <Text className="text-[10px] font-bold text-primary mr-1">여행 변경</Text>
-            <ChevronDown size={11} color="#1B2A4A" />
-          </View>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 36 }}>
         {/* Top Interactive Map Section */}
         <View className="p-4">
@@ -319,7 +321,10 @@ export default function PlannerScreen() {
             renderItem={({ item: schedule }) => {
               const isSelected = selectedDay === schedule.dayNumber;
               const count = scheduleItems.filter(
-                (s) => s.day_number === schedule.dayNumber && (!s.trip_id || s.trip_id === currentTrip?.id)
+                (s) =>
+                  s.day_number === schedule.dayNumber &&
+                  (!s.trip_id || s.trip_id === currentTrip?.id) &&
+                  s.category !== 'FLIGHT'
               ).length;
               return (
                 <TouchableOpacity
@@ -425,7 +430,7 @@ export default function PlannerScreen() {
                     </View>
                   </View>
                   <Text className="text-xs font-bold text-darkText mt-1">
-                    {tripFlight.outbound?.departureAirport || tripFlight.departureAirport} ({tripFlight.outbound?.departureTime || tripFlight.departureTime}) ➔ {tripFlight.outbound?.arrivalAirport || tripFlight.arrivalAirport} ({tripFlight.outbound?.arrivalTime || tripFlight.arrivalTime})
+                    {tripFlight.outbound?.departureAirport || tripFlight.departureAirport} ({tripFlight.outbound?.departureTime || tripFlight.departureTime}) ➔ {tripFlight.outbound?.arrivalAirport || tripFlight.arrivalAirport} ({tripFlight.outbound?.arrivalTime || tripFlight.arrivalTime}{(tripFlight.outbound?.arrivalNextDay || tripFlight.arrivalNextDay) ? ' +1일' : ''})
                   </Text>
                 </View>
 
@@ -450,7 +455,7 @@ export default function PlannerScreen() {
                       </View>
                     </View>
                     <Text className="text-xs font-bold text-darkText mt-1">
-                      {tripFlight.returnFlight.departureAirport} ({tripFlight.returnFlight.departureTime}) ➔ {tripFlight.returnFlight.arrivalAirport} ({tripFlight.returnFlight.arrivalTime})
+                      {tripFlight.returnFlight.departureAirport} ({tripFlight.returnFlight.departureTime}) ➔ {tripFlight.returnFlight.arrivalAirport} ({tripFlight.returnFlight.arrivalTime}{tripFlight.returnFlight.arrivalNextDay ? ' +1일' : ''})
                     </Text>
                   </View>
                 )}
@@ -594,18 +599,14 @@ export default function PlannerScreen() {
                         <View className="flex-row items-center justify-between mb-1.5">
                           <View className="flex-row items-center">
                             <View className="bg-primary/10 px-2 py-0.5 rounded-md mr-2 flex-row items-center">
-                              {stop.category === 'FLIGHT' ? (
-                                <Plane size={11} color="#1B2A4A" />
-                              ) : (
-                                <Clock size={11} color="#1B2A4A" />
-                              )}
+                              <Clock size={11} color="#1B2A4A" />
                               <Text className="text-[11px] font-bold color-primary ml-1">
-                                {stop.arrival_time} {stop.category === 'FLIGHT' ? '시간' : '도착'}
+                                {stop.arrival_time} 도착
                               </Text>
                             </View>
                             <Badge
-                              label={stop.category === 'FLIGHT' ? '항공편 ✈️' : stop.category}
-                              variant={stop.category === 'FLIGHT' ? 'primary' : 'secondary'}
+                              label={getStopCategoryLabel(stop.category)}
+                              variant="secondary"
                             />
                           </View>
 
@@ -930,7 +931,7 @@ export default function PlannerScreen() {
                   </Text>
                   <TextInput
                     value={expenseAmountStr}
-                    onChangeText={setExpenseAmountStr}
+                    onChangeText={(val) => setExpenseAmountStr(formatAmountInput(val))}
                     placeholder="0"
                     keyboardType="numeric"
                     className="flex-1 text-2xl font-extrabold text-darkText"

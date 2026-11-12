@@ -284,20 +284,9 @@ describe('Store Actions & Cross-Store Integration (FN-PLC, FN-PLN, FN-WAL)', () 
       assert.strictEqual(addedSameName, false);
       assert.strictEqual(usePlaceStore.getState().places.length, placesBefore);
 
-      // Try adding duplicate with same snsUrl
-      const addedSameUrl = usePlaceStore.getState().addPlace({
-        id: 'dup_test_2',
-        name: '다른 이름이지만 동일 링크',
-        address: '주소',
-        category: 'CAFE',
-        latitude: 35.6,
-        longitude: 139.7,
-        isPinned: false,
-        createdAt: '2026-10-15',
-        snsUrl: existing.snsUrl,
-      });
-      assert.strictEqual(addedSameUrl, false);
-      assert.strictEqual(usePlaceStore.getState().places.length, placesBefore);
+      // Allow different place name from the same SNS post URL, but reject when name is empty and snsUrl matches
+      const dupUrlOnly = usePlaceStore.getState().checkIsDuplicate('', existing.snsUrl, 't_tokyo');
+      assert.ok(dupUrlOnly !== null);
     });
   });
 

@@ -18,6 +18,7 @@ import {
   Plane,
   ArrowRight,
 } from '@/components/common/CustomIcons';
+import { formatTimeInput } from '../../utils/formatUtils';
 
 interface DayStartTimeModalProps {
   visible: boolean;
@@ -110,8 +111,9 @@ export const DayStartTimeModal: React.FC<DayStartTimeModalProps> = ({
                 <Clock size={20} color="#1B2A4A" style={{ marginRight: 8 }} />
                 <TextInput
                   value={startTimeInput}
-                  onChangeText={setStartTimeInput}
+                  onChangeText={(v) => setStartTimeInput(formatTimeInput(v))}
                   placeholder="10:00"
+                  keyboardType="number-pad"
                   placeholderTextColor="#94A3B8"
                   style={styles.timeInput}
                   maxLength={5}

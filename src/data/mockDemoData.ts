@@ -35,7 +35,7 @@ export const DEMO_DEFAULT_TRIP: Trip = {
   destination: '여행지 설정',
   startDate: new Date().toISOString().split('T')[0],
   endDate: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
-  coverImage: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=800&auto=format&fit=crop',
+  coverImage: '',
   status: 'ongoing',
   budget: 0,
   createdAt: new Date().toISOString(),

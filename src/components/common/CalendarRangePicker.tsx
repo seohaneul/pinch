@@ -216,7 +216,11 @@ export const CalendarRangePicker: React.FC<CalendarRangePickerProps> = ({
           <View style={styles.summaryBanner}>
             <View style={styles.summaryDateBox}>
               <Text style={styles.summaryLabel}>출발일</Text>
-              <Text style={[styles.summaryValue, selectedStart ? styles.summaryActiveText : null]}>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                style={[styles.summaryValue, selectedStart ? styles.summaryActiveText : null]}
+              >
                 {selectedStart ? formatShortWithDay(selectedStart) : '선택해주세요'}
               </Text>
             </View>
@@ -224,14 +228,24 @@ export const CalendarRangePicker: React.FC<CalendarRangePickerProps> = ({
               <Text style={styles.summaryArrowText}>➔</Text>
               {durationText ? (
                 <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{durationText}</Text>
+                  <Text numberOfLines={1} style={styles.badgeText}>
+                    {durationText}
+                  </Text>
                 </View>
               ) : null}
             </View>
-            <View style={styles.summaryDateBox}>
+            <View style={[styles.summaryDateBox, { alignItems: 'flex-end' }]}>
               <Text style={styles.summaryLabel}>도착일</Text>
-              <Text style={[styles.summaryValue, selectedEnd ? styles.summaryActiveText : null]}>
-                {selectedEnd ? formatShortWithDay(selectedEnd) : (selectedStart ? '날짜를 탭하세요' : '선택해주세요')}
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                style={[styles.summaryValue, selectedEnd ? styles.summaryActiveText : null]}
+              >
+                {selectedEnd
+                  ? formatShortWithDay(selectedEnd)
+                  : selectedStart
+                    ? '도착일 탭'
+                    : '선택해주세요'}
               </Text>
             </View>
           </View>
@@ -305,6 +319,7 @@ export const CalendarRangePicker: React.FC<CalendarRangePickerProps> = ({
                     ]}
                   >
                     <Text
+                      numberOfLines={1}
                       style={[
                         styles.dayText,
                         isSunday && styles.sundayText,
@@ -316,13 +331,17 @@ export const CalendarRangePicker: React.FC<CalendarRangePickerProps> = ({
                     >
                       {item.dayNum}
                     </Text>
+                    {isStart && (
+                      <Text numberOfLines={1} style={styles.subDayLabel}>
+                        {isSingleDayRange ? '당일' : '출발'}
+                      </Text>
+                    )}
+                    {isEnd && !isSingleDayRange && (
+                      <Text numberOfLines={1} style={styles.subDayLabel}>
+                        도착
+                      </Text>
+                    )}
                   </View>
-                  {isStart && (
-                    <Text style={styles.subDayLabel}>출발</Text>
-                  )}
-                  {isEnd && !isSingleDayRange && (
-                    <Text style={styles.subDayLabel}>도착</Text>
-                  )}
                 </TouchableOpacity>
               );
             })}
@@ -459,7 +478,7 @@ const styles = StyleSheet.create({
   },
   weekdayRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'flex-start',
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F8FAFC',
@@ -470,6 +489,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#64748B',
+    lineHeight: 18,
   },
   sundayText: {
     color: '#EF4444',
@@ -480,33 +500,34 @@ const styles = StyleSheet.create({
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   dayCell: {
     width: '14.28%',
-    height: 48,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
     marginVertical: 2,
   },
   inRangeCell: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#EEF2F8',
   },
   rangeStartCell: {
-    backgroundColor: '#F8FAFC',
-    borderTopLeftRadius: 24,
-    borderBottomLeftRadius: 24,
+    backgroundColor: '#EEF2F8',
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
   },
   rangeEndCell: {
-    backgroundColor: '#F8FAFC',
-    borderTopRightRadius: 24,
-    borderBottomRightRadius: 24,
+    backgroundColor: '#EEF2F8',
+    borderTopRightRadius: 14,
+    borderBottomRightRadius: 14,
   },
   dayCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    minWidth: 38,
+    height: 44,
+    paddingHorizontal: 4,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -518,16 +539,18 @@ const styles = StyleSheet.create({
     borderColor: '#1B2A4A',
   },
   dayText: {
-    fontSize: 13,
+    fontSize: 13.5,
+    lineHeight: 18,
     fontWeight: '600',
     color: '#1E293B',
+    textAlign: 'center',
   },
   todayText: {
     color: '#1B2A4A',
     fontWeight: '800',
   },
   inRangeText: {
-    color: '#E11D48',
+    color: '#1B2A4A',
     fontWeight: '700',
   },
   highlightedText: {
@@ -535,11 +558,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   subDayLabel: {
-    position: 'absolute',
-    bottom: 1,
-    fontSize: 8,
+    fontSize: 9,
+    lineHeight: 11,
+    marginTop: 1,
     fontWeight: '800',
     color: '#FFFFFF',
+    textAlign: 'center',
   },
   confirmBtn: {
     flexDirection: 'row',

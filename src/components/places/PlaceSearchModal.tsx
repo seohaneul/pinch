@@ -70,11 +70,13 @@ export const PlaceSearchModal: React.FC<PlaceSearchModalProps> = ({
     }
   }, [visible, initialQuery]);
 
-  // 현재 여행에 이미 저장된 장소 이름 맵 동기화
+  // 현재 여행에 이미 저장된 장소 이름+주소 맵 동기화 (다른 여행과 엄격 분리)
   useEffect(() => {
     const map: Record<string, boolean> = {};
     places.forEach((p) => {
-      if (p.trip_id === activeTripId || !p.trip_id) {
+      if (p.trip_id === activeTripId) {
+        const key = `${p.name.trim().toLowerCase()}__${(p.address || '').trim().toLowerCase()}`;
+        map[key] = true;
         map[p.name.trim().toLowerCase()] = true;
       }
     });
@@ -189,11 +191,14 @@ export const PlaceSearchModal: React.FC<PlaceSearchModalProps> = ({
 
     // 2. 특정 일차(targetDayNumber) 일정 추가로 열린 경우
     if (targetDayNumber) {
-      addPlace(place, activeTripId);
-      setSavedPlaceNames((prev) => ({
-        ...prev,
-        [item.name.trim().toLowerCase()]: true,
-      }));
+      const normalizedKey = item.name.trim().toLowerCase();
+      if (!savedPlaceNames[normalizedKey]) {
+        addPlace(place, activeTripId);
+        setSavedPlaceNames((prev) => ({
+          ...prev,
+          [normalizedKey]: true,
+        }));
+      }
       if (onAddToSchedule) {
         onAddToSchedule(targetDayNumber, place);
       } else {
@@ -280,21 +285,39 @@ export const PlaceSearchModal: React.FC<PlaceSearchModalProps> = ({
     <body>
       <div id="map"></div>
       <script>
-        var map = L.map('map', { zoomControl: false }).setView([${mapLat}, ${mapLng}], 16);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-          maxZoom: 19
-        }).addTo(map);
-        var customIcon = L.divIcon({
-          className: '',
-          html: '<div class="pin-wrapper"><div class="pin-teardrop"><div class="pin-hole"></div></div><div class="pin-ground-dot"></div></div>',
-          iconSize: [48, 62],
-          iconAnchor: [24, 56]
-        });
-        var marker = L.marker([${mapLat}, ${mapLng}], { icon: customIcon }).addTo(map);
-        window.updatePinLocation = function(lat, lng) {
-          marker.setLatLng([lat, lng]);
-          map.flyTo([lat, lng], 16, { duration: 0.45 });
-        };
+        function initPlaceMap() {
+          if (typeof L === 'undefined') {
+            setTimeout(initPlaceMap, 80);
+            return;
+          }
+          var map = L.map('map', { zoomControl: false }).setView([${mapLat}, ${mapLng}], 16);
+          var googleLayer = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ko', {
+            subdomains: '0123',
+            maxZoom: 20
+          }).addTo(map);
+          googleLayer.on('tileerror', function() {
+            if (!window.fallbackTileLoaded) {
+              window.fallbackTileLoaded = true;
+              L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+              }).addTo(map);
+            }
+          });
+          var customIcon = L.divIcon({
+            className: '',
+            html: '<div class="pin-wrapper"><div class="pin-teardrop"><div class="pin-hole"></div></div><div class="pin-ground-dot"></div></div>',
+            iconSize: [48, 62],
+            iconAnchor: [24, 56]
+          });
+          var marker = L.marker([${mapLat}, ${mapLng}], { icon: customIcon }).addTo(map);
+          window.updatePinLocation = function(lat, lng) {
+            marker.setLatLng([lat, lng]);
+            map.flyTo([lat, lng], 16, { duration: 0.45 });
+          };
+          setTimeout(function() { map.invalidateSize(); }, 150);
+          setTimeout(function() { map.invalidateSize(); }, 500);
+        }
+        initPlaceMap();
       </script>
     </body>
     </html>

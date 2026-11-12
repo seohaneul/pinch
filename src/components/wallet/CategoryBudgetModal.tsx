@@ -30,6 +30,7 @@ import {
 } from '@/components/common/CustomIcons';
 import type { CurrencyCode } from '../../utils/settlementUtils';
 import { CURRENCY_SYMBOLS, DEFAULT_EXCHANGE_RATES } from '../../utils/settlementUtils';
+import { formatAmountInput } from '../../utils/formatUtils';
 import { useWalletStore } from '../../store/useWalletStore';
 
 interface CategoryBudgetModalProps {
@@ -176,7 +177,7 @@ export const CategoryBudgetModal: React.FC<CategoryBudgetModalProps> = ({
 
   const handleSave = () => {
     onSave(budgets);
-    Alert.alert('예산 설정 완료 💳', '카테고리별 여행 예산이 성공적으로 저장되었습니다.');
+    Alert.aler                              t('예산 설정 완료 💳', '카테고리별 여행 예산이 성공적으로 저장되었습니다.');
     onClose();
   };
 
@@ -364,8 +365,8 @@ export const CategoryBudgetModal: React.FC<CategoryBudgetModalProps> = ({
                             <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
                               <TextInput
                                 value={newTourAmount}
-                                onChangeText={setNewTourAmount}
-                                placeholder="금액 (예: 88000)"
+                                onChangeText={(txt) => setNewTourAmount(formatAmountInput(txt))}
+                                placeholder="금액 (예: 88,000)"
                                 placeholderTextColor="#94A3B8"
                                 keyboardType="numeric"
                                 style={styles.newTourInputAmount}
@@ -468,7 +469,7 @@ export const CategoryBudgetModal: React.FC<CategoryBudgetModalProps> = ({
                 <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
                   <TextInput
                     value={newCustomAmount}
-                    onChangeText={setNewCustomAmount}
+                    onChangeText={(txt) => setNewCustomAmount(formatAmountInput(txt))}
                     placeholder="예산 금액 (원)"
                     placeholderTextColor="#94A3B8"
                     keyboardType="numeric"

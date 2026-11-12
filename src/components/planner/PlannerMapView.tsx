@@ -123,71 +123,9 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
     }
   };
 
-  // Web Fallback: If running on Expo Web, render an OpenStreetMap interactive fallback
-  if (Platform.OS === 'web') {
-    const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${
-      initialRegion.longitude - 0.04
-    }%2C${initialRegion.latitude - 0.03}%2C${initialRegion.longitude + 0.04}%2C${
-      initialRegion.latitude + 0.03
-    }&layer=mapnik&marker=${initialRegion.latitude}%2C${initialRegion.longitude}`;
+  const mapHeight = isExpanded ? 460 : 250;
 
-    return (
-      <View
-        className="w-full flex-1"
-        style={[
-          styles.container,
-          { minHeight: isExpanded ? 500 : 260, height: isExpanded ? 500 : 260 },
-        ]}
-      >
-        {/* Web iframe fallback */}
-        <iframe
-          title="Pinch Map Web"
-          src={embedUrl}
-          style={{
-            width: '100%',
-            height: '100%',
-            border: 'none',
-            borderRadius: 24,
-          }}
-        />
-
-        {/* Top Header Overlay */}
-        <View style={styles.overlayHeader} pointerEvents="box-none">
-          <View style={styles.overlayBadge}>
-            <Sparkles size={13} color="#1B2A4A" />
-            <Text style={styles.overlayText}>
-              DAY {selectedDay} 실시간 동선 ({validStops.length}스팟)
-            </Text>
-          </View>
-
-          {onToggleExpand && (
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={onToggleExpand}
-              style={styles.expandButton}
-              accessibilityLabel={isExpanded ? '지도 축소' : '지도 전체화면 확대'}
-            >
-              {isExpanded ? <Minimize2 size={16} color="#1E293B" /> : <Maximize2 size={16} color="#1E293B" />}
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Quick Google Maps Button */}
-        {validStops.length > 0 && (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => openMultiStopRouteInGoogleMaps(validStops)}
-            style={styles.googleMapsButton}
-          >
-            <Navigation size={12} color="#FFF" />
-            <Text style={styles.googleMapsButtonText}>구글 지도 전체 경로 ↗</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  }
-
-  // Native (iOS/Android): High reliability WebView with Leaflet + Google Maps Tiles
+  // High reliability HTML with Leaflet + Google Maps & OpenStreetMap Tiles
   const mapHtml = `
 <!DOCTYPE html>
 <html>
@@ -409,32 +347,45 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
 
   return (
     <View
-      className="w-full flex-1"
       style={[
         styles.container,
         {
-          minHeight: isExpanded ? 500 : 260,
-          height: isExpanded ? 520 : 260,
+          height: mapHeight,
+          minHeight: mapHeight,
         },
       ]}
     >
-      <WebView
-        originWhitelist={['*']}
-        source={{ html: mapHtml }}
-        style={styles.webview}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        allowFileAccess={true}
-        allowUniversalAccessFromFileURLs={true}
-        mixedContentMode="always"
-        androidLayerType="hardware"
-        androidHardwareAccelerationDisabled={false}
-        onMessage={handleWebViewMessage}
-        scrollEnabled={isExpanded}
-        nestedScrollEnabled={true}
-        showsHorizontalScrollIndicator={false}
-        showsVerticalScrollIndicator={false}
-      />
+      {Platform.OS === 'web' ? (
+        <iframe
+          title="Pinchi Planner Map"
+          srcDoc={mapHtml}
+          style={{
+            width: '100%',
+            height: mapHeight,
+            border: 'none',
+            borderRadius: 24,
+            display: 'block',
+          }}
+        />
+      ) : (
+        <WebView
+          originWhitelist={['*']}
+          source={{ html: mapHtml }}
+          style={[styles.webview, { height: mapHeight }]}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          allowFileAccess={true}
+          allowUniversalAccessFromFileURLs={true}
+          mixedContentMode="always"
+          androidLayerType="hardware"
+          androidHardwareAccelerationDisabled={false}
+          onMessage={handleWebViewMessage}
+          scrollEnabled={isExpanded}
+          nestedScrollEnabled={true}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* Top Floating Badge & Expand Button */}
       <View style={styles.overlayHeader} pointerEvents="box-none">

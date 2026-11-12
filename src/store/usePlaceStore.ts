@@ -58,15 +58,17 @@ export const usePlaceStore = create<PlaceState>()(
 
         return (
           currentPlaces.find((p) => {
-            // 여행별 중복 검사: 대상 여행이 지정된 경우, 해당 여행 내에서만 중복 여부 판정
-            if (targetTripId && p.trip_id && p.trip_id !== targetTripId) {
+            // 여행별 엄격한 중복 검사: 대상 여행이 지정된 경우 반드시 동일한 trip_id만 비교
+            if (targetTripId && p.trip_id !== targetTripId) {
               return false;
             }
-            const sameName = Boolean(normalizedName && p.name.trim().toLowerCase() === normalizedName);
-            const sameUrl = Boolean(
-              normalizedUrl && p.snsUrl && p.snsUrl.trim().toLowerCase() === normalizedUrl
-            );
-            return sameName || sameUrl;
+            if (normalizedName) {
+              return p.name.trim().toLowerCase() === normalizedName;
+            }
+            if (normalizedUrl && p.snsUrl) {
+              return p.snsUrl.trim().toLowerCase() === normalizedUrl;
+            }
+            return false;
           }) || null
         );
       },

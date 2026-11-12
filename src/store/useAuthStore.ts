@@ -9,6 +9,7 @@ export interface AuthUser {
   email: string;
   nickname: string;
   avatarUrl?: string;
+  provider?: 'email' | 'google' | 'kakao';
   createdAt: string;
 }
 
@@ -22,10 +23,12 @@ interface AuthState {
   // Actions
   login: (email: string, password?: string) => Promise<boolean>;
   signup: (nickname: string, email: string, password?: string) => Promise<boolean>;
+  loginWithSocial: (provider: 'google' | 'kakao') => Promise<boolean>;
   logout: () => Promise<void>;
   continueAsGuest: () => void;
   checkSession: () => Promise<void>;
   updateNickname: (newNickname: string) => boolean;
+  updateAvatar: (avatarUrl: string) => boolean;
   changePassword: (currentPassword: string, newPassword: string) => { success: boolean; message: string };
   updatePreferences: (prefs: {
     defaultBaseCurrency?: 'KRW' | 'JPY' | 'USD';
@@ -179,6 +182,46 @@ export const useAuthStore = create<AuthState>()(
         return true;
       },
 
+      loginWithSocial: async (provider: 'google' | 'kakao') => {
+        set({ isLoading: true });
+        const providerLabel = provider === 'kakao' ? '카카오' : 'Google';
+
+        if (isSupabaseConfigured()) {
+          try {
+            const { error } = await supabase.auth.signInWithOAuth({
+              provider,
+            });
+            if (!error) {
+              set({ isLoading: false });
+              return true;
+            }
+          } catch (err) {
+            console.log(`[AuthStore] ${provider} OAuth fallback:`, err);
+          }
+        }
+
+        const currentUser = get().user;
+        const socialUser: AuthUser = {
+          id: currentUser?.id || `${provider}_${Date.now()}`,
+          email:
+            currentUser?.email ||
+            (provider === 'kakao' ? 'traveler@kakao.com' : 'traveler@gmail.com'),
+          nickname:
+            currentUser?.nickname ||
+            (provider === 'kakao' ? '카카오 여행자' : '구글 여행자'),
+          avatarUrl: currentUser?.avatarUrl,
+          provider,
+          createdAt: currentUser?.createdAt || new Date().toISOString(),
+        };
+
+        set({ isLoggedIn: true, user: socialUser, isLoading: false });
+        Alert.alert(
+          `${providerLabel} 로그인 완료`,
+          `${socialUser.nickname}님, ${providerLabel} 계정으로 연결되었습니다.`
+        );
+        return true;
+      },
+
       logout: async () => {
         if (isSupabaseConfigured()) {
           try {
@@ -236,6 +279,23 @@ export const useAuthStore = create<AuthState>()(
           }
 
           Alert.alert('완료', '닉네임이 성공적으로 변경되었습니다.');
+          return true;
+        }
+        return false;
+      },
+
+      updateAvatar: (avatarUrl: string) => {
+        const currentUser = get().user;
+        if (currentUser) {
+          set({
+            user: { ...currentUser, avatarUrl: avatarUrl.trim() || undefined },
+          });
+
+          if (isSupabaseConfigured()) {
+            supabase.auth
+              .updateUser({ data: { avatar_url: avatarUrl.trim() || null } })
+              .catch(() => {});
+          }
           return true;
         }
         return false;

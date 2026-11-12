@@ -9,7 +9,7 @@ import {
   formatMinutesToTime,
   solveTSPNearestNeighbor,
 } from '../utils/geoUtils';
-import { resolveAirportLocation } from '../services/airportService';
+import { resolveCurrencyByDestination } from '../utils/formatUtils';
 
 interface TripState {
   trips: Trip[];
@@ -34,10 +34,12 @@ interface TripState {
   deleteTripFlight: (tripId: string) => void;
   syncFlightToSchedule: (tripId: string, flight: FlightInfo) => void;
   setRangeLodging: (tripId: string, lodging: LodgingInfo, startDayNumber: number, endDayNumber: number) => void;
+  clearTripLodgings: (tripId: string) => void;
 
   createTrip: (tripData: {
     title: string;
     destination: string;
+    destinations?: string[];
     startDate: string;
     endDate: string;
     budget?: number;
@@ -106,15 +108,19 @@ export const useTripStore = create<TripState>()(
   setHasCompletedOnboarding: (completed: boolean) => set({ hasCompletedOnboarding: completed }),
 
   setTripFlight: (tripId: string, flight: FlightInfo) => {
-    set((state) => ({
-      tripFlights: {
-        ...state.tripFlights,
-        [tripId]: flight,
-      },
-    }));
-    if (flight.autoAddToSchedule !== false) {
-      get().syncFlightToSchedule(tripId, flight);
-    }
+    set((state) => {
+      // 항공편 일정 경로 삭제: scheduleItems에 항공편(FLIGHT) 스팟을 넣지 않고 기존 항목도 정리
+      const nonFlightItems = state.scheduleItems.filter(
+        (s) => !(s.trip_id === tripId && (s.id.startsWith(`flight_${tripId}`) || s.category === 'FLIGHT'))
+      );
+      return {
+        tripFlights: {
+          ...state.tripFlights,
+          [tripId]: flight,
+        },
+        scheduleItems: nonFlightItems,
+      };
+    });
   },
 
   getTripFlight: (tripId?: string) => {
@@ -134,151 +140,13 @@ export const useTripStore = create<TripState>()(
     });
   },
 
-  syncFlightToSchedule: async (tripId: string, flight: FlightInfo) => {
-    const { scheduleItems, trips, setDayStartTime, recalculateTimes } = get();
-    const trip = trips.find((t) => t.id === tripId) || get().currentTrip;
-    if (!trip) return;
-
-    // 1. Remove previous auto-created flight items for this trip
-    const nonFlightItems = scheduleItems.filter(
-      (s) => !(s.trip_id === tripId && (s.id.startsWith(`flight_${tripId}`) || s.category === 'FLIGHT'))
-    );
-
-    const newFlightItems: ScheduleItem[] = [];
-
-    const getDayNumberForDate = (dateStr?: string, defaultDay: number = 1): number => {
-      if (!dateStr) return defaultDay;
-      const sched = trip.schedules?.find((s) => s.date === dateStr);
-      if (sched) return sched.dayNumber;
-      if (trip.startDate) {
-        const startMs = new Date(trip.startDate).getTime();
-        const targetMs = new Date(dateStr).getTime();
-        const diffDays = Math.round((targetMs - startMs) / (1000 * 60 * 60 * 24));
-        return Math.max(1, diffDays + 1);
-      }
-      return defaultDay;
-    };
-
-    const outbound = flight.outbound || {
-      flightNumber: flight.flightNumber || 'KE703',
-      airline: flight.airline || '대한항공',
-      departureAirport: flight.departureAirport || '인천 (ICN)',
-      departureDate: flight.departureDate || trip.startDate || '2026-11-10',
-      departureTime: flight.departureTime || '09:20',
-      arrivalAirport: flight.arrivalAirport || '도쿄 나리타 (NRT)',
-      arrivalDate: flight.arrivalDate || flight.departureDate || trip.startDate || '2026-11-10',
-      arrivalTime: flight.arrivalTime || '12:40',
-      bufferMinutes: flight.bufferMinutes || 90,
-      terminal: flight.terminal || '제2터미널',
-      memo: flight.memo,
-    };
-
-    // Lookup real geographic coordinates for departure and arrival airports
-    const outDepLocation = await resolveAirportLocation(outbound.departureAirport);
-    const outArrLocation = await resolveAirportLocation(outbound.arrivalAirport);
-
-    // Outbound Departure
-    const outDepDay = getDayNumberForDate(outbound.departureDate, 1);
-    newFlightItems.push({
-      id: `flight_${tripId}_out_dep`,
-      trip_id: tripId,
-      place_id: `place_airport_out_dep`,
-      place_name: `🛫 [출발편 탑승] ${outbound.departureAirport} (${outbound.airline || ''} ${outbound.flightNumber})`,
-      category: 'FLIGHT',
-      latitude: outDepLocation.latitude,
-      longitude: outDepLocation.longitude,
-      day_number: outDepDay,
-      order_index: 1,
-      stay_duration_minutes: 60,
-      transport_mode: 'TRANSIT',
-      travel_duration_minutes: 0,
-      arrival_time: outbound.departureTime || '09:20',
-      memo: `출발 ${outbound.departureTime} · ${outbound.terminal || ''}`,
-      address: outDepLocation.address || outbound.departureAirport,
-    });
-
-    // Outbound Arrival
-    const outArrDay = getDayNumberForDate(outbound.arrivalDate, outDepDay);
-    newFlightItems.push({
-      id: `flight_${tripId}_out_arr`,
-      trip_id: tripId,
-      place_id: `place_airport_out_arr`,
-      place_name: `🛬 [도착편 입국] ${outbound.arrivalAirport} (${outbound.airline || ''} ${outbound.flightNumber})`,
-      category: 'FLIGHT',
-      latitude: outArrLocation.latitude,
-      longitude: outArrLocation.longitude,
-      day_number: outArrDay,
-      order_index: 1,
-      stay_duration_minutes: outbound.bufferMinutes || 90,
-      transport_mode: 'TRANSIT',
-      travel_duration_minutes: 0,
-      arrival_time: outbound.arrivalTime || '12:40',
-      memo: `도착 ${outbound.arrivalTime} · 입국 수속 버퍼 ${outbound.bufferMinutes || 90}분`,
-      address: outArrLocation.address || outbound.arrivalAirport,
-    });
-
-    // Automatically update arrival day start time
-    const parts = (outbound.arrivalTime || '12:40').split(':').map((v) => parseInt(v, 10));
-    const h = isNaN(parts[0]) ? 12 : parts[0];
-    const m = isNaN(parts[1]) ? 0 : parts[1];
-    const totalMinutes = (h * 60 + m + (outbound.bufferMinutes || 90)) % (24 * 60);
-    const resH = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
-    const resM = (totalMinutes % 60).toString().padStart(2, '0');
-    setDayStartTime(outArrDay, `${resH}:${resM}`);
-
-    // Return Flight (if present)
-    if (flight.returnFlight && flight.returnFlight.flightNumber) {
-      const ret = flight.returnFlight;
-      const maxDay = trip.schedules?.length || 3;
-      const retDepDay = getDayNumberForDate(ret.departureDate, maxDay);
-      const retArrDay = getDayNumberForDate(ret.arrivalDate, retDepDay);
-
-      const retDepLocation = await resolveAirportLocation(ret.departureAirport);
-      const retArrLocation = await resolveAirportLocation(ret.arrivalAirport);
-
-      newFlightItems.push({
-        id: `flight_${tripId}_ret_dep`,
-        trip_id: tripId,
-        place_id: `place_airport_ret_dep`,
-        place_name: `🛫 [귀국편 출발] ${ret.departureAirport} (${ret.airline || ''} ${ret.flightNumber})`,
-        category: 'FLIGHT',
-        latitude: retDepLocation.latitude,
-        longitude: retDepLocation.longitude,
-        day_number: retDepDay,
-        order_index: 99,
-        stay_duration_minutes: 60,
-        transport_mode: 'TRANSIT',
-        travel_duration_minutes: 0,
-        arrival_time: ret.departureTime || '14:00',
-        memo: `출국 수속 및 탑승 ${ret.departureTime} · ${ret.terminal || ''}`,
-        address: retDepLocation.address || ret.departureAirport,
-      });
-
-      newFlightItems.push({
-        id: `flight_${tripId}_ret_arr`,
-        trip_id: tripId,
-        place_id: `place_airport_ret_arr`,
-        place_name: `🛬 [귀국편 도착] ${ret.arrivalAirport} (${ret.airline || ''} ${ret.flightNumber})`,
-        category: 'FLIGHT',
-        latitude: retArrLocation.latitude,
-        longitude: retArrLocation.longitude,
-        day_number: retArrDay,
-        order_index: 100,
-        stay_duration_minutes: 30,
-        transport_mode: 'TRANSIT',
-        travel_duration_minutes: 0,
-        arrival_time: ret.arrivalTime || '17:15',
-        memo: `귀국 완료 ${ret.arrivalTime}`,
-        address: retArrLocation.address || ret.arrivalAirport,
-      });
-    }
-
-    set({
-      scheduleItems: [...nonFlightItems, ...newFlightItems],
-    });
-
-    const affectedDays = Array.from(new Set(newFlightItems.map((item) => item.day_number)));
-    affectedDays.forEach((day) => recalculateTimes(day));
+  syncFlightToSchedule: (tripId: string, _flight: FlightInfo) => {
+    // 항공편은 전용 항공권 예약 정보 카드에서만 표시하며 타임라인/지도 경로에 포함하지 않음
+    set((state) => ({
+      scheduleItems: state.scheduleItems.filter(
+        (s) => !(s.trip_id === tripId && (s.id.startsWith(`flight_${tripId}`) || s.category === 'FLIGHT'))
+      ),
+    }));
   },
 
   getActiveTrip: () => {
@@ -288,7 +156,9 @@ export const useTripStore = create<TripState>()(
 
   getActiveScheduleItems: () => {
     const { scheduleItems, activeTripId } = get();
-    return scheduleItems.filter((s) => !s.trip_id || s.trip_id === activeTripId);
+    return scheduleItems.filter(
+      (s) => (!s.trip_id || s.trip_id === activeTripId) && s.category !== 'FLIGHT'
+    );
   },
 
   setSelectedDay: (day) => set({ selectedDay: day }),
@@ -324,13 +194,16 @@ export const useTripStore = create<TripState>()(
         }))
       : MOCK_MEMBERS;
 
+    const autoCurrency = tripData.currency || resolveCurrencyByDestination(tripData.destination);
+
     const newTrip: Trip = {
       id: tripId,
       title: tripData.title,
       destination: tripData.destination,
+      destinations: tripData.destinations || [tripData.destination],
       startDate: tripData.startDate,
       endDate: tripData.endDate,
-      coverImage: tripData.coverImage || 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&auto=format&fit=crop',
+      coverImage: '',
       status: 'planning',
       budget: tripData.budget || 0,
       createdAt: new Date().toISOString(),
@@ -339,7 +212,7 @@ export const useTripStore = create<TripState>()(
       schedules,
       centerLat: tripData.centerLat,
       centerLng: tripData.centerLng,
-      currency: tripData.currency,
+      currency: autoCurrency,
     };
 
     set((state) => {
@@ -614,6 +487,17 @@ export const useTripStore = create<TripState>()(
         endDay: maxDay,
       };
     }
+    set({ dayLodgings: updated });
+  },
+
+  clearTripLodgings: (tripId: string) => {
+    const { dayLodgings } = get();
+    const updated = { ...dayLodgings };
+    Object.keys(updated).forEach((k) => {
+      if (k.startsWith(`${tripId}_day_`)) {
+        delete updated[k];
+      }
+    });
     set({ dayLodgings: updated });
   },
 

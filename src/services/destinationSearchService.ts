@@ -563,3 +563,7 @@ export async function searchWorldwideDestinations(query: string): Promise<Worldw
     },
   ];
 }
+
+export type DestinationCandidate = WorldwideDestination;
+export const searchDestination = searchWorldwideDestinations;
+

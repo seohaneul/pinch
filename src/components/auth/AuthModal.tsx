@@ -32,7 +32,7 @@ export const AuthGateScreen: React.FC = () => {
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
 
-  const { login, signup, isLoading } = useAuthStore();
+  const { login, signup, loginWithSocial, isLoading } = useAuthStore();
 
   const handleSubmit = async () => {
     if (tab === 'login') {
@@ -40,6 +40,10 @@ export const AuthGateScreen: React.FC = () => {
     } else {
       await signup(nickname, email, password);
     }
+  };
+
+  const handleSocialLogin = async (provider: 'google' | 'kakao') => {
+    await loginWithSocial(provider);
   };
 
   return (
@@ -171,6 +175,39 @@ export const AuthGateScreen: React.FC = () => {
               </>
             )}
           </TouchableOpacity>
+
+          {/* 간편 소셜 로그인 (카카오 & 구글) */}
+          <View style={styles.socialDividerRow}>
+            <View style={styles.socialDividerLine} />
+            <Text style={styles.socialDividerText}>또는 간편 로그인</Text>
+            <View style={styles.socialDividerLine} />
+          </View>
+
+          <View style={styles.socialBtnGroup}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              disabled={isLoading}
+              onPress={() => handleSocialLogin('kakao')}
+              style={styles.kakaoBtn}
+            >
+              <View style={styles.kakaoBubbleIcon}>
+                <Text style={styles.kakaoBubbleText}>K</Text>
+              </View>
+              <Text style={styles.kakaoBtnText}>카카오로 시작하기</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              disabled={isLoading}
+              onPress={() => handleSocialLogin('google')}
+              style={styles.googleBtn}
+            >
+              <View style={styles.googleBadgeIcon}>
+                <Text style={styles.googleBadgeText}>G</Text>
+              </View>
+              <Text style={styles.googleBtnText}>Google 계정으로 시작하기</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -184,7 +221,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
 
-  const { login, signup, isLoading } = useAuthStore();
+  const { login, signup, loginWithSocial, isLoading } = useAuthStore();
+
+  const handleSocialModalLogin = async (provider: 'google' | 'kakao') => {
+    const ok = await loginWithSocial(provider);
+    if (ok) onClose();
+  };
 
   const handleLogin = async () => {
     const success = await login(email, password);
@@ -307,6 +349,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
                 </>
               )}
             </TouchableOpacity>
+
+            <View style={styles.socialDividerRow}>
+              <View style={styles.socialDividerLine} />
+              <Text style={styles.socialDividerText}>간편 로그인</Text>
+              <View style={styles.socialDividerLine} />
+            </View>
+
+            <View style={styles.socialBtnGroup}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                disabled={isLoading}
+                onPress={() => handleSocialModalLogin('kakao')}
+                style={styles.kakaoBtn}
+              >
+                <View style={styles.kakaoBubbleIcon}>
+                  <Text style={styles.kakaoBubbleText}>K</Text>
+                </View>
+                <Text style={styles.kakaoBtnText}>카카오로 시작하기</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                disabled={isLoading}
+                onPress={() => handleSocialModalLogin('google')}
+                style={styles.googleBtn}
+              >
+                <View style={styles.googleBadgeIcon}>
+                  <Text style={styles.googleBadgeText}>G</Text>
+                </View>
+                <Text style={styles.googleBtnText}>Google로 시작하기</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </TouchableWithoutFeedback>
@@ -486,5 +560,80 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15.5,
     fontWeight: '800',
+  },
+  socialDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+    gap: 10,
+  },
+  socialDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  socialDividerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9CA3AF',
+  },
+  socialBtnGroup: {
+    gap: 10,
+  },
+  kakaoBtn: {
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#FEE500',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  kakaoBubbleIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#191919',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  kakaoBubbleText: {
+    color: '#FEE500',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  kakaoBtnText: {
+    color: '#191919',
+    fontSize: 14.5,
+    fontWeight: '800',
+  },
+  googleBtn: {
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  googleBadgeIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#EEF2F8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleBadgeText: {
+    color: '#1B2A4A',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  googleBtnText: {
+    color: '#374151',
+    fontSize: 14.5,
+    fontWeight: '700',
   },
 });

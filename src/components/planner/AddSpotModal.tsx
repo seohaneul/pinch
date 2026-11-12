@@ -86,15 +86,10 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
     return places;
   }, [places]);
 
-  const activeTripId = currentTrip?.id || 't_tokyo';
+  const activeTripId = currentTrip?.id || 't_first';
 
   const tripPocketPlaces = useMemo(() => {
-    return allPocketPlaces.filter((p) => {
-      if (activeTripId === 't_tokyo') {
-        return !p.trip_id || p.trip_id === 't_tokyo';
-      }
-      return p.trip_id === activeTripId;
-    });
+    return allPocketPlaces.filter((p) => p.trip_id === activeTripId);
   }, [allPocketPlaces, activeTripId]);
 
   // Filter pocket places based on scope, category filter and search query
@@ -460,37 +455,39 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                 )}
               </View>
 
-              {/* Category Filter Chips (숙소 LODGING 포함!) */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ marginBottom: 12 }}
-                contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
-              >
-                {CATEGORY_TABS.map((cat) => {
-                  const isSelected = selectedCategory === cat.key;
-                  return (
-                    <TouchableOpacity
-                      key={cat.key}
-                      onPress={() => setSelectedCategory(cat.key)}
-                      style={[
-                        styles.catFilterChip,
-                        isSelected && styles.catFilterChipActive,
-                      ]}
-                      activeOpacity={0.75}
-                    >
-                      <Text
+              {/* Category Filter Chips (고정 높이 래퍼로 세로 늘어남 UI 오류 수정) */}
+              <View style={{ height: 42, marginBottom: 10 }}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ flexGrow: 0 }}
+                  contentContainerStyle={{ gap: 8, alignItems: 'center', paddingRight: 12 }}
+                >
+                  {CATEGORY_TABS.map((cat) => {
+                    const isSelected = selectedCategory === cat.key;
+                    return (
+                      <TouchableOpacity
+                        key={cat.key}
+                        onPress={() => setSelectedCategory(cat.key)}
                         style={[
-                          styles.catFilterChipText,
-                          isSelected && styles.catFilterChipTextActive,
+                          styles.catFilterChip,
+                          isSelected && styles.catFilterChipActive,
                         ]}
+                        activeOpacity={0.75}
                       >
-                        {cat.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                        <Text
+                          style={[
+                            styles.catFilterChipText,
+                            isSelected && styles.catFilterChipTextActive,
+                          ]}
+                        >
+                          {cat.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
 
               {/* Places List */}
               <ScrollView

@@ -41,8 +41,8 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
   const isPlaceInPocket = (name: string) => {
     const targetTripId = savedLink?.trip_id || useTripStore.getState().currentTrip?.id;
     return places.some((p) => {
-      const matchTrip = !targetTripId || p.trip_id === targetTripId;
-      return matchTrip && p.name.trim().toLowerCase() === name.trim().toLowerCase();
+      if (!targetTripId) return false;
+      return p.trip_id === targetTripId && p.name.trim().toLowerCase() === name.trim().toLowerCase();
     });
   };
 

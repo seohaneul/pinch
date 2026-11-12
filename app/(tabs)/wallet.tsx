@@ -28,6 +28,10 @@ import {
   convertToKrw,
 } from '../../src/utils/settlementUtils';
 import {
+  formatAmountInput,
+  resolveCurrencyByDestination,
+} from '../../src/utils/formatUtils';
+import {
   Wallet,
   Receipt,
   Plus,
@@ -144,7 +148,17 @@ export default function WalletScreen() {
   const [selectedPlaceName, setSelectedPlaceName] = useState<string>('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL');
 
-  // Sync currency and members when switching trip
+  // Sync currency automatically based on destination when trip changes
+  useEffect(() => {
+    if (currentTrip?.id && currentTrip?.destination) {
+      const autoCur = resolveCurrencyByDestination(currentTrip.destination);
+      setTripCurrency(currentTrip.id, autoCur);
+      setCurrency(autoCur);
+    } else {
+      setCurrency(activeTripCurrency);
+    }
+  }, [currentTrip?.id, currentTrip?.destination]);
+
   useEffect(() => {
     setCurrency(activeTripCurrency);
   }, [activeTripCurrency]);
@@ -356,28 +370,6 @@ export default function WalletScreen() {
           </View>
         }
       />
-
-      {/* Active Trip Selector Bar */}
-      {currentTrip && (
-        <View className="px-4 pt-3 pb-1">
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setTripSwitcherVisible(true)}
-            className="flex-row items-center justify-between bg-white px-3.5 py-2.5 rounded-2xl border border-gray-200 shadow-xs"
-          >
-            <View className="flex-row items-center flex-1 mr-2">
-              <MapPin size={14} color="#1B2A4A" className="mr-1.5" />
-              <Text className="text-xs font-bold text-darkText flex-1" numberOfLines={1}>
-                {currentTrip.title}
-              </Text>
-            </View>
-            <View className="flex-row items-center bg-primary/10 px-2 py-1 rounded-lg">
-              <Text className="text-[10px] font-bold text-primary mr-1">여행 변경</Text>
-              <ChevronDown size={11} color="#1B2A4A" />
-            </View>
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* Segmented Control Tabs */}
       <View style={tabStyles.container}>
@@ -663,7 +655,7 @@ export default function WalletScreen() {
                               <View className="flex-row items-center gap-2 mt-1.5">
                                 <TextInput
                                   value={newTourAmountInput}
-                                  onChangeText={setNewTourAmountInput}
+                                  onChangeText={(txt) => setNewTourAmountInput(formatAmountInput(txt))}
                                   placeholder="금액 (원)"
                                   placeholderTextColor="#94A3B8"
                                   keyboardType="numeric"
@@ -757,7 +749,7 @@ export default function WalletScreen() {
                   <View className="flex-row items-center gap-2">
                     <TextInput
                       value={newCustomBudgetAmount}
-                      onChangeText={setNewCustomBudgetAmount}
+                      onChangeText={(txt) => setNewCustomBudgetAmount(formatAmountInput(txt))}
                       placeholder="예산 금액 (원)"
                       placeholderTextColor="#94A3B8"
                       keyboardType="numeric"
@@ -1289,7 +1281,7 @@ export default function WalletScreen() {
                 </Text>
                 <TextInput
                   value={amountStr}
-                  onChangeText={setAmountStr}
+                  onChangeText={(txt) => setAmountStr(formatAmountInput(txt, currency !== 'KRW' && currency !== 'JPY'))}
                   placeholder="0"
                   keyboardType="numeric"
                   className="flex-1 text-2xl font-extrabold text-darkText"

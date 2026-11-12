@@ -31,6 +31,7 @@ import type { LodgingInfo, DaySchedule } from '../../types';
 import { CalendarRangePicker } from '../common/CalendarRangePicker';
 import { searchAccommodations, SearchPlaceResult } from '../../services/placeSearchService';
 import { PlaceSearchModal } from '../places/PlaceSearchModal';
+import { formatTimeInput } from '../../utils/formatUtils';
 
 interface LodgingModalProps {
   visible: boolean;
@@ -293,19 +294,73 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollBody}>
-            {/* 1. 숙박 기간 캘린더 선택 카드 */}
+            {/* 1. 숙박 기간 캘린더 및 날짜별 선택 카드 */}
             <View style={styles.datePickerCard}>
               <View style={styles.datePickerHeader}>
                 <View style={styles.datePickerHeaderLeft}>
                   <Calendar size={15} color="#1B2A4A" style={{ marginRight: 6 }} />
-                  <Text style={styles.datePickerTitle}>숙박 기간 (체크인 ~ 체크아웃)</Text>
+                  <Text style={styles.datePickerTitle}>날짜별 숙박 기간 선택</Text>
                 </View>
                 <View style={styles.nightsBadge}>
                   <Text style={styles.nightsBadgeText}>
-                    {stayInfo.nights}박 {stayInfo.nights + 1}일
+                    DAY {stayInfo.startDay}~{stayInfo.endDay} ({stayInfo.nights}박)
                   </Text>
                 </View>
               </View>
+
+              {schedules && schedules.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 6, marginBottom: 10 }}
+                >
+                  {schedules.map((sch) => {
+                    const isSelectedDay =
+                      sch.dayNumber >= stayInfo.startDay && sch.dayNumber <= stayInfo.endDay;
+                    const shortD = sch.date ? sch.date.slice(5).replace('-', '.') : '';
+                    return (
+                      <TouchableOpacity
+                        key={sch.dayNumber}
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          const nextSchedule =
+                            schedules.find((s) => s.dayNumber === sch.dayNumber + 1) || sch;
+                          setStartDate(sch.date);
+                          setEndDate(nextSchedule.date);
+                        }}
+                        style={{
+                          paddingHorizontal: 10,
+                          paddingVertical: 6,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: isSelectedDay ? '#1B2A4A' : '#CBD5E1',
+                          backgroundColor: isSelectedDay ? '#1B2A4A' : '#FFFFFF',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: '800',
+                            color: isSelectedDay ? '#FFFFFF' : '#1E293B',
+                          }}
+                        >
+                          DAY {sch.dayNumber}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 9.5,
+                            fontWeight: '600',
+                            color: isSelectedDay ? '#E2E8F0' : '#64748B',
+                          }}
+                        >
+                          {shortD}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
 
               <TouchableOpacity
                 onPress={() => setIsCalendarPickerVisible(true)}
@@ -317,11 +372,11 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
                     {startDate} ~ {endDate}
                   </Text>
                   <Text style={styles.calendarSubText}>
-                    DAY {stayInfo.startDay}부터 DAY {stayInfo.endDay}까지 모든 일차에 자동 등록됩니다
+                    DAY {stayInfo.startDay}부터 DAY {stayInfo.endDay}까지 선택된 날짜에 등록됩니다
                   </Text>
                 </View>
                 <View style={styles.calendarBtnPill}>
-                  <Text style={styles.calendarBtnPillText}>캘린더 변경 📅</Text>
+                  <Text style={styles.calendarBtnPillText}>날짜 범위 변경</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -450,8 +505,10 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
                       <Clock size={14} color="#64748B" style={{ marginRight: 6 }} />
                       <TextInput
                         value={checkInTime}
-                        onChangeText={setCheckInTime}
+                        onChangeText={(v) => setCheckInTime(formatTimeInput(v))}
                         placeholder="15:00"
+                        keyboardType="number-pad"
+                        maxLength={5}
                         placeholderTextColor="#94A3B8"
                         style={styles.innerInput}
                       />
@@ -463,8 +520,10 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
                       <Clock size={14} color="#64748B" style={{ marginRight: 6 }} />
                       <TextInput
                         value={checkOutTime}
-                        onChangeText={setCheckOutTime}
+                        onChangeText={(v) => setCheckOutTime(formatTimeInput(v))}
                         placeholder="11:00"
+                        keyboardType="number-pad"
+                        maxLength={5}
                         placeholderTextColor="#94A3B8"
                         style={styles.innerInput}
                       />
