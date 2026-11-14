@@ -12,6 +12,7 @@ interface SavedLinkState {
   // Actions
   addLinkFromUrl: (url: string, tripId?: string) => Promise<SavedLink | null>;
   removeSavedLink: (id: string) => void;
+  updateExtractedPlaceImage: (linkId: string, placeId: string, imageUrl: string) => void;
   getLinksByTrip: (tripId: string) => SavedLink[];
   resetToDefaults: () => void;
 }
@@ -55,6 +56,20 @@ export const useSavedLinkStore = create<SavedLinkState>()(
       removeSavedLink: (id: string) => {
         set((state) => ({
           savedLinks: state.savedLinks.filter((l) => l.id !== id),
+        }));
+      },
+
+      updateExtractedPlaceImage: (linkId: string, placeId: string, imageUrl: string) => {
+        set((state) => ({
+          savedLinks: state.savedLinks.map((link) => {
+            if (link.id !== linkId) return link;
+            return {
+              ...link,
+              extractedPlaces: link.extractedPlaces.map((ep) =>
+                ep.id === placeId ? { ...ep, imageUrl } : ep
+              ),
+            };
+          }),
         }));
       },
 

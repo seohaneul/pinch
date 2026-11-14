@@ -77,6 +77,7 @@ export default function PlacesScreen() {
     isExtractingLink,
     addLinkFromUrl,
     removeSavedLink,
+    updateExtractedPlaceImage,
   } = useSavedLinkStore();
 
   const { currentTrip, activeTripId, addPlaceToSchedule } = useTripStore();
@@ -165,6 +166,49 @@ export default function PlacesScreen() {
       cancelled = true;
     };
   }, [tripPlaces, updatePlaceImage]);
+
+  // 링크 보관함에 있는 발견된 장소들도 열어보기 전에 미리 실제 사진으로 채워두기
+  const attemptedExtractedIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const targets: { linkId: string; item: SavedLink['extractedPlaces'][number] }[] = [];
+    tripLinks.forEach((link) => {
+      (link.extractedPlaces || []).forEach((ep) => {
+        const key = `${link.id}:${ep.id}`;
+        if (isDummyOrEmptyImage(ep.imageUrl) && !attemptedExtractedIdsRef.current.has(key)) {
+          attemptedExtractedIdsRef.current.add(key);
+          targets.push({ linkId: link.id, item: ep });
+        }
+      });
+    });
+    if (targets.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      const BATCH_SIZE = 3;
+      for (let i = 0; i < targets.length; i += BATCH_SIZE) {
+        if (cancelled) break;
+        const batch = targets.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+          batch.map(async ({ linkId, item }) => {
+            const resolved = await resolveBestPlaceImage(
+              item.name,
+              item.address,
+              item.category,
+              item.latitude,
+              item.longitude
+            );
+            if (!cancelled && resolved) {
+              updateExtractedPlaceImage(linkId, item.id, resolved);
+            }
+          })
+        );
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tripLinks, updateExtractedPlaceImage]);
 
   // 전체 보관함 장소를 현재 여행으로 복사/추가
   const handleCopyPlaceToCurrentTrip = (place: Place) => {

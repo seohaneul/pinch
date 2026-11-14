@@ -1,6 +1,6 @@
 import type { Place, PlaceCategory, SavedLink, ExtractedPlaceItem } from '../types';
 import { extractPlacesWithGemini } from './geminiService';
-import { fetchRealPlaceImage } from './imageSearchService';
+import { fetchRealPlaceImage, isDummyOrEmptyImage, resolveBestPlaceImage } from './imageSearchService';
 
 export interface ExtractedMeta {
   title: string;
@@ -334,12 +334,17 @@ export async function parseSnsUrl(url: string, destinationHint?: string): Promis
   const longitude = geocodeResult?.longitude ?? defaultCoord.lng;
   const address = geocodeResult?.address ?? `${defaultCoord.address} 부근`;
 
-  // 5) 실제 이미지 URL 탐색
+  // 5) 실제 이미지 URL 탐색 (Google Places / Wikipedia / Wikimedia 우선)
   let imageUrl = meta.imageUrl && meta.imageUrl.startsWith('http') ? meta.imageUrl : '';
-  if (!imageUrl || imageUrl.includes('unsplash.com')) {
-    const realImg = await fetchRealPlaceImage(placeName, address, category, latitude, longitude);
-    if (realImg) {
-      imageUrl = realImg;
+  if (isDummyOrEmptyImage(imageUrl)) {
+    const bestImg = await resolveBestPlaceImage(placeName, address, category, latitude, longitude);
+    if (bestImg) {
+      imageUrl = bestImg;
+    } else {
+      const fallbackImg = await fetchRealPlaceImage(placeName, address, category, latitude, longitude);
+      if (fallbackImg) {
+        imageUrl = fallbackImg;
+      }
     }
   }
   if (!imageUrl) {
@@ -614,10 +619,20 @@ export async function parseLinkWithPlaces(
       extractedPlaces = await Promise.all(
         aiResult.places.map(async (p, idx) => {
           let realImg = p.imageUrl;
-          if (!realImg || !realImg.startsWith('http')) {
-            realImg = (await fetchRealPlaceImage(p.name, p.address, p.category, p.latitude, p.longitude)) || undefined;
+          if (isDummyOrEmptyImage(realImg) || !realImg?.startsWith('http')) {
+            const bestImg = await resolveBestPlaceImage(
+              p.name,
+              p.address,
+              p.category,
+              p.latitude,
+              p.longitude
+            );
+            realImg =
+              bestImg ||
+              (await fetchRealPlaceImage(p.name, p.address, p.category, p.latitude, p.longitude)) ||
+              undefined;
           }
-          if ((!realImg || realImg.includes('unsplash.com')) && idx === 0 && meta.imageUrl?.startsWith('http')) {
+          if ((!realImg || isDummyOrEmptyImage(realImg)) && idx === 0 && meta.imageUrl?.startsWith('http')) {
             realImg = meta.imageUrl;
           }
           return {
@@ -634,7 +649,7 @@ export async function parseLinkWithPlaces(
     console.warn('[ParserService] Gemini AI extraction failed, using fallback:', aiErr);
   }
 
-  // 4) Gemini 결과가 없을 때 키워드 매칭 기반 지역 풀 Fallback
+  // 4) Gemini 결과가 없을 때 키워드 매칭 기반 지역 풀 Fallback (각 장소의 실제 이미지도 저장 시점에 함께 로드)
   if (extractedPlaces.length === 0) {
     const combinedText = `${url} ${meta.title} ${meta.description} ${destinationHint || ''}`.toLowerCase();
     let selectedRegionKey = 'tokyo';
@@ -650,10 +665,28 @@ export async function parseLinkWithPlaces(
     }
 
     const basePlaces = REGIONAL_HOTPLACE_POOLS[selectedRegionKey] || REGIONAL_HOTPLACE_POOLS.tokyo;
-    extractedPlaces = basePlaces.map((bp, idx) => ({
-      ...bp,
-      id: `extracted_${Date.now()}_${idx}`,
-    }));
+    extractedPlaces = await Promise.all(
+      basePlaces.map(async (bp, idx) => {
+        let realImg = bp.imageUrl;
+        if (isDummyOrEmptyImage(realImg)) {
+          const bestImg = await resolveBestPlaceImage(
+            bp.name,
+            bp.address,
+            bp.category,
+            bp.latitude,
+            bp.longitude
+          );
+          if (bestImg) {
+            realImg = bestImg;
+          }
+        }
+        return {
+          ...bp,
+          id: `extracted_${Date.now()}_${idx}`,
+          imageUrl: realImg,
+        };
+      })
+    );
   }
 
   const finalTitle =
