@@ -22,7 +22,6 @@ import {
   Plus,
   RotateCcw,
   Check,
-  Sparkles,
   Trash2,
   ChevronDown,
   ChevronUp,
@@ -177,7 +176,7 @@ export const CategoryBudgetModal: React.FC<CategoryBudgetModalProps> = ({
 
   const handleSave = () => {
     onSave(budgets);
-    Alert.aler                              t('예산 설정 완료 💳', '카테고리별 여행 예산이 성공적으로 저장되었습니다.');
+    Alert.alert('예산 설정 완료 💳', '카테고리별 여행 예산이 성공적으로 저장되었습니다.');
     onClose();
   };
 
@@ -402,9 +401,6 @@ export const CategoryBudgetModal: React.FC<CategoryBudgetModalProps> = ({
                   <View key={cb.id} style={[styles.catCard, { borderColor: '#CFFAFE' }]}>
                     <View style={styles.catHeader}>
                       <View style={styles.catHeaderLeft}>
-                        <View style={[styles.catIconWrap, { backgroundColor: '#ECFEFF' }]}>
-                          <Sparkles size={16} color="#06B6D4" />
-                        </View>
                         <View>
                           <Text style={styles.catLabel}>{cb.name}</Text>
                           <Text style={styles.catForeignText}>직접 추가 항목</Text>

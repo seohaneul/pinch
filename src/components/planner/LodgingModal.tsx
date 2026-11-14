@@ -22,7 +22,6 @@ import {
   Check,
   Building,
   Calendar,
-  Sparkles,
   Search,
   Star,
   Edit3,
@@ -181,7 +180,7 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
     if (hotel.imageUrl) setImageUrl(hotel.imageUrl);
     if (hotel.memo) setMemo(hotel.memo);
     setInputMode('manual');
-    Alert.alert('숙소 선택 완료 ✨', `"${hotel.name}"의 위치 정보 및 주소가 자동 입력되었습니다.`);
+    Alert.alert('숙소 선택 완료', `"${hotel.name}"의 위치 정보 및 주소가 자동 입력되었습니다.`);
   };
 
   const handleConfirmCalendarRange = (newStart: string, newEnd: string) => {
@@ -466,7 +465,6 @@ export const LodgingModal: React.FC<LodgingModalProps> = ({
                 {/* Selected Accommodation Badge */}
                 {latitude && longitude ? (
                   <View style={styles.geoConfirmedBanner}>
-                    <Sparkles size={14} color="#059669" style={{ marginRight: 6 }} />
                     <Text style={styles.geoConfirmedText}>
                       지도 좌표가 확인되어 일정 동선에 정확하게 핀치됩니다! 📍
                     </Text>

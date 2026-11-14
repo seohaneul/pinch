@@ -9,7 +9,6 @@ import {
 import { WebView } from 'react-native-webview';
 import type { ScheduleItem } from '../../types';
 import {
-  Sparkles,
   Navigation,
   Maximize2,
   Minimize2,
@@ -260,7 +259,7 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
             '<div class="popup-title">#' + stop.order_index + ' ' + stop.place_name + '</div>' +
             '<div class="popup-time">' + (stop.arrival_time ? '도착 ' + stop.arrival_time : '') + '</div>' +
             '<div style="display:flex;gap:6px;margin-top:6px;">' +
-              '<a href="javascript:void(0)" class="popup-btn" style="background:#1B2A4A;color:#FFFFFF;flex:1;text-align:center;" onclick="sendDetailMessage(' + idx + ')">상세보기 ✨</a>' +
+              '<a href="javascript:void(0)" class="popup-btn" style="background:#1B2A4A;color:#FFFFFF;flex:1;text-align:center;" onclick="sendDetailMessage(' + idx + ')">상세보기</a>' +
               '<a href="javascript:void(0)" class="popup-btn" style="flex:1;text-align:center;" onclick="sendNavMessage(' + stop.latitude + ',' + stop.longitude + ',\\'' + encodeURIComponent(stop.place_name) + '\\')">길찾기 ↗</a>' +
             '</div>' +
           '</div>';
@@ -390,7 +389,6 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
       {/* Top Floating Badge & Expand Button */}
       <View style={styles.overlayHeader} pointerEvents="box-none">
         <View style={styles.overlayBadge}>
-          <Sparkles size={13} color="#1B2A4A" />
           <Text style={styles.overlayText}>
             DAY {selectedDay} 실시간 동선 ({validStops.length}스팟)
           </Text>

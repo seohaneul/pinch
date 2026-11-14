@@ -11,7 +11,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, ExternalLink, Plus, Check, MapPin, Sparkles, Star } from '@/components/common/CustomIcons';
+import { X, ExternalLink, Plus, Check, MapPin, Star } from '@/components/common/CustomIcons';
 import type { SavedLink, ExtractedPlaceItem, Place } from '../../types';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import { useTripStore } from '../../store/useTripStore';
@@ -207,7 +207,6 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
                 발견된 장소 <Text style={{ color: '#1B2A4A' }}>{savedLink.extractedPlaces.length}곳</Text>
               </Text>
               <TouchableOpacity onPress={handleAddAllPlaces} activeOpacity={0.7} style={styles.addAllBtn}>
-                <Sparkles size={12} color="#1B2A4A" style={{ marginRight: 4 }} />
                 <Text style={styles.addAllBtnText}>전체 한 번에 담기</Text>
               </TouchableOpacity>
             </View>

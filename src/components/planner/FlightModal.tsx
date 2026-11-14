@@ -19,7 +19,6 @@ import {
   Calendar,
   Trash2,
   Search,
-  Sparkles,
   ArrowRight,
 } from '@/components/common/CustomIcons';
 import type { FlightInfo, SingleFlightLeg, DaySchedule } from '../../types';
@@ -611,7 +610,6 @@ export const FlightModal: React.FC<FlightModalProps> = ({
           <View style={styles.routeFlightListContainer}>
             <View style={styles.routeFlightHeaderRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Sparkles size={14} color="#1B2A4A" style={{ marginRight: 6 }} />
                 <Text style={styles.routeFlightTitle}>
                   조회된 실제 운항편 ({filteredRouteFlights.length}편)
                 </Text>

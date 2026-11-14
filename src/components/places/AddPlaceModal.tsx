@@ -12,7 +12,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import {
-  Sparkles,
   Link as LinkIcon,
   X,
   Clipboard as ClipboardIcon,
@@ -172,7 +171,6 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
               (!urlInput.trim() || loading) && styles.submitBtnDisabled,
             ]}
           >
-            <Sparkles size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
             <Text style={styles.submitBtnText}>
               {loading ? '장소 추출 중...' : '이 링크에서 장소 추출하기'}
             </Text>

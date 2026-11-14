@@ -25,7 +25,6 @@ import {
   Plane,
   Hotel,
   Check,
-  Sparkles,
   Plus,
   Trash2,
   Bookmark,
@@ -976,7 +975,6 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
           {step === 0 && (
             <View style={styles.stepSection}>
               <View style={styles.onboardingBadge}>
-                <Sparkles size={14} color="#1B2A4A" />
                 <Text style={styles.onboardingBadgeText}>SMART TRAVEL PLANNER</Text>
               </View>
 
@@ -1433,7 +1431,6 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
               <View style={styles.realFlightLookupBox}>
                 <View style={styles.realFlightHeaderRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Sparkles size={14} color="#1B2A4A" style={{ marginRight: 6 }} />
                     <Text style={styles.realFlightBoxTitle}>
                       4. 조회된 실제 운항편 (
                       {(flightTab === 'outbound'

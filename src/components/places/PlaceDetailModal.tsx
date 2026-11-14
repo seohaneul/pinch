@@ -19,7 +19,6 @@ import {
   Star,
   ExternalLink,
   Navigation,
-  Sparkles,
   Calendar,
   Clock,
   Bookmark,
@@ -740,7 +739,6 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
             {/* SNS 핀치 코멘트 & 메모 */}
             <View style={styles.memoCard}>
               <View style={styles.memoHeader}>
-                <Sparkles size={14} color="#1B2A4A" style={{ marginRight: 6 }} />
                 <Text style={styles.memoHeaderTitle}>SNS 핀치 메모 & 코멘트</Text>
               </View>
               <Text style={styles.memoContent}>
@@ -752,7 +750,6 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
             <View style={styles.aiGuideCard}>
               <View style={styles.aiGuideHeader}>
                 <View style={styles.aiGuideBadge}>
-                  <Sparkles size={13} color="#1B2A4A" />
                   <Text style={styles.aiGuideBadgeText}>AI 여행 가이드</Text>
                 </View>
 
@@ -767,7 +764,6 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                       <ActivityIndicator size="small" color="#1B2A4A" />
                     ) : (
                       <>
-                        <Sparkles size={11} color="#1B2A4A" />
                         <Text style={styles.fetchAiBtnText}>심층 꿀팁 조회</Text>
                       </>
                     )}
@@ -783,7 +779,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                   {/* 대표 시그니처 & 추천 메뉴 */}
                   {aiBriefing.recommendedHighlights?.length > 0 && (
                     <View style={styles.aiSectionBlock}>
-                      <Text style={styles.aiSectionTitle}>✨ 필수 경험 & 대표 메뉴</Text>
+                      <Text style={styles.aiSectionTitle}>필수 경험 & 대표 메뉴</Text>
                       <View style={styles.highlightsWrap}>
                         {aiBriefing.recommendedHighlights.map((hl, idx) => (
                           <View key={idx} style={styles.highlightPill}>

@@ -14,7 +14,7 @@ import {
   calculateTotalRouteTravelTime,
   solveTSPNearestNeighbor,
 } from '../../utils/geoUtils';
-import { Sparkles, ArrowRight, X, Clock, CheckCircle, Navigation } from '@/components/common/CustomIcons';
+import { ArrowRight, X, Clock, CheckCircle, Navigation } from '@/components/common/CustomIcons';
 
 interface OptimizeConfirmModalProps {
   visible: boolean;
@@ -59,9 +59,6 @@ export const OptimizeConfirmModal: React.FC<OptimizeConfirmModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <View style={styles.iconCircle}>
-                <Sparkles size={18} color="#1B2A4A" />
-              </View>
               <View>
                 <Text style={styles.title}>DAY {dayNumber} 동선 최적화 확인</Text>
                 <Text style={styles.subtitle}>수학적 최단 경로(TSP) 알고리즘 분석 결과</Text>
@@ -97,11 +94,10 @@ export const OptimizeConfirmModal: React.FC<OptimizeConfirmModalProps> = ({
 
           {/* Savings Banner */}
           <View style={styles.savingsBanner}>
-            <Sparkles size={16} color="#1B2A4A" />
             <Text style={styles.savingsText}>
               {savedTime > 0
                 ? `약 ${savedTime}분 (${savedDist > 0 ? savedDist + 'km' : '이동'}) 절약돼요! 🤏`
-                : '현재 동선이 이미 가장 효율적인 최적 경로예요! ✨'}
+                : '현재 동선이 이미 가장 효율적인 최적 경로예요!'}
             </Text>
           </View>
 

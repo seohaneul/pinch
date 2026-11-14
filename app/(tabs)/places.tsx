@@ -35,7 +35,6 @@ import {
   Plus,
   Trash2,
   ExternalLink,
-  Sparkles,
   Calendar,
   X,
   Check,
@@ -378,8 +377,8 @@ export default function PlacesScreen() {
                   cat.value === 'ALL'
                     ? basePlaces.length
                     : basePlaces.filter(
-                        (p) => p.category === cat.value || p.category.toUpperCase() === cat.value
-                      ).length;
+                      (p) => p.category === cat.value || p.category.toUpperCase() === cat.value
+                    ).length;
 
                 return (
                   <TouchableOpacity
@@ -566,7 +565,6 @@ export default function PlacesScreen() {
                     }}
                     size="sm"
                     variant="outline"
-                    icon={<Sparkles size={14} color="#1B2A4A" />}
                   />
                 </View>
               }
@@ -581,7 +579,6 @@ export default function PlacesScreen() {
           contentContainerStyle={{ paddingBottom: 36 }}
         >
           <View style={styles.linksIntroBox}>
-            <Sparkles size={16} color="#1B2A4A" style={{ marginRight: 6 }} />
             <Text style={styles.linksIntroText}>
               수집한 릴스/블로그를 터치하면 <Text style={{ fontWeight: '800' }}>링크 속 장소들을 골라서 보관함에 담을 수 있어요!</Text>
             </Text>
@@ -601,7 +598,7 @@ export default function PlacesScreen() {
                       !failedLinkThumbnails[link.id] && link.thumbnailUrl
                         ? link.thumbnailUrl
                         : link.extractedPlaces[0]?.imageUrl ||
-                          'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop',
+                        'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop',
                   }}
                   style={styles.linkThumb}
                   resizeMode="cover"
@@ -663,7 +660,6 @@ export default function PlacesScreen() {
                   title="첫 링크 핀치하기"
                   onPress={() => setModalVisible(true)}
                   size="sm"
-                  icon={<Sparkles size={14} color="#FFF" />}
                 />
               }
             />
@@ -744,23 +740,20 @@ export default function PlacesScreen() {
                       <TouchableOpacity
                         key={sch.dayNumber}
                         onPress={() => setTargetDay(sch.dayNumber)}
-                        className={`flex-1 py-3 px-2 rounded-2xl border items-center justify-center ${
-                          isSelected
-                            ? 'bg-primary border-primary'
-                            : 'bg-white border-borderLine'
-                        }`}
+                        className={`flex-1 py-3 px-2 rounded-2xl border items-center justify-center ${isSelected
+                          ? 'bg-primary border-primary'
+                          : 'bg-white border-borderLine'
+                          }`}
                       >
                         <Text
-                          className={`text-xs font-extrabold ${
-                            isSelected ? 'text-white' : 'text-darkText'
-                          }`}
+                          className={`text-xs font-extrabold ${isSelected ? 'text-white' : 'text-darkText'
+                            }`}
                         >
                           DAY {sch.dayNumber}
                         </Text>
                         <Text
-                          className={`text-[10px] mt-0.5 font-bold ${
-                            isSelected ? 'text-white/80' : 'text-mutedText'
-                          }`}
+                          className={`text-[10px] mt-0.5 font-bold ${isSelected ? 'text-white/80' : 'text-mutedText'
+                            }`}
                         >
                           {sch.date ? sch.date.split('-').slice(1).join('.') : ''}
                         </Text>

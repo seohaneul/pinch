@@ -492,7 +492,7 @@ export async function generateItineraryWithGemini(params: {
                 arrival_time: arrivalTimeStr,
                 address: spot.address || `${destination} 중심가`,
                 imageUrl,
-                memo: `✨ [AI 추천] ${spot.memo || '여행자 만족도 최상 명소'}`,
+                memo: `[AI 추천] ${spot.memo || '여행자 만족도 최상 명소'}`,
               };
 
               scheduleItems.push(scheduleItem);

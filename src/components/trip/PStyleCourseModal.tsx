@@ -13,7 +13,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   X,
-  Sparkles,
   MapPin,
   Clock,
   Compass,
@@ -158,7 +157,6 @@ export const PStyleCourseModal: React.FC<PStyleCourseModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerBadge}>
-              <Sparkles size={13} color="#1B2A4A" />
               <Text style={styles.headerBadgeText}>🤖 Gemini AI 맞춤 코스 기획</Text>
             </View>
             <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={styles.closeBtn}>
@@ -168,7 +166,7 @@ export const PStyleCourseModal: React.FC<PStyleCourseModalProps> = ({
 
           {/* Title & Trip Context */}
           <View style={styles.titleSection}>
-            <Text style={styles.mainTitle}>여행 계획, 스트레스 받지 마세요! ✨</Text>
+            <Text style={styles.mainTitle}>여행 계획, 스트레스 받지 마세요!</Text>
             <Text style={styles.subTitle}>
               스타일만 고르면 추천 스팟과 최적 동선으로 전체 일정을 3초 만에 채워드려요.
             </Text>
@@ -290,7 +288,6 @@ export const PStyleCourseModal: React.FC<PStyleCourseModalProps> = ({
             {/* Step 3: 실시간 추천 스팟 미리보기 배너 */}
             <View style={styles.previewSection}>
               <View style={styles.previewHeaderRow}>
-                <Sparkles size={14} color="#1B2A4A" style={{ marginRight: 6 }} />
                 <Text style={styles.previewTitle}>
                   '{currentStyleObj.label}' 코스 미리보기 ({previewData?.scheduleItems.length || 0}개 스팟)
                 </Text>
@@ -352,8 +349,7 @@ export const PStyleCourseModal: React.FC<PStyleCourseModalProps> = ({
                 </View>
               ) : (
                 <View style={styles.btnRow}>
-                  <Sparkles size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.applyBtnText}>✨ AI 맞춤 코스로 일정 채우기 (3초)</Text>
+                  <Text style={styles.applyBtnText}>AI 맞춤 코스로 일정 채우기 (3초)</Text>
                 </View>
               )}
             </TouchableOpacity>

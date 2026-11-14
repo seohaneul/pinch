@@ -30,7 +30,6 @@ import {
   Check,
   Plane,
   Globe,
-  Sparkles,
   Camera,
 } from '@/components/common/CustomIcons';
 

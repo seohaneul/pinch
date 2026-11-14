@@ -42,7 +42,6 @@ import { PlaceDetailModal } from '../../src/components/places/PlaceDetailModal';
 import {
   MapPin,
   Calendar,
-  Sparkles,
   Clock,
   Footprints,
   Bus,
@@ -223,7 +222,7 @@ export default function PlannerScreen() {
   const handleConfirmOptimization = () => {
     optimizeDayRoute(selectedDay);
     setOptimizeModalVisible(false);
-    Alert.alert('최적 동선 적용 완료! ✨', '최단 이동 거리 순으로 동선이 자동 재배치되었습니다.');
+    Alert.alert('최적 동선 적용 완료!', '최단 이동 거리 순으로 동선이 자동 재배치되었습니다.');
   };
 
   const handleOpenPlaceDetail = (stop: ScheduleItem) => {
@@ -291,7 +290,6 @@ export default function PlannerScreen() {
             onPress={handleOptimizeRoute}
             className="flex-row items-center bg-primary px-3.5 py-2 rounded-xl"
           >
-            <Sparkles size={14} color="#FFFFFF" className="mr-1" />
             <Text className="text-xs font-bold text-white">동선 최적화</Text>
           </TouchableOpacity>
         }

@@ -228,7 +228,7 @@ export function formatSettlementShareText(
     });
   }
   lines.push('');
-  lines.push('핀치(Pinch)로 간편하고 투명하게 여행 정산 완료! ✨');
+  lines.push('핀치(Pinch)로 간편하고 투명하게 여행 정산 완료!');
 
   return lines.join('\n');
 }

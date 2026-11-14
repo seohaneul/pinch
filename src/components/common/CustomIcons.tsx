@@ -213,14 +213,6 @@ export const ShoppingBag = makeIcon('ShoppingBag', (k) => (
   </>
 ));
 
-export const Sparkles = makeIcon('Sparkles', (k) => (
-  <>
-    <Path d="M10 3.5c.5 3.6 2 5.1 5.5 5.5-3.5.5-5 2-5.5 5.5-.5-3.5-2-5-5.5-5.5 3.5-.4 5-1.9 5.5-5.5z" {...b(k)} />
-    <Path d="M17.5 13c.3 2 1.2 2.9 3 3.2-1.8.3-2.7 1.2-3 3.2-.3-2-1.2-2.9-3-3.2 1.8-.3 2.7-1.2 3-3.2z" {...b(k)} />
-    <Circle cx="5.5" cy="18.5" r="1.1" {...d(k)} />
-  </>
-));
-
 export const Star = makeIcon('Star', (k) => (
   <Path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.6l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" {...b(k)} />
 ));

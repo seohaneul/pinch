@@ -14,7 +14,6 @@ import {
   X,
   Navigation,
   Check,
-  Sparkles,
   Train,
   Car,
   Ship,

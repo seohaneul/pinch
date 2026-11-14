@@ -51,7 +51,6 @@ import {
   ArrowUpRight,
   Check,
   X,
-  Sparkles,
   MapPin,
   Calendar,
   Layers,
@@ -224,7 +223,7 @@ export default function WalletScreen() {
     setNewCustomBudgetName('');
     setNewCustomBudgetAmount('');
     setIsAddingCustomBudget(false);
-    Alert.alert('맞춤 예산 추가 완료 ✨', `"${newCustomBudgetName.trim()}" (${num.toLocaleString()}원) 항목이 추가되었습니다.`);
+    Alert.alert('맞춤 예산 추가 완료', `"${newCustomBudgetName.trim()}" (${num.toLocaleString()}원) 항목이 추가되었습니다.`);
   };
 
 
@@ -535,7 +534,6 @@ export default function WalletScreen() {
                   onPress={() => setCategoryBudgetModalVisible(true)}
                   className="bg-primary/10 px-3 py-1.5 rounded-xl flex-row items-center"
                 >
-                  <Sparkles size={12} color="#1B2A4A" style={{ marginRight: 4 }} />
                   <Text className="text-xs font-extrabold text-primary">예산 설정</Text>
                 </TouchableOpacity>
               </View>
@@ -704,9 +702,6 @@ export default function WalletScreen() {
                     className="flex-row items-center justify-between py-2 border-b border-gray-50 last:border-b-0"
                   >
                     <View className="flex-row items-center flex-1">
-                      <View className="w-6 h-6 rounded-md bg-cyan-50 items-center justify-center mr-2">
-                        <Sparkles size={12} color="#0891B2" />
-                      </View>
                       <Text className="text-xs font-bold text-darkText flex-1" numberOfLines={1}>
                         {cb.name}
                       </Text>
@@ -1026,8 +1021,7 @@ export default function WalletScreen() {
               <View className="flex-row items-center justify-between">
                 <View className="flex-1 mr-3">
                   <View className="flex-row items-center mb-1">
-                    <Sparkles size={16} color="#1B2A4A" />
-                    <Text className="text-sm font-extrabold text-darkText ml-1.5">
+                    <Text className="text-sm font-extrabold text-darkText">
                       카카오톡 메신저 원터치 공유
                     </Text>
                   </View>

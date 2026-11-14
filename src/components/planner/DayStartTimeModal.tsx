@@ -13,7 +13,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   X,
   Clock,
-  Sparkles,
   Check,
   Plane,
   ArrowRight,

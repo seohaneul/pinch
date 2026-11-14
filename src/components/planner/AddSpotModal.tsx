@@ -22,7 +22,6 @@ import {
   Search,
   X,
   MapPin,
-  Sparkles,
   Check,
   Building,
   Hotel,
