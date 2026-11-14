@@ -109,16 +109,84 @@ export const useTripStore = create<TripState>()(
 
   setTripFlight: (tripId: string, flight: FlightInfo) => {
     set((state) => {
-      // 항공편 일정 경로 삭제: scheduleItems에 항공편(FLIGHT) 스팟을 넣지 않고 기존 항목도 정리
       const nonFlightItems = state.scheduleItems.filter(
         (s) => !(s.trip_id === tripId && (s.id.startsWith(`flight_${tripId}`) || s.category === 'FLIGHT'))
       );
+
+      const targetTrip = state.trips.find((t) => t.id === tripId) || state.currentTrip;
+      const schedules = targetTrip?.schedules || [];
+      const totalDays = Math.max(1, schedules.length);
+
+      const findDayByDate = (dateStr?: string, fallbackDay: number = 1): number => {
+        if (!dateStr || schedules.length === 0) return fallbackDay;
+        const matched = schedules.find((s) => s.date === dateStr);
+        return matched ? matched.dayNumber : fallbackDay;
+      };
+
+      const flightScheduleItems: ScheduleItem[] = [];
+
+      const outLeg = flight.outbound || {
+        flightNumber: flight.flightNumber,
+        airline: flight.airline,
+        departureAirport: flight.departureAirport,
+        departureDate: flight.departureDate,
+        departureTime: flight.departureTime,
+        arrivalAirport: flight.arrivalAirport,
+        arrivalDate: flight.arrivalDate,
+        arrivalTime: flight.arrivalTime,
+        arrivalNextDay: flight.arrivalNextDay,
+        terminal: flight.terminal,
+      };
+
+      if (outLeg.flightNumber || outLeg.departureAirport || outLeg.arrivalAirport) {
+        const outDay = findDayByDate(outLeg.departureDate, 1);
+        const label = [outLeg.airline, outLeg.flightNumber].filter(Boolean).join(' ').trim() || '가는 편 항공';
+        flightScheduleItems.push({
+          id: `flight_${tripId}_out`,
+          place_id: `flight_${tripId}_out`,
+          trip_id: tripId,
+          day_number: outDay,
+          order_index: 0,
+          place_name: `🛫 ${label}`,
+          category: 'FLIGHT',
+          latitude: 0,
+          longitude: 0,
+          arrival_time: outLeg.departureTime || '09:30',
+          stay_duration_minutes: 0,
+          transport_mode: 'TRANSIT',
+          travel_duration_minutes: 0,
+          memo: `${outLeg.departureAirport || '출발'} (${outLeg.departureTime || ''}) → ${outLeg.arrivalAirport || '도착'} (${outLeg.arrivalTime || ''}${outLeg.arrivalNextDay ? ' +1일' : ''})`,
+        });
+      }
+
+      if (flight.returnFlight && (flight.returnFlight.flightNumber || flight.returnFlight.departureAirport)) {
+        const retLeg = flight.returnFlight;
+        const retDay = findDayByDate(retLeg.departureDate, totalDays);
+        const retLabel = [retLeg.airline, retLeg.flightNumber].filter(Boolean).join(' ').trim() || '오는 편 항공';
+        flightScheduleItems.push({
+          id: `flight_${tripId}_ret`,
+          place_id: `flight_${tripId}_ret`,
+          trip_id: tripId,
+          day_number: retDay,
+          order_index: 999,
+          place_name: `🛬 ${retLabel}`,
+          category: 'FLIGHT',
+          latitude: 0,
+          longitude: 0,
+          arrival_time: retLeg.departureTime || '15:00',
+          stay_duration_minutes: 0,
+          transport_mode: 'TRANSIT',
+          travel_duration_minutes: 0,
+          memo: `${retLeg.departureAirport || '출발'} (${retLeg.departureTime || ''}) → ${retLeg.arrivalAirport || '도착'} (${retLeg.arrivalTime || ''}${retLeg.arrivalNextDay ? ' +1일' : ''})`,
+        });
+      }
+
       return {
         tripFlights: {
           ...state.tripFlights,
           [tripId]: flight,
         },
-        scheduleItems: nonFlightItems,
+        scheduleItems: [...flightScheduleItems, ...nonFlightItems],
       };
     });
   },
@@ -140,13 +208,8 @@ export const useTripStore = create<TripState>()(
     });
   },
 
-  syncFlightToSchedule: (tripId: string, _flight: FlightInfo) => {
-    // 항공편은 전용 항공권 예약 정보 카드에서만 표시하며 타임라인/지도 경로에 포함하지 않음
-    set((state) => ({
-      scheduleItems: state.scheduleItems.filter(
-        (s) => !(s.trip_id === tripId && (s.id.startsWith(`flight_${tripId}`) || s.category === 'FLIGHT'))
-      ),
-    }));
+  syncFlightToSchedule: (tripId: string, flight: FlightInfo) => {
+    get().setTripFlight(tripId, flight);
   },
 
   getActiveTrip: () => {
@@ -157,7 +220,7 @@ export const useTripStore = create<TripState>()(
   getActiveScheduleItems: () => {
     const { scheduleItems, activeTripId } = get();
     return scheduleItems.filter(
-      (s) => (!s.trip_id || s.trip_id === activeTripId) && s.category !== 'FLIGHT'
+      (s) => !s.trip_id || s.trip_id === activeTripId
     );
   },
 
@@ -386,13 +449,18 @@ export const useTripStore = create<TripState>()(
     let currentMinutes = startHour * 60 + startMin;
 
     const updatedDayItems = dayItems.map((item, index) => {
+      if (item.category === 'FLIGHT') {
+        return { ...item, travel_duration_minutes: 0 };
+      }
+
       let travelMins = 0;
 
       if (index > 0) {
+        const prev = dayItems[index - 1];
         if (item.custom_travel_minutes !== undefined && item.custom_travel_minutes > 0) {
           travelMins = item.custom_travel_minutes;
-        } else {
-          const prev = dayItems[index - 1];
+          currentMinutes += travelMins;
+        } else if (prev.category !== 'FLIGHT') {
           const distKm = calculateDistance(
             prev.latitude,
             prev.longitude,
@@ -400,8 +468,8 @@ export const useTripStore = create<TripState>()(
             item.longitude
           );
           travelMins = estimateTravelTime(distKm, item.transport_mode);
+          currentMinutes += travelMins;
         }
-        currentMinutes += travelMins;
       }
 
       const arrivalTime = formatMinutesToTime(currentMinutes);
@@ -458,13 +526,21 @@ export const useTripStore = create<TripState>()(
   },
 
   setDayLodging: (dayNumber, lodging) => {
-    const { activeTripId, dayLodgings } = get();
-    const key = `${activeTripId}_day_${dayNumber}`;
-    set({
-      dayLodgings: {
-        ...dayLodgings,
-        [key]: lodging,
-      },
+    set((state) => {
+      const { activeTripId, dayLodgings, trips, currentTrip } = state;
+      const key = `${activeTripId}_day_${dayNumber}`;
+      const syncTripLodging = (t: Trip): Trip =>
+        t.id === activeTripId && (dayNumber === 1 || !t.lodging?.name)
+          ? { ...t, lodging }
+          : t;
+      return {
+        dayLodgings: {
+          ...dayLodgings,
+          [key]: lodging,
+        },
+        trips: trips.map(syncTripLodging),
+        currentTrip: currentTrip ? syncTripLodging(currentTrip) : currentTrip,
+      };
     });
   },
 
@@ -474,31 +550,49 @@ export const useTripStore = create<TripState>()(
   },
 
   setRangeLodging: (tripId: string, lodging: LodgingInfo, startDayNumber: number, endDayNumber: number) => {
-    const { dayLodgings } = get();
-    const updated = { ...dayLodgings };
-    const minDay = Math.min(startDayNumber, endDayNumber);
-    const maxDay = Math.max(startDayNumber, endDayNumber);
-    for (let d = minDay; d <= maxDay; d++) {
-      updated[`${tripId}_day_${d}`] = {
-        ...lodging,
-        trip_id: tripId,
-        day_number: d,
-        startDay: minDay,
-        endDay: maxDay,
+    set((state) => {
+      const { dayLodgings, trips, currentTrip } = state;
+      const updated = { ...dayLodgings };
+      const minDay = Math.min(startDayNumber, endDayNumber);
+      const maxDay = Math.max(startDayNumber, endDayNumber);
+      for (let d = minDay; d <= maxDay; d++) {
+        updated[`${tripId}_day_${d}`] = {
+          ...lodging,
+          trip_id: tripId,
+          day_number: d,
+          startDay: minDay,
+          endDay: maxDay,
+        };
+      }
+      const syncTripLodging = (t: Trip): Trip =>
+        t.id === tripId && (minDay === 1 || !t.lodging?.name)
+          ? { ...t, lodging }
+          : t;
+      return {
+        dayLodgings: updated,
+        trips: trips.map(syncTripLodging),
+        currentTrip: currentTrip ? syncTripLodging(currentTrip) : currentTrip,
       };
-    }
-    set({ dayLodgings: updated });
+    });
   },
 
   clearTripLodgings: (tripId: string) => {
-    const { dayLodgings } = get();
-    const updated = { ...dayLodgings };
-    Object.keys(updated).forEach((k) => {
-      if (k.startsWith(`${tripId}_day_`)) {
-        delete updated[k];
-      }
+    set((state) => {
+      const { dayLodgings, trips, currentTrip } = state;
+      const updated = { ...dayLodgings };
+      Object.keys(updated).forEach((k) => {
+        if (k.startsWith(`${tripId}_day_`)) {
+          delete updated[k];
+        }
+      });
+      const clearOnTrip = (t: Trip): Trip =>
+        t.id === tripId ? { ...t, lodging: undefined } : t;
+      return {
+        dayLodgings: updated,
+        trips: trips.map(clearOnTrip),
+        currentTrip: currentTrip ? clearOnTrip(currentTrip) : currentTrip,
+      };
     });
-    set({ dayLodgings: updated });
   },
 
   applyFlightStartTime: (dayNumber, flightTimeStr, bufferMinutes = 90) => {

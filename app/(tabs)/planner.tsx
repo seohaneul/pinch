@@ -134,18 +134,18 @@ export default function PlannerScreen() {
   const tripFlight = getTripFlight(currentTrip?.id);
 
 
-  // Get current day's sorted schedule items (filtered by active trip, excluding FLIGHT stops)
+  // Get current day's sorted schedule items (filtered by active trip, including FLIGHT)
   const dayStops = scheduleItems
     .filter(
       (s) =>
         s.day_number === selectedDay &&
-        (!s.trip_id || s.trip_id === currentTrip?.id) &&
-        s.category !== 'FLIGHT'
+        (!s.trip_id || s.trip_id === currentTrip?.id)
     )
     .sort((a, b) => a.order_index - b.order_index);
 
   const getStopCategoryLabel = (cat?: string) => {
     const u = (cat || '').toUpperCase();
+    if (u === 'FLIGHT') return '항공편';
     if (u === 'CAFE') return '카페';
     if (u === 'RESTAURANT') return '맛집';
     if (u === 'LODGING' || u === 'STAY') return '숙소';
@@ -321,8 +321,7 @@ export default function PlannerScreen() {
               const count = scheduleItems.filter(
                 (s) =>
                   s.day_number === schedule.dayNumber &&
-                  (!s.trip_id || s.trip_id === currentTrip?.id) &&
-                  s.category !== 'FLIGHT'
+                  (!s.trip_id || s.trip_id === currentTrip?.id)
               ).length;
               return (
                 <TouchableOpacity

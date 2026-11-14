@@ -20,6 +20,8 @@ import { useClipboardListener } from '../../src/hooks/useClipboardListener';
 import { ClipboardToast } from '../../src/components/places/ClipboardToast';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import { CreateTripModal } from '../../src/components/trip/CreateTripModal';
+import { FlightModal } from '../../src/components/planner/FlightModal';
+import { LodgingModal } from '../../src/components/planner/LodgingModal';
 import { LinkPlacesModal } from '../../src/components/places/LinkPlacesModal';
 import { PlaceSearchModal } from '../../src/components/places/PlaceSearchModal';
 import type { SavedLink } from '../../src/types';
@@ -46,10 +48,21 @@ export default function HomeScreen() {
   const [wizardVisible, setWizardVisible] = useState(false);
   const [wizardEditMode, setWizardEditMode] = useState(false);
   const [wizardInitialStep, setWizardInitialStep] = useState<1 | 2 | 3 | 4>(1);
+  const [flightModalVisible, setFlightModalVisible] = useState(false);
+  const [lodgingModalVisible, setLodgingModalVisible] = useState(false);
   const [selectedLinkForPlaces, setSelectedLinkForPlaces] = useState<SavedLink | null>(null);
   const [placeSearchVisible, setPlaceSearchVisible] = useState(false);
 
-  const { currentTrip, scheduleItems, getTripFlight, getDayLodging } = useTripStore();
+  const {
+    currentTrip,
+    scheduleItems,
+    dayLodgings,
+    getTripFlight,
+    setTripFlight,
+    deleteTripFlight,
+    setDayLodging,
+    setRangeLodging,
+  } = useTripStore();
   const { places } = usePlaceStore();
   const { isExtractingLink, addLinkFromUrl } = useSavedLinkStore();
   const { getTotalKrw } = useWalletStore();
@@ -57,14 +70,21 @@ export default function HomeScreen() {
 
   const currentTripId = currentTrip?.id || 't_first';
   const currentTripScheduleItems = scheduleItems.filter(
-    (s) => s.trip_id === currentTripId && s.category !== 'FLIGHT'
+    (s) => s.trip_id === currentTripId
   );
   const tripPlaces = places.filter((p) => p.trip_id === currentTripId);
 
-  const tripFlight = getTripFlight(currentTripId);
-  const tripLodging = currentTrip?.lodging || getDayLodging(1);
-  const totalKrw = getTotalKrw(currentTripId);
   const dayCount = currentTrip?.schedules?.length || 1;
+  const tripFlight = getTripFlight(currentTripId);
+  const firstRegisteredDayLodging = (() => {
+    for (let d = 1; d <= dayCount; d++) {
+      const l = dayLodgings?.[`${currentTripId}_day_${d}`];
+      if (l?.name) return l;
+    }
+    return null;
+  })();
+  const tripLodging = firstRegisteredDayLodging || currentTrip?.lodging || null;
+  const totalKrw = getTotalKrw(currentTripId);
   const memberCount = currentTrip?.members?.length || 1;
 
   const calculateDDay = (startDate?: string) => {
@@ -240,10 +260,10 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.quickCardsRow}
           >
-            {/* 1) 항공편 카드 */}
+            {/* 1) 항공편 카드 — 누르면 항공편만 수정하는 전용 모달 열림 */}
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => openEditTripAtStep(3)}
+              onPress={() => setFlightModalVisible(true)}
               style={[styles.quickSquareCard, !hasFlight && styles.quickSquareCardDashed]}
             >
               <View style={styles.quickIconWrap}>
@@ -264,10 +284,10 @@ export default function HomeScreen() {
               </Text>
             </TouchableOpacity>
 
-            {/* 2) 숙소 카드 */}
+            {/* 2) 숙소 카드 — 누르면 숙소만 수정하는 전용 모달 열림 */}
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => openEditTripAtStep(4)}
+              onPress={() => setLodgingModalVisible(true)}
               style={[styles.quickSquareCard, !hasLodging && styles.quickSquareCardDashed]}
             >
               <View style={styles.quickIconWrap}>
@@ -474,6 +494,35 @@ export default function HomeScreen() {
         initialStep={wizardInitialStep}
         onClose={() => setWizardVisible(false)}
         onCreated={() => setWizardVisible(false)}
+      />
+
+      {/* 홈 항공편 카드 전용 수정 모달 */}
+      <FlightModal
+        visible={flightModalVisible}
+        onClose={() => setFlightModalVisible(false)}
+        tripTitle={currentTrip?.title}
+        tripId={currentTripId}
+        tripStartDate={currentTrip?.startDate}
+        tripEndDate={currentTrip?.endDate}
+        schedules={currentTrip?.schedules}
+        initialFlight={tripFlight}
+        onSaveFlight={(flight) => setTripFlight(currentTripId, flight)}
+        onDeleteFlight={() => deleteTripFlight(currentTripId)}
+      />
+
+      {/* 홈 숙소 카드 전용 수정 모달 */}
+      <LodgingModal
+        visible={lodgingModalVisible}
+        onClose={() => setLodgingModalVisible(false)}
+        dayNumber={1}
+        tripStartDate={currentTrip?.startDate}
+        tripEndDate={currentTrip?.endDate}
+        schedules={currentTrip?.schedules}
+        initialLodging={tripLodging}
+        onSave={(lodging) => setDayLodging(1, lodging)}
+        onSaveRange={(lodging, startDay, endDay) =>
+          setRangeLodging(currentTripId, lodging, startDay, endDay)
+        }
       />
 
       {/* 링크 추출 장소 선택 모달 */}

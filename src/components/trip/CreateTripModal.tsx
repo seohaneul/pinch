@@ -255,12 +255,14 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     유럽: false,
   });
 
-  // Step 2: 날짜 & 제목 상태
+  // Step 2: 날짜 & 제목 & 동행 상태
   const [title, setTitle] = useState('');
   const [startDate, setStartDate] = useState(getTodayStr());
   const [endDate, setEndDate] = useState(addDaysStr(getTodayStr(), 3));
   const [selectedPresetDays, setSelectedPresetDays] = useState<number | null>(3);
   const [showCalendarPicker, setShowCalendarPicker] = useState(false);
+  const [memberNames, setMemberNames] = useState<string[]>(['나']);
+  const [companionInput, setCompanionInput] = useState('');
 
   // Step 3: 항공편 (여행 날짜 확인 -> 출발 공항 선택 -> 도착 공항 선택 -> 노선별 전체 실제 운항편 리스트 -> 원터치 자동입력)
   const [flightTab, setFlightTab] = useState<'outbound' | 'inbound'>('outbound');
@@ -498,6 +500,12 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
       setStartDate(editTrip.startDate || getTodayStr());
       setEndDate(editTrip.endDate || addDaysStr(getTodayStr(), 3));
       setSelectedPresetDays(null);
+      setMemberNames(
+        editTrip.members && editTrip.members.length > 0
+          ? editTrip.members.map((m) => m.name)
+          : ['나']
+      );
+      setCompanionInput('');
 
       const existingFlight = tripFlights[editTrip.id];
       if (existingFlight) {
@@ -545,6 +553,8 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
       setStartDate(today);
       setEndDate(addDaysStr(today, 3));
       setSelectedPresetDays(3);
+      setMemberNames(['나']);
+      setCompanionInput('');
       setOutAirline('');
       setOutDepAirport('인천국제공항 (ICN)');
       setOutArrAirport('');
@@ -662,6 +672,22 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     setStep(2);
   };
 
+  const handleAddCompanion = () => {
+    const clean = companionInput.trim();
+    if (!clean) return;
+    if (!memberNames.includes(clean)) {
+      setMemberNames((prev) => [...prev, clean]);
+    }
+    setCompanionInput('');
+  };
+
+  const handleRemoveCompanion = (name: string) => {
+    setMemberNames((prev) => {
+      const next = prev.filter((n) => n !== name);
+      return next.length > 0 ? next : ['나'];
+    });
+  };
+
   const handleGoNextFromStep2 = () => {
     if (!startDate) {
       Alert.alert('날짜 확인', '여행 시작일을 선택해 주세요.');
@@ -716,7 +742,14 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
 
     let targetTrip: Trip;
 
+    const finalMembers =
+      memberNames.length > 0 ? memberNames : ['나'];
+
     if (isEditMode && editTrip) {
+      const updatedMembers = finalMembers.map((name, idx) => {
+        const existing = editTrip.members?.find((m) => m.name === name);
+        return existing || { id: `m_${Date.now()}_${idx}`, name };
+      });
       updateTrip(editTrip.id, {
         title: finalTitle,
         destination: cleanDest,
@@ -727,6 +760,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
         centerLat: selectedCandidate?.latitude || editTrip.centerLat || 35.6762,
         centerLng: selectedCandidate?.longitude || editTrip.centerLng || 139.6503,
         currency: autoCurrency,
+        members: updatedMembers,
       });
       targetTrip = {
         ...editTrip,
@@ -737,6 +771,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
         endDate: endDate || startDate,
         coverImage: '',
         currency: autoCurrency,
+        members: updatedMembers,
       };
     } else {
       targetTrip = createTrip({
@@ -749,6 +784,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
         centerLat: selectedCandidate?.latitude,
         centerLng: selectedCandidate?.longitude,
         currency: autoCurrency,
+        memberNames: finalMembers,
       });
     }
 
@@ -1351,6 +1387,45 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                   placeholderTextColor="#9CA3AF"
                   style={styles.searchInput}
                 />
+              </View>
+
+              {/* 동행자 입력 */}
+              <Text style={[styles.sectionSmallLabel, { marginTop: 22 }]}>
+                동행자 ({memberNames.length}명)
+              </Text>
+              <View style={styles.selectedCitiesWrap}>
+                {memberNames.map((name, idx) => (
+                  <View key={`${name}_${idx}`} style={styles.selectedCityChip}>
+                    <Text style={styles.selectedCityChipText}>{name}</Text>
+                    {memberNames.length > 1 && (
+                      <TouchableOpacity
+                        onPress={() => handleRemoveCompanion(name)}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <X size={13} color="#FFFFFF" style={{ marginLeft: 4 }} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+              </View>
+              <View style={styles.searchBox}>
+                <TextInput
+                  value={companionInput}
+                  onChangeText={setCompanionInput}
+                  onSubmitEditing={handleAddCompanion}
+                  placeholder="함께 가는 동행자 이름 입력 (예: 지수, 민준)"
+                  placeholderTextColor="#9CA3AF"
+                  style={styles.searchInput}
+                />
+                {companionInput.trim().length > 0 && (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={handleAddCompanion}
+                    style={styles.inlineAddCityBtn}
+                  >
+                    <Text style={styles.inlineAddCityBtnText}>+ 추가</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               <TouchableOpacity
