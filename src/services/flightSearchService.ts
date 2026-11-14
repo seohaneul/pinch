@@ -462,7 +462,7 @@ export function getFlightsForRoute(
   schedules.sort((a, b) => a.departureTime.localeCompare(b.departureTime));
 
   // 항공사 필터
-  if (airlineFilter && airlineFilter !== 'ALL') {
+  if (airlineFilter && airlineFilter !== 'ALL' && airlineFilter !== '전체') {
     schedules = schedules.filter((s) => s.airline === airlineFilter || s.airlineCode === airlineFilter);
   }
 
@@ -479,6 +479,276 @@ export function getFlightsForRoute(
   }
 
   return schedules;
+}
+
+// ==================== 실시간 공공데이터포털(인천국제공항공사 정기운항편) 연동 ====================
+
+interface PaxFltSchedItem {
+  flightid?: string;
+  airline?: string;
+  st?: string; // HHMM
+  firstdate?: string; // YYYYMMDD
+  lastdate?: string; // YYYYMMDD
+  airportcode?: string; // IATA 3-letter
+  airport?: string;
+  season?: string;
+  monday?: string;
+  tuesday?: string;
+  wednesday?: string;
+  thursday?: string;
+  friday?: string;
+  saturday?: string;
+  sunday?: string;
+}
+
+const ICN_CACHE_TTL_MS = 30 * 60 * 1000;
+let icnDepCache: { items: PaxFltSchedItem[]; fetchedAt: number } | null = null;
+let icnArrCache: { items: PaxFltSchedItem[]; fetchedAt: number } | null = null;
+
+// 공항별 UTC 오프셋(시간) — 출발/도착 현지 시각 계산용
+const AIRPORT_UTC_OFFSET: Record<string, number> = {
+  ICN: 9, GMP: 9, PUS: 9, CJU: 9, TAE: 9, CJJ: 9,
+  FUK: 9, NRT: 9, HND: 9, KIX: 9, CTS: 9, OKA: 9, NGO: 9,
+  TPE: 8, TSA: 8, KHH: 8, HKG: 8, MFM: 8,
+  CEB: 8, TAG: 8, MNL: 8, SIN: 8, BKI: 8, KUL: 8, DPS: 8,
+  DAD: 7, CXR: 7, HAN: 7, PQC: 7, SGN: 7, DLI: 7,
+  BKK: 7, DMK: 7, CNX: 7, HKT: 7,
+  GUM: 10, SPN: 10, SYD: 11,
+  HNL: -10, LAX: -8, JFK: -5,
+  CDG: 1, FCO: 1, BCN: 1, FRA: 1, LHR: 0,
+};
+
+// 인천 기준 주요 노선 평균 비행시간(분)
+const ICN_FLIGHT_MINUTES: Record<string, number> = {
+  FUK: 85, KIX: 110, NGO: 115, NRT: 145, HND: 140, CTS: 165, OKA: 140,
+  TPE: 155, TSA: 155, KHH: 170, HKG: 225, MFM: 225,
+  DAD: 285, CXR: 300, HAN: 270, PQC: 330, SGN: 325, DLI: 310,
+  CEB: 280, TAG: 280, MNL: 250, BKK: 355, DMK: 355, CNX: 370, HKT: 390,
+  SIN: 390, BKI: 320, KUL: 390, DPS: 430,
+  GUM: 270, SPN: 270, HNL: 495, LAX: 675, JFK: 850, SYD: 630,
+  CDG: 830, LHR: 830, FCO: 810, BCN: 830, FRA: 780,
+};
+
+function getDataGoKrKey(): string {
+  const raw = (process.env.EXPO_PUBLIC_DATA_GO_KR_KEY || '').trim();
+  if (!raw) return '';
+  return raw.includes('%') ? raw : encodeURIComponent(raw);
+}
+
+function formatHHMM(st?: string): string {
+  const clean = (st || '').replace(/\D/g, '').padStart(4, '0');
+  if (clean.length < 4) return '09:00';
+  return `${clean.slice(0, 2)}:${clean.slice(2, 4)}`;
+}
+
+function addMinutesWithNextDay(
+  hhmm: string,
+  deltaMinutes: number
+): { time: string; dayOffset: number } {
+  const [h, m] = hhmm.split(':').map(Number);
+  const total = (isNaN(h) ? 9 : h) * 60 + (isNaN(m) ? 0 : m) + deltaMinutes;
+  const dayOffset = Math.floor(total / 1440);
+  const mod = ((total % 1440) + 1440) % 1440;
+  const nh = String(Math.floor(mod / 60)).padStart(2, '0');
+  const nm = String(mod % 60).padStart(2, '0');
+  return { time: `${nh}:${nm}`, dayOffset };
+}
+
+function formatDurationMinutes(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h}시간` : `${h}시간 ${m}분`;
+}
+
+function matchesDayOfWeek(item: PaxFltSchedItem, dateStr?: string): boolean {
+  if (!dateStr) return true;
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return true;
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  const dayMap: (keyof PaxFltSchedItem)[] = [
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+  ];
+  const key = dayMap[d.getDay()];
+  const val = item[key];
+  return !val || val === 'Y';
+}
+
+async function fetchIcnScheduleList(kind: 'departures' | 'arrivals'): Promise<PaxFltSchedItem[]> {
+  const now = Date.now();
+  if (kind === 'departures' && icnDepCache && now - icnDepCache.fetchedAt < ICN_CACHE_TTL_MS) {
+    return icnDepCache.items;
+  }
+  if (kind === 'arrivals' && icnArrCache && now - icnArrCache.fetchedAt < ICN_CACHE_TTL_MS) {
+    return icnArrCache.items;
+  }
+
+  const serviceKey = getDataGoKrKey();
+  if (!serviceKey) return [];
+
+  const op = kind === 'departures' ? 'getPaxFltSchedDepartures' : 'getPaxFltSchedArrivals';
+  const url = `https://apis.data.go.kr/B551177/PaxFltSched/${op}?serviceKey=${serviceKey}&type=json&numOfRows=3000&pageNo=1`;
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  const rawItems = json?.response?.body?.items;
+  const items: PaxFltSchedItem[] = Array.isArray(rawItems) ? rawItems : [];
+
+  if (kind === 'departures') {
+    icnDepCache = { items, fetchedAt: now };
+  } else {
+    icnArrCache = { items, fetchedAt: now };
+  }
+  return items;
+}
+
+export interface FetchRealFlightsOptions {
+  depAirport: string;
+  arrAirport: string;
+  date?: string; // YYYY-MM-DD
+  filterQuery?: string;
+  airlineFilter?: string;
+}
+
+export interface FetchRealFlightsResult {
+  flights: RealFlightSchedule[];
+  source: 'live-icn' | 'fallback';
+}
+
+/**
+ * 실제 공공데이터포털(인천국제공항공사 여객기 정기운항편)에서 노선별 운항편을 조회합니다.
+ * 인천(ICN) 이외 노선이나 API 오류/미설정 시 로컬 시간표로 자동 폴백합니다.
+ */
+export async function fetchRealFlightsForRoute(
+  options: FetchRealFlightsOptions
+): Promise<FetchRealFlightsResult> {
+  const { depAirport, arrAirport, date, filterQuery = '', airlineFilter } = options;
+  const depCode = extractIataCode(depAirport);
+  const arrCode = extractIataCode(arrAirport);
+
+  if (!depCode || !arrCode || depCode === arrCode) {
+    return { flights: [], source: 'fallback' };
+  }
+
+  const isIcnOutbound = depCode === 'ICN';
+  const isIcnInbound = arrCode === 'ICN';
+  const serviceKey = getDataGoKrKey();
+
+  if ((isIcnOutbound || isIcnInbound) && serviceKey) {
+    try {
+      const rawList = await fetchIcnScheduleList(isIcnOutbound ? 'departures' : 'arrivals');
+      const targetCode = isIcnOutbound ? arrCode : depCode;
+      const routeItems = rawList.filter(
+        (it) => (it.airportcode || '').toUpperCase() === targetCode
+      );
+
+      if (routeItems.length > 0) {
+        // 날짜가 지정된 경우: 시즌 기간(firstdate~lastdate) + 요일 필터 적용
+        const yyyymmdd = date ? date.replace(/-/g, '') : '';
+        let dateFiltered = routeItems.filter((it) => matchesDayOfWeek(it, date));
+        if (yyyymmdd.length === 8) {
+          const inSeason = dateFiltered.filter(
+            (it) =>
+              (!it.firstdate || it.firstdate <= yyyymmdd) &&
+              (!it.lastdate || yyyymmdd <= it.lastdate)
+          );
+          if (inSeason.length > 0) {
+            dateFiltered = inSeason;
+          }
+        }
+
+        const depDisplay = getAirportDisplayByCode(depCode, depAirport);
+        const arrDisplay = getAirportDisplayByCode(arrCode, arrAirport);
+        const flightMins = ICN_FLIGHT_MINUTES[targetCode] || 180;
+        const tzDiffMins =
+          ((AIRPORT_UTC_OFFSET[arrCode] ?? 9) - (AIRPORT_UTC_OFFSET[depCode] ?? 9)) * 60;
+
+        // 동일 편명/시간 중복 제거
+        const seen = new Set<string>();
+        let mapped: RealFlightSchedule[] = [];
+
+        for (const it of dateFiltered) {
+          const flightNo = (it.flightid || '').trim().toUpperCase();
+          const stTime = formatHHMM(it.st);
+          if (!flightNo) continue;
+          const dedupKey = `${flightNo}_${stTime}`;
+          if (seen.has(dedupKey)) continue;
+          seen.add(dedupKey);
+
+          const airlineCode = flightNo.slice(0, 2);
+          const meta = AIRLINE_META[airlineCode];
+          const airlineName = meta?.name || (it.airline || '').trim() || `${airlineCode}항공`;
+
+          let departureTime = stTime;
+          let arrivalTime = stTime;
+          let arrivalNextDay = false;
+
+          if (isIcnOutbound) {
+            const calc = addMinutesWithNextDay(stTime, flightMins + tzDiffMins);
+            arrivalTime = calc.time;
+            arrivalNextDay = calc.dayOffset > 0;
+          } else {
+            // stTime = 인천 도착 시각 -> 현지 출발 시각 역산
+            const calc = addMinutesWithNextDay(stTime, -(flightMins + tzDiffMins));
+            departureTime = calc.time;
+            arrivalNextDay = calc.dayOffset < 0;
+          }
+
+          mapped.push({
+            id: `live_${depCode}_${arrCode}_${flightNo}_${stTime}`,
+            flightNumber: flightNo,
+            airline: airlineName,
+            airlineCode,
+            airlineColor: meta?.color || '#1B2A4A',
+            departureAirport: depDisplay,
+            departureCode: depCode,
+            arrivalAirport: arrDisplay,
+            arrivalCode: arrCode,
+            departureTime,
+            arrivalTime,
+            durationText: formatDurationMinutes(flightMins),
+            arrivalNextDay,
+            terminal: meta?.defaultTerminal || '제1여객터미널',
+            direction: isIcnOutbound ? 'outbound' : 'return',
+          });
+        }
+
+        mapped.sort((a, b) => a.departureTime.localeCompare(b.departureTime));
+
+        if (airlineFilter && airlineFilter !== 'ALL' && airlineFilter !== '전체') {
+          mapped = mapped.filter(
+            (s) => s.airline === airlineFilter || s.airlineCode === airlineFilter
+          );
+        }
+
+        const q = filterQuery.trim().toLowerCase();
+        if (q) {
+          mapped = mapped.filter(
+            (s) =>
+              s.flightNumber.toLowerCase().includes(q) ||
+              s.airline.toLowerCase().includes(q) ||
+              s.departureTime.includes(q) ||
+              s.arrivalTime.includes(q)
+          );
+        }
+
+        return { flights: mapped, source: 'live-icn' };
+      }
+    } catch {
+      // API 장애 시 로컬 시간표 폴백
+    }
+  }
+
+  return {
+    flights: getFlightsForRoute(depAirport, arrAirport, filterQuery, airlineFilter),
+    source: 'fallback',
+  };
 }
 
 /**

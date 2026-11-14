@@ -30,6 +30,7 @@ import {
 } from '../../services/airportService';
 import {
   getFlightsForRoute,
+  fetchRealFlightsForRoute,
   findPairedReturnFlight,
   type RealFlightSchedule,
 } from '../../services/flightSearchService';
@@ -223,24 +224,110 @@ export const FlightModal: React.FC<FlightModalProps> = ({
     }
   }, [visible, initialFlight, tripStartDate, tripEndDate]);
 
-  // 출발 공항 + 도착 공항 기준 전체 운항편 및 필터링된 운항편
-  const allOutboundFlights = useMemo(
-    () => getFlightsForRoute(outDepAirport, outArrAirport),
-    [outDepAirport, outArrAirport]
-  );
-  const filteredOutboundFlights = useMemo(
-    () => getFlightsForRoute(outDepAirport, outArrAirport, outFlightSearchQuery, outAirlineFilter),
-    [outDepAirport, outArrAirport, outFlightSearchQuery, outAirlineFilter]
-  );
+  // 출발 공항 + 도착 공항 기준 전체 운항편 및 필터링된 운항편 (실시간 공공데이터포털 우선)
+  const [allOutboundFlights, setAllOutboundFlights] = useState<RealFlightSchedule[]>([]);
+  const [outboundSource, setOutboundSource] = useState<'live-icn' | 'fallback'>('fallback');
+  const [isLoadingOutbound, setIsLoadingOutbound] = useState(false);
 
-  const allReturnFlights = useMemo(
-    () => getFlightsForRoute(retDepAirport, retArrAirport),
-    [retDepAirport, retArrAirport]
-  );
-  const filteredReturnFlights = useMemo(
-    () => getFlightsForRoute(retDepAirport, retArrAirport, retFlightSearchQuery, retAirlineFilter),
-    [retDepAirport, retArrAirport, retFlightSearchQuery, retAirlineFilter]
-  );
+  const [allReturnFlights, setAllReturnFlights] = useState<RealFlightSchedule[]>([]);
+  const [returnSource, setReturnSource] = useState<'live-icn' | 'fallback'>('fallback');
+  const [isLoadingReturn, setIsLoadingReturn] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!visible || !outDepAirport.trim() || !outArrAirport.trim()) {
+      setAllOutboundFlights([]);
+      return;
+    }
+    setIsLoadingOutbound(true);
+    fetchRealFlightsForRoute({
+      depAirport: outDepAirport,
+      arrAirport: outArrAirport,
+      date: outDepDate,
+    })
+      .then((res) => {
+        if (cancelled) return;
+        setAllOutboundFlights(res.flights);
+        setOutboundSource(res.source);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAllOutboundFlights(getFlightsForRoute(outDepAirport, outArrAirport));
+        setOutboundSource('fallback');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingOutbound(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, outDepAirport, outArrAirport, outDepDate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!visible || !retDepAirport.trim() || !retArrAirport.trim()) {
+      setAllReturnFlights([]);
+      return;
+    }
+    setIsLoadingReturn(true);
+    fetchRealFlightsForRoute({
+      depAirport: retDepAirport,
+      arrAirport: retArrAirport,
+      date: retDepDate,
+    })
+      .then((res) => {
+        if (cancelled) return;
+        setAllReturnFlights(res.flights);
+        setReturnSource(res.source);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAllReturnFlights(getFlightsForRoute(retDepAirport, retArrAirport));
+        setReturnSource('fallback');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingReturn(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, retDepAirport, retArrAirport, retDepDate]);
+
+  const filteredOutboundFlights = useMemo(() => {
+    let list = allOutboundFlights;
+    if (outAirlineFilter && outAirlineFilter !== 'ALL') {
+      list = list.filter((s) => s.airline === outAirlineFilter || s.airlineCode === outAirlineFilter);
+    }
+    const q = outFlightSearchQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (s) =>
+          s.flightNumber.toLowerCase().includes(q) ||
+          s.airline.toLowerCase().includes(q) ||
+          s.departureTime.includes(q) ||
+          s.arrivalTime.includes(q)
+      );
+    }
+    return list;
+  }, [allOutboundFlights, outFlightSearchQuery, outAirlineFilter]);
+
+  const filteredReturnFlights = useMemo(() => {
+    let list = allReturnFlights;
+    if (retAirlineFilter && retAirlineFilter !== 'ALL') {
+      list = list.filter((s) => s.airline === retAirlineFilter || s.airlineCode === retAirlineFilter);
+    }
+    const q = retFlightSearchQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (s) =>
+          s.flightNumber.toLowerCase().includes(q) ||
+          s.airline.toLowerCase().includes(q) ||
+          s.departureTime.includes(q) ||
+          s.arrivalTime.includes(q)
+      );
+    }
+    return list;
+  }, [allReturnFlights, retFlightSearchQuery, retAirlineFilter]);
 
   // 검색된 실제 항공편 클릭 시 자동 입력 핸들러
   const handleSelectRealFlight = (leg: 'outbound' | 'return', flight: RealFlightSchedule) => {
@@ -614,7 +701,13 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                   조회된 실제 운항편 ({filteredRouteFlights.length}편)
                 </Text>
               </View>
-              <Text style={styles.routeFlightSubBadge}>터치 시 자동 입력</Text>
+              <Text style={styles.routeFlightSubBadge}>
+                {(isOutbound ? isLoadingOutbound : isLoadingReturn)
+                  ? '실시간 조회 중...'
+                  : (isOutbound ? outboundSource : returnSource) === 'live-icn'
+                    ? '인천공항 실시간 스케줄'
+                    : '터치 시 자동 입력'}
+              </Text>
             </View>
 
             {/* 항공사별 필터 칩 (전체, 제주항공, 진에어, 티웨이, 대한항공, 아시아나 등) */}
