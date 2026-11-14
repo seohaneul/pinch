@@ -62,56 +62,128 @@ function decodeHtmlEntities(text: string): string {
     .trim();
 }
 
-// 3. 실제 OpenGraph 메타 태그 스크래퍼
-export async function fetchOpenGraphMetadata(targetUrl: string): Promise<ExtractedMeta> {
+// 3. 실제 OpenGraph 메타 태그 스크래퍼 (인스타 릴스, 네이버 블로그, 유튜브 등 지원)
+function normalizeFetchUrl(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.hostname === 'blog.naver.com' || parsed.hostname === 'www.blog.naver.com') {
+      parsed.hostname = 'm.blog.naver.com';
+      return parsed.toString();
+    }
+  } catch {
+    // ignore invalid URL
+  }
+  return rawUrl;
+}
+
+function extractYouTubeThumbnail(rawUrl: string): string {
+  const match = rawUrl.match(
+    /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i
+  );
+  return match?.[1] ? `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg` : '';
+}
+
+function normalizeImageUrl(raw: string): string {
+  let url = decodeHtmlEntities(raw).trim();
+  if (!url) return '';
+  if (url.startsWith('//')) {
+    url = `https:${url}`;
+  }
+  // 인스타 기본 정적 로고/스피너 등 의미 없는 썸네일 제외
+  if (url.includes('static.cdninstagram.com/rsrc.php')) {
+    return '';
+  }
+  return url;
+}
+
+async function fetchMicrolinkFallback(targetUrl: string): Promise<ExtractedMeta> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5초 타임아웃
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(
+      `https://api.microlink.io/?url=${encodeURIComponent(targetUrl)}`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+    if (!res.ok) return { title: '', description: '', imageUrl: '', canonicalUrl: targetUrl };
+    const json = await res.json();
+    const data = json?.data;
+    return {
+      title: decodeHtmlEntities(data?.title || ''),
+      description: decodeHtmlEntities(data?.description || ''),
+      imageUrl: normalizeImageUrl(data?.image?.url || data?.logo?.url || ''),
+      canonicalUrl: data?.url || targetUrl,
+    };
+  } catch {
+    clearTimeout(timeoutId);
+    return { title: '', description: '', imageUrl: '', canonicalUrl: targetUrl };
+  }
+}
+
+export async function fetchOpenGraphMetadata(targetUrl: string): Promise<ExtractedMeta> {
+  const fetchUrl = normalizeFetchUrl(targetUrl);
+  const ytThumb = extractYouTubeThumbnail(targetUrl);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4500);
+
+  let title = '';
+  let description = '';
+  let imageUrl = '';
 
   try {
-    const res = await fetch(targetUrl, {
+    const res = await fetch(fetchUrl, {
       signal: controller.signal,
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
+        // 크롤러 UA를 사용하면 인스타/블로그가 로그인 벽 대신 OG 메타 태그를 반환함
+        'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
     });
     clearTimeout(timeoutId);
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
+    if (res.ok) {
+      const html = await res.text();
+
+      const ogTitleMatch =
+        html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']*)["']/i) ||
+        html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:title["']/i) ||
+        html.match(/<meta[^>]*name=["']twitter:title["'][^>]*content=["']([^"']*)["']/i) ||
+        html.match(/<title>([^<]*)<\/title>/i);
+
+      const ogDescMatch =
+        html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i) ||
+        html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:description["']/i) ||
+        html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
+
+      const ogImageMatch =
+        html.match(/<meta[^>]*property=["']og:image:secure_url["'][^>]*content=["']([^"']*)["']/i) ||
+        html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i) ||
+        html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:image["']/i) ||
+        html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']*)["']/i) ||
+        html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*name=["']twitter:image["']/i);
+
+      title = decodeHtmlEntities(ogTitleMatch ? ogTitleMatch[1] : '');
+      description = decodeHtmlEntities(ogDescMatch ? ogDescMatch[1] : '');
+      imageUrl = normalizeImageUrl(ogImageMatch ? ogImageMatch[1] : '');
     }
-
-    const html = await res.text();
-
-    // og:title, og:description, og:image 정규식 추출
-    const ogTitleMatch =
-      html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']*)["']/i) ||
-      html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:title["']/i) ||
-      html.match(/<title>([^<]*)<\/title>/i);
-
-    const ogDescMatch =
-      html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i) ||
-      html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:description["']/i) ||
-      html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
-
-    const ogImageMatch =
-      html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i) ||
-      html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:image["']/i);
-
-    const title = decodeHtmlEntities(ogTitleMatch ? ogTitleMatch[1] : '');
-    const description = decodeHtmlEntities(ogDescMatch ? ogDescMatch[1] : '');
-    let imageUrl = ogImageMatch ? ogImageMatch[1].trim() : '';
-
-    if (imageUrl.startsWith('//')) {
-      imageUrl = `https:${imageUrl}`;
-    }
-
-    return { title, description, imageUrl, canonicalUrl: targetUrl };
-  } catch (err) {
+  } catch {
     clearTimeout(timeoutId);
-    return { title: '', description: '', imageUrl: '', canonicalUrl: targetUrl };
   }
+
+  if (!imageUrl && ytThumb) {
+    imageUrl = ytThumb;
+  }
+
+  // 인스타 릴스 등 직접 스크래핑에서 썸네일이 비어 있으면 Microlink API로 보완
+  if (!imageUrl) {
+    const fallback = await fetchMicrolinkFallback(targetUrl);
+    if (!title && fallback.title) title = fallback.title;
+    if (!description && fallback.description) description = fallback.description;
+    if (fallback.imageUrl) imageUrl = fallback.imageUrl;
+  }
+
+  return { title, description, imageUrl, canonicalUrl: targetUrl };
 }
 
 // 4. 텍스트에서 장소명 및 키워드 정제

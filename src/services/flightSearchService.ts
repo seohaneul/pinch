@@ -768,3 +768,46 @@ export function findPairedReturnFlight(
     ) || null
   );
 }
+
+/**
+ * 실시간 API 및 로컬 DB를 모두 활용해 가는 편에 짝이 맞는 오는 편 항공편을 찾아 반환합니다.
+ */
+export async function findPairedReturnFlightAsync(
+  selectedFlight: RealFlightSchedule,
+  returnDate?: string
+): Promise<RealFlightSchedule | null> {
+  const syncMatch = findPairedReturnFlight(selectedFlight);
+  if (syncMatch) return syncMatch;
+
+  try {
+    const res = await fetchRealFlightsForRoute({
+      depAirport: selectedFlight.arrivalAirport,
+      arrAirport: selectedFlight.departureAirport,
+      date: returnDate,
+    });
+    if (!res.flights.length) return null;
+
+    // 1순위: 편명 숫자가 +/- 1 인 동일 항공사 왕복편 (예: KE787 -> KE788, 7C1401 -> 7C1402)
+    const outNum = parseInt(selectedFlight.flightNumber.replace(/\D/g, ''), 10);
+    const sameAirline = res.flights.filter(
+      (f) => f.airlineCode === selectedFlight.airlineCode
+    );
+    if (sameAirline.length > 0) {
+      if (!isNaN(outNum)) {
+        const nearPair = sameAirline.find((f) => {
+          const n = parseInt(f.flightNumber.replace(/\D/g, ''), 10);
+          return !isNaN(n) && Math.abs(n - outNum) <= 2;
+        });
+        if (nearPair) return nearPair;
+      }
+      // 2순위: 동일 항공사의 오후 귀국편(12:00 이후) 또는 첫 편
+      return (
+        sameAirline.find((f) => f.departureTime >= '12:00') || sameAirline[0]
+      );
+    }
+
+    return res.flights.find((f) => f.departureTime >= '12:00') || res.flights[0];
+  } catch {
+    return null;
+  }
+}

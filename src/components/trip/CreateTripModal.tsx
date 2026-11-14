@@ -47,6 +47,7 @@ import {
   getFlightsForRoute,
   fetchRealFlightsForRoute,
   findPairedReturnFlight,
+  findPairedReturnFlightAsync,
   type RealFlightSchedule,
 } from '../../services/flightSearchService';
 import { PlaceSearchModal } from '../places/PlaceSearchModal';
@@ -221,9 +222,9 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     createTrip,
     updateTrip,
     setTripFlight,
-    setRangeLodging,
-    clearTripLodgings,
+    setTripLodgings,
     tripFlights,
+    tripLodgings,
     dayLodgings,
   } = useTripStore();
   const { setTripCurrency } = useWalletStore();
@@ -457,7 +458,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
       setOutArrTime(flight.arrivalTime);
       setOutArrivalNextDay(flight.arrivalNextDay);
 
-      // 귀국편이 아직 비어있는 경우 왕복 짝꿍 귀국편도 자동으로 세팅
+      // 귀국편이 아직 비어있는 경우 왕복 짝꿍 귀국편도 자동으로 세팅 (실시간 API 포함)
       const pairedReturn = findPairedReturnFlight(flight);
       if (pairedReturn && !retAirline.trim()) {
         setRetAirline(`${pairedReturn.airline} ${pairedReturn.flightNumber}`);
@@ -466,9 +467,18 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
         setRetDepTime(pairedReturn.departureTime);
         setRetArrTime(pairedReturn.arrivalTime);
         setRetArrivalNextDay(pairedReturn.arrivalNextDay);
-      } else if (!retDepAirport.trim()) {
+      } else if (!retAirline.trim()) {
         setRetDepAirport(flight.arrivalAirport);
         setRetArrAirport(flight.departureAirport);
+        findPairedReturnFlightAsync(flight, endDate).then((asyncPair) => {
+          if (!asyncPair) return;
+          setRetAirline(`${asyncPair.airline} ${asyncPair.flightNumber}`);
+          setRetDepAirport(asyncPair.departureAirport);
+          setRetArrAirport(asyncPair.arrivalAirport);
+          setRetDepTime(asyncPair.departureTime);
+          setRetArrTime(asyncPair.arrivalTime);
+          setRetArrivalNextDay(asyncPair.arrivalNextDay);
+        });
       }
     } else {
       setRetAirline(`${flight.airline} ${flight.flightNumber}`);
@@ -526,23 +536,28 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
         }
       }
 
-      // 기존 날짜별 숙소 목록 복원
-      const savedLodgingsMap = new Map<string, LodgingInfo>();
-      const totalDays = editTrip.schedules?.length || 1;
-      for (let d = 1; d <= totalDays; d++) {
-        const l = dayLodgings[`${editTrip.id}_day_${d}`];
-        if (l && l.name) {
-          const key = `${l.name}_${l.startDay || d}_${l.endDay || d}`;
-          if (!savedLodgingsMap.has(key)) {
-            savedLodgingsMap.set(key, {
-              ...l,
-              startDay: l.startDay || d,
-              endDay: l.endDay || d,
-            });
+      // 기존 날짜별 숙소 목록 복원 (다중 숙소 배열 우선)
+      const savedTripLodgings = tripLodgings?.[editTrip.id];
+      if (savedTripLodgings && savedTripLodgings.length > 0) {
+        setLodgingList(savedTripLodgings);
+      } else {
+        const savedLodgingsMap = new Map<string, LodgingInfo>();
+        const totalDays = editTrip.schedules?.length || 1;
+        for (let d = 1; d <= totalDays; d++) {
+          const l = dayLodgings[`${editTrip.id}_day_${d}`];
+          if (l && l.name) {
+            const key = `${l.name}_${l.startDay || d}_${l.endDay || d}`;
+            if (!savedLodgingsMap.has(key)) {
+              savedLodgingsMap.set(key, {
+                ...l,
+                startDay: l.startDay || d,
+                endDay: l.endDay || d,
+              });
+            }
           }
         }
+        setLodgingList(Array.from(savedLodgingsMap.values()));
       }
-      setLodgingList(Array.from(savedLodgingsMap.values()));
     } else {
       setStep(isOnboarding ? 0 : initialStep || 1);
       setSelectedCities([]);
@@ -842,17 +857,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
       }
 
       if (finalLodgings.length > 0) {
-        clearTripLodgings(targetTrip.id);
-        finalLodgings.forEach((item) => {
-          const sDay = item.startDay || 1;
-          const eDay = item.endDay || scheduleDaysPreview.length || 1;
-          setRangeLodging(
-            targetTrip.id,
-            { ...item, startDay: sDay, endDay: eDay },
-            sDay,
-            eDay
-          );
-        });
+        setTripLodgings(targetTrip.id, finalLodgings);
       }
     }
 

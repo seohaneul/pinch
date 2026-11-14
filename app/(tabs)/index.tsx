@@ -21,7 +21,7 @@ import { ClipboardToast } from '../../src/components/places/ClipboardToast';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import { CreateTripModal } from '../../src/components/trip/CreateTripModal';
 import { FlightModal } from '../../src/components/planner/FlightModal';
-import { LodgingModal } from '../../src/components/planner/LodgingModal';
+import { TripLodgingManagerModal } from '../../src/components/planner/TripLodgingManagerModal';
 import { LinkPlacesModal } from '../../src/components/places/LinkPlacesModal';
 import { PlaceSearchModal } from '../../src/components/places/PlaceSearchModal';
 import type { SavedLink } from '../../src/types';
@@ -57,11 +57,10 @@ export default function HomeScreen() {
     currentTrip,
     scheduleItems,
     dayLodgings,
+    tripLodgings,
     getTripFlight,
     setTripFlight,
     deleteTripFlight,
-    setDayLodging,
-    setRangeLodging,
   } = useTripStore();
   const { places } = usePlaceStore();
   const { isExtractingLink, addLinkFromUrl } = useSavedLinkStore();
@@ -76,6 +75,7 @@ export default function HomeScreen() {
 
   const dayCount = currentTrip?.schedules?.length || 1;
   const tripFlight = getTripFlight(currentTripId);
+  const firstTripLodging = tripLodgings?.[currentTripId]?.[0] || null;
   const firstRegisteredDayLodging = (() => {
     for (let d = 1; d <= dayCount; d++) {
       const l = dayLodgings?.[`${currentTripId}_day_${d}`];
@@ -83,7 +83,7 @@ export default function HomeScreen() {
     }
     return null;
   })();
-  const tripLodging = firstRegisteredDayLodging || currentTrip?.lodging || null;
+  const tripLodging = firstTripLodging || firstRegisteredDayLodging || currentTrip?.lodging || null;
   const totalKrw = getTotalKrw(currentTripId);
   const memberCount = currentTrip?.members?.length || 1;
 
@@ -510,19 +510,15 @@ export default function HomeScreen() {
         onDeleteFlight={() => deleteTripFlight(currentTripId)}
       />
 
-      {/* 홈 숙소 카드 전용 수정 모달 */}
-      <LodgingModal
+      {/* 홈 숙소 카드 전용 관리 모달 (온보딩 형식 날짜별 숙소 추가/삭제) */}
+      <TripLodgingManagerModal
         visible={lodgingModalVisible}
         onClose={() => setLodgingModalVisible(false)}
-        dayNumber={1}
+        tripId={currentTripId}
+        destination={currentTrip?.destination}
         tripStartDate={currentTrip?.startDate}
         tripEndDate={currentTrip?.endDate}
         schedules={currentTrip?.schedules}
-        initialLodging={tripLodging}
-        onSave={(lodging) => setDayLodging(1, lodging)}
-        onSaveRange={(lodging, startDay, endDay) =>
-          setRangeLodging(currentTripId, lodging, startDay, endDay)
-        }
       />
 
       {/* 링크 추출 장소 선택 모달 */}

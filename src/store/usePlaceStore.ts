@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Place, PlaceCategory } from '../types';
 import { parseSnsUrl } from '../services/parserService';
+import { isDummyOrEmptyImage, resolveBestPlaceImage } from '../services/imageSearchService';
 import { useTripStore } from './useTripStore';
 
 export type CategoryFilter = 'ALL' | 'CAFE' | 'RESTAURANT' | 'ATTRACTION' | 'LODGING' | 'SHOPPING';
@@ -89,16 +90,41 @@ export const usePlaceStore = create<PlaceState>()(
         set((state) => ({
           places: [placeWithTrip, ...state.places],
         }));
+
+        if (isDummyOrEmptyImage(placeWithTrip.imageUrl)) {
+          resolveBestPlaceImage(
+            placeWithTrip.name,
+            placeWithTrip.address,
+            placeWithTrip.category,
+            placeWithTrip.latitude,
+            placeWithTrip.longitude
+          ).then((resolved) => {
+            if (resolved) {
+              get().updatePlaceImage(placeWithTrip.id, resolved);
+            }
+          });
+        }
+
         return true;
       },
 
       addPlacesBulk: (newPlaces) => {
-        set((state) => {
-          const existingIds = new Set(state.places.map((p) => p.id));
-          const filtered = newPlaces.filter((p) => !existingIds.has(p.id));
-          return {
-            places: [...filtered, ...state.places],
-          };
+        const existingIds = new Set(get().places.map((p) => p.id));
+        const filtered = newPlaces.filter((p) => !existingIds.has(p.id));
+        set((state) => ({
+          places: [...filtered, ...state.places],
+        }));
+
+        filtered.forEach((p) => {
+          if (isDummyOrEmptyImage(p.imageUrl)) {
+            resolveBestPlaceImage(p.name, p.address, p.category, p.latitude, p.longitude).then(
+              (resolved) => {
+                if (resolved) {
+                  get().updatePlaceImage(p.id, resolved);
+                }
+              }
+            );
+          }
         });
       },
 
@@ -156,6 +182,21 @@ export const usePlaceStore = create<PlaceState>()(
             isParsing: false,
             isExtracting: false,
           }));
+
+          if (isDummyOrEmptyImage(newPlace.imageUrl)) {
+            resolveBestPlaceImage(
+              newPlace.name,
+              newPlace.address,
+              newPlace.category,
+              newPlace.latitude,
+              newPlace.longitude
+            ).then((resolved) => {
+              if (resolved) {
+                get().updatePlaceImage(newPlace.id, resolved);
+              }
+            });
+          }
+
           return newPlace;
         } catch (err) {
           set({ isParsing: false, isExtracting: false });

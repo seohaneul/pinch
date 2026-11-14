@@ -1,5 +1,43 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PlaceCategory } from '../types';
+import { fetchGooglePlaceDetails } from './googlePlacesService';
+
+export function isDummyOrEmptyImage(url?: string | null): boolean {
+  if (!url || !url.trim()) return true;
+  return url.includes('images.unsplash.com');
+}
+
+export async function resolveBestPlaceImage(
+  placeName: string,
+  address?: string,
+  category?: PlaceCategory,
+  latitude?: number,
+  longitude?: number
+): Promise<string | null> {
+  try {
+    const location =
+      typeof latitude === 'number' && typeof longitude === 'number' && (latitude !== 0 || longitude !== 0)
+        ? { lat: latitude, lng: longitude }
+        : undefined;
+    const googleDetails = await fetchGooglePlaceDetails(placeName, address, location);
+    if (googleDetails?.photos && googleDetails.photos.length > 0 && googleDetails.photos[0]) {
+      return googleDetails.photos[0];
+    }
+  } catch {
+    // Fallback to Wikipedia/Wikimedia
+  }
+
+  try {
+    const realImg = await fetchRealPlaceImage(placeName, address, category, latitude, longitude);
+    if (realImg && !isDummyOrEmptyImage(realImg)) {
+      return realImg;
+    }
+  } catch {
+    // Ignore
+  }
+
+  return null;
+}
 
 const IMAGE_CACHE_KEY_PREFIX = '@pinchi_place_image_cache_v1_';
 const MEMORY_CACHE: Map<string, string> = new Map();

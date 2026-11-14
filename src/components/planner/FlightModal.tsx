@@ -32,6 +32,7 @@ import {
   getFlightsForRoute,
   fetchRealFlightsForRoute,
   findPairedReturnFlight,
+  findPairedReturnFlightAsync,
   type RealFlightSchedule,
 } from '../../services/flightSearchService';
 import { useTripStore } from '../../store/useTripStore';
@@ -345,7 +346,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
       setOutArrDate(flight.arrivalNextDay ? addDaysToDate(baseDepDate, 1) : baseDepDate);
       setOutTerminal(flight.terminal || '');
 
-      // 귀국편이 아직 비어있는 경우 왕복 짝꿍 항공편까지 자동 세팅
+      // 귀국편이 아직 비어있는 경우 왕복 짝꿍 항공편까지 자동 세팅 (실시간 API 포함)
       const pairedReturn = findPairedReturnFlight(flight);
       if (pairedReturn && !retFlightNumber.trim()) {
         const baseRetDate = retDepDate.trim() || tripEndDate;
@@ -360,9 +361,24 @@ export const FlightModal: React.FC<FlightModalProps> = ({
           pairedReturn.arrivalNextDay ? addDaysToDate(baseRetDate, 1) : baseRetDate
         );
         setRetTerminal(pairedReturn.terminal || '');
-      } else if (!retDepAirport.trim()) {
+      } else if (!retFlightNumber.trim()) {
         setRetDepAirport(flight.arrivalAirport);
         setRetArrAirport(flight.departureAirport);
+        const baseRetDate = retDepDate.trim() || tripEndDate;
+        findPairedReturnFlightAsync(flight, baseRetDate).then((asyncPair) => {
+          if (!asyncPair) return;
+          setRetFlightNumber(asyncPair.flightNumber);
+          setRetAirline(asyncPair.airline);
+          setRetDepAirport(asyncPair.departureAirport);
+          setRetArrAirport(asyncPair.arrivalAirport);
+          setRetDepTime(asyncPair.departureTime);
+          setRetArrTime(asyncPair.arrivalTime);
+          setRetArrivalNextDay(asyncPair.arrivalNextDay);
+          setRetArrDate(
+            asyncPair.arrivalNextDay ? addDaysToDate(baseRetDate, 1) : baseRetDate
+          );
+          setRetTerminal(asyncPair.terminal || '');
+        });
       }
     } else {
       const baseRetDate = retDepDate.trim() || tripEndDate;

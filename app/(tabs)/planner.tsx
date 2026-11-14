@@ -80,6 +80,8 @@ export default function PlannerScreen() {
     getDayStartTime,
     setDayLodging,
     getDayLodging,
+    getDayLodgings,
+    tripLodgings,
     setRangeLodging,
     getTripFlight,
     setTripFlight,
@@ -130,7 +132,8 @@ export default function PlannerScreen() {
   } | null>(null);
 
   const dayStartTime = getDayStartTime(selectedDay);
-  const dayLodging = getDayLodging(selectedDay);
+  const dayLodgingsList = getDayLodgings(selectedDay, currentTrip?.id);
+  const dayLodging = dayLodgingsList[0] || null;
   const tripFlight = getTripFlight(currentTrip?.id);
 
 
@@ -385,99 +388,7 @@ export default function PlannerScreen() {
           </View>
         </View>
 
-        {/* 2. DEDICATED FLIGHT TICKET CARD (항공권 전용 등록 & 관리 카드) */}
-        <View className="px-4 mt-3">
-          <View className="bg-white rounded-2xl border border-borderLine p-3.5 shadow-xs">
-            <View className="flex-row items-center justify-between pb-2 border-b border-gray-100">
-              <View className="flex-row items-center">
-                <Plane size={16} color="#0284C7" style={{ marginRight: 6 }} />
-                <Text className="text-xs font-bold text-darkText">
-                  {tripFlight?.returnFlight ? '왕복 항공권 예약 정보 ✈️' : '항공권 예약 정보 ✈️'}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setFlightModalVisible(true)}
-                className="bg-sky-50 px-2 py-1 rounded-lg"
-              >
-                <Text className="text-[11px] font-bold text-sky-700">
-                  {tripFlight ? '항공권 수정' : '+ 항공권 등록'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {tripFlight ? (
-              <View className="pt-2">
-                {/* Outbound Leg */}
-                <View className="bg-sky-50/70 p-2.5 rounded-xl mb-1.5 border border-sky-100">
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-row items-center">
-                      <Text className="text-xs font-black text-sky-800 mr-1.5">
-                        🛫 가는 편: {tripFlight.outbound?.flightNumber || tripFlight.flightNumber}
-                      </Text>
-                      {(tripFlight.outbound?.airline || tripFlight.airline) && (
-                        <Text className="text-[10px] font-bold text-mutedText">
-                          ({tripFlight.outbound?.airline || tripFlight.airline})
-                        </Text>
-                      )}
-                    </View>
-                    <View className="bg-sky-100 px-1.5 py-0.5 rounded">
-                      <Text className="text-[9px] font-black text-sky-700">
-                        {tripFlight.outbound?.departureDate || tripFlight.departureDate}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text className="text-xs font-bold text-darkText mt-1">
-                    {tripFlight.outbound?.departureAirport || tripFlight.departureAirport} ({tripFlight.outbound?.departureTime || tripFlight.departureTime}) ➔ {tripFlight.outbound?.arrivalAirport || tripFlight.arrivalAirport} ({tripFlight.outbound?.arrivalTime || tripFlight.arrivalTime}{(tripFlight.outbound?.arrivalNextDay || tripFlight.arrivalNextDay) ? ' +1일' : ''})
-                  </Text>
-                </View>
-
-                {/* Return Leg (if registered) */}
-                {tripFlight.returnFlight && (
-                  <View className="bg-teal-50/70 p-2.5 rounded-xl mb-1.5 border border-teal-100">
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-row items-center">
-                        <Text className="text-xs font-black text-teal-800 mr-1.5">
-                          🛬 오는 편: {tripFlight.returnFlight.flightNumber}
-                        </Text>
-                        {tripFlight.returnFlight.airline && (
-                          <Text className="text-[10px] font-bold text-mutedText">
-                            ({tripFlight.returnFlight.airline})
-                          </Text>
-                        )}
-                      </View>
-                      <View className="bg-teal-100 px-1.5 py-0.5 rounded">
-                        <Text className="text-[9px] font-black text-teal-700">
-                          {tripFlight.returnFlight.departureDate}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text className="text-xs font-bold text-darkText mt-1">
-                      {tripFlight.returnFlight.departureAirport} ({tripFlight.returnFlight.departureTime}) ➔ {tripFlight.returnFlight.arrivalAirport} ({tripFlight.returnFlight.arrivalTime}{tripFlight.returnFlight.arrivalNextDay ? ' +1일' : ''})
-                    </Text>
-                  </View>
-                )}
-
-                {tripFlight.memo && (
-                  <Text className="text-[11px] text-sky-700 font-medium mt-0.5" numberOfLines={1}>
-                    📝 {tripFlight.memo}
-                  </Text>
-                )}
-              </View>
-            ) : (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setFlightModalVisible(true)}
-                className="py-2.5 items-center justify-center"
-              >
-                <Text className="text-xs font-bold text-mutedText">
-                  아직 등록된 항공권이 없습니다. 탭하여 왕복/편도 티켓을 등록하세요.
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* 3. DEDICATED DAY LODGING CARD (숙소 전용 등록 & 관리 카드) */}
+        {/* 2. DEDICATED DAY LODGING CARD (숙소 표시 카드 - 겹치는 숙소 다중 표시, 수정 버튼 없음) */}
         <View className="px-4 mt-3">
           <View className="bg-white rounded-2xl border border-borderLine p-3.5 shadow-xs">
             <View className="flex-row items-center justify-between pb-2 border-b border-gray-100">
@@ -487,57 +398,59 @@ export default function PlannerScreen() {
                   DAY {selectedDay} 숙소 🏨
                 </Text>
               </View>
-              <TouchableOpacity
-                onPress={() => setLodgingModalVisible(true)}
-                className="bg-purple-50 px-2 py-1 rounded-lg"
-              >
-                <Text className="text-[11px] font-bold text-purple-700">
-                  {dayLodging ? '숙소 수정' : '+ 숙소 등록'}
-                </Text>
-              </TouchableOpacity>
+              {dayLodgingsList.length > 1 && (
+                <View className="bg-purple-50 px-2 py-0.5 rounded-md">
+                  <Text className="text-[10px] font-bold text-purple-700">
+                    {dayLodgingsList.length}곳
+                  </Text>
+                </View>
+              )}
             </View>
 
-            {dayLodging ? (
-              <View className="pt-2">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-sm font-extrabold text-darkText flex-1 mr-2">{dayLodging.name}</Text>
-                  {dayLodging.stayNights && (
-                    <View className="bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
-                      <Text className="text-[10px] font-bold text-rose-600">
-                        {dayLodging.startDay && dayLodging.endDay ? `DAY ${dayLodging.startDay}~${dayLodging.endDay} (${dayLodging.stayNights}박)` : `${dayLodging.stayNights}박 연박`}
-                      </Text>
+            {dayLodgingsList.length > 0 ? (
+              <View className="pt-2 gap-2.5">
+                {dayLodgingsList.map((lodging, idx) => (
+                  <View
+                    key={lodging.id || `${lodging.name}-${idx}`}
+                    className={idx > 0 ? 'pt-2.5 border-t border-gray-100' : ''}
+                  >
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-sm font-extrabold text-darkText flex-1 mr-2">{lodging.name}</Text>
+                      {lodging.stayNights && (
+                        <View className="bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                          <Text className="text-[10px] font-bold text-rose-600">
+                            {lodging.startDay && lodging.endDay ? `DAY ${lodging.startDay}~${lodging.endDay} (${lodging.stayNights}박)` : `${lodging.stayNights}박 연박`}
+                          </Text>
+                        </View>
+                      )}
                     </View>
-                  )}
-                </View>
-                {dayLodging.address && (
-                  <Text className="text-xs text-mutedText mt-0.5" numberOfLines={1}>
-                    📍 {dayLodging.address}
-                  </Text>
-                )}
-                <View className="flex-row items-center gap-3 mt-1.5">
-                  <View className="flex-row items-center">
-                    <Clock size={11} color="#64748B" style={{ marginRight: 3 }} />
-                    <Text className="text-[11px] font-semibold text-gray-500">
-                      체크인 {dayLodging.checkInTime || '15:00'} · 체크아웃 {dayLodging.checkOutTime || '11:00'}
-                    </Text>
+                    {lodging.address && (
+                      <Text className="text-xs text-mutedText mt-0.5" numberOfLines={1}>
+                        📍 {lodging.address}
+                      </Text>
+                    )}
+                    <View className="flex-row items-center gap-3 mt-1.5">
+                      <View className="flex-row items-center">
+                        <Clock size={11} color="#64748B" style={{ marginRight: 3 }} />
+                        <Text className="text-[11px] font-semibold text-gray-500">
+                          체크인 {lodging.checkInTime || '15:00'} · 체크아웃 {lodging.checkOutTime || '11:00'}
+                        </Text>
+                      </View>
+                      {lodging.startDate && lodging.endDate && (
+                        <Text className="text-[10px] text-gray-400 font-medium">
+                          ({lodging.startDate} ~ {lodging.endDate})
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                  {dayLodging.startDate && dayLodging.endDate && (
-                    <Text className="text-[10px] text-gray-400 font-medium">
-                      ({dayLodging.startDate} ~ {dayLodging.endDate})
-                    </Text>
-                  )}
-                </View>
+                ))}
               </View>
             ) : (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setLodgingModalVisible(true)}
-                className="py-2.5 items-center justify-center"
-              >
+              <View className="py-2.5 items-center justify-center">
                 <Text className="text-xs font-bold text-mutedText">
-                  아직 등록된 숙소가 없습니다. 탭하여 언제부터 언제까지 묵을지 설정하세요.
+                  등록된 숙소가 없습니다. 홈의 숙소 카드에서 숙소를 등록해보세요.
                 </Text>
-              </TouchableOpacity>
+              </View>
             )}
           </View>
         </View>

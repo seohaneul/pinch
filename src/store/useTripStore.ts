@@ -20,6 +20,7 @@ interface TripState {
   expenses: Expense[];
   dayStartTimes: Record<string, string>;
   dayLodgings: Record<string, LodgingInfo>;
+  tripLodgings: Record<string, LodgingInfo[]>;
   tripFlights: Record<string, FlightInfo>;
   hasCompletedOnboarding: boolean;
 
@@ -34,6 +35,8 @@ interface TripState {
   deleteTripFlight: (tripId: string) => void;
   syncFlightToSchedule: (tripId: string, flight: FlightInfo) => void;
   setRangeLodging: (tripId: string, lodging: LodgingInfo, startDayNumber: number, endDayNumber: number) => void;
+  setTripLodgings: (tripId: string, lodgings: LodgingInfo[]) => void;
+  getDayLodgings: (dayNumber: number, tripId?: string) => LodgingInfo[];
   clearTripLodgings: (tripId: string) => void;
 
   createTrip: (tripData: {
@@ -102,6 +105,7 @@ export const useTripStore = create<TripState>()(
   expenses: INITIAL_EXPENSES,
   dayStartTimes: INITIAL_DAY_START_TIMES,
   dayLodgings: INITIAL_DAY_LODGINGS,
+  tripLodgings: {},
   tripFlights: INITIAL_TRIP_FLIGHTS,
   hasCompletedOnboarding: false,
 
@@ -551,44 +555,122 @@ export const useTripStore = create<TripState>()(
 
   setRangeLodging: (tripId: string, lodging: LodgingInfo, startDayNumber: number, endDayNumber: number) => {
     set((state) => {
-      const { dayLodgings, trips, currentTrip } = state;
+      const { dayLodgings, tripLodgings, trips, currentTrip } = state;
       const updated = { ...dayLodgings };
       const minDay = Math.min(startDayNumber, endDayNumber);
       const maxDay = Math.max(startDayNumber, endDayNumber);
+      const normalizedLodging: LodgingInfo = {
+        ...lodging,
+        trip_id: tripId,
+        startDay: minDay,
+        endDay: maxDay,
+        stayNights: Math.max(1, maxDay - minDay),
+      };
       for (let d = minDay; d <= maxDay; d++) {
         updated[`${tripId}_day_${d}`] = {
-          ...lodging,
-          trip_id: tripId,
+          ...normalizedLodging,
           day_number: d,
-          startDay: minDay,
-          endDay: maxDay,
         };
       }
+      const prevList = tripLodgings?.[tripId] || [];
+      const filteredList = prevList.filter(
+        (item) => !(item.name === normalizedLodging.name && item.startDay === minDay && item.endDay === maxDay)
+      );
+      const nextList = [...filteredList, normalizedLodging];
       const syncTripLodging = (t: Trip): Trip =>
         t.id === tripId && (minDay === 1 || !t.lodging?.name)
-          ? { ...t, lodging }
+          ? { ...t, lodging: normalizedLodging }
           : t;
       return {
         dayLodgings: updated,
+        tripLodgings: {
+          ...tripLodgings,
+          [tripId]: nextList,
+        },
         trips: trips.map(syncTripLodging),
         currentTrip: currentTrip ? syncTripLodging(currentTrip) : currentTrip,
       };
     });
   },
 
+  setTripLodgings: (tripId: string, lodgings: LodgingInfo[]) => {
+    set((state) => {
+      const { dayLodgings, tripLodgings, trips, currentTrip } = state;
+      const updatedDayLodgings = { ...dayLodgings };
+      Object.keys(updatedDayLodgings).forEach((k) => {
+        if (k.startsWith(`${tripId}_day_`)) {
+          delete updatedDayLodgings[k];
+        }
+      });
+
+      const normalizedList: LodgingInfo[] = lodgings.map((l) => {
+        const sDay = l.startDay || 1;
+        const eDay = l.endDay || sDay;
+        const minDay = Math.min(sDay, eDay);
+        const maxDay = Math.max(sDay, eDay);
+        const item: LodgingInfo = {
+          ...l,
+          trip_id: tripId,
+          startDay: minDay,
+          endDay: maxDay,
+          stayNights: l.stayNights || Math.max(1, maxDay - minDay),
+        };
+        for (let d = minDay; d <= maxDay; d++) {
+          updatedDayLodgings[`${tripId}_day_${d}`] = {
+            ...item,
+            day_number: d,
+          };
+        }
+        return item;
+      });
+
+      const primaryLodging = normalizedList[0] || undefined;
+      const syncTripLodging = (t: Trip): Trip =>
+        t.id === tripId ? { ...t, lodging: primaryLodging } : t;
+
+      return {
+        dayLodgings: updatedDayLodgings,
+        tripLodgings: {
+          ...tripLodgings,
+          [tripId]: normalizedList,
+        },
+        trips: trips.map(syncTripLodging),
+        currentTrip: currentTrip ? syncTripLodging(currentTrip) : currentTrip,
+      };
+    });
+  },
+
+  getDayLodgings: (dayNumber: number, tripId?: string) => {
+    const { activeTripId, tripLodgings, dayLodgings } = get();
+    const targetTripId = tripId || activeTripId;
+    const list = tripLodgings?.[targetTripId];
+    if (list && list.length > 0) {
+      return list.filter((l) => {
+        const s = l.startDay || 1;
+        const e = l.endDay || s;
+        return dayNumber >= s && dayNumber <= e;
+      });
+    }
+    const single = dayLodgings?.[`${targetTripId}_day_${dayNumber}`];
+    return single?.name ? [single] : [];
+  },
+
   clearTripLodgings: (tripId: string) => {
     set((state) => {
-      const { dayLodgings, trips, currentTrip } = state;
+      const { dayLodgings, tripLodgings, trips, currentTrip } = state;
       const updated = { ...dayLodgings };
       Object.keys(updated).forEach((k) => {
         if (k.startsWith(`${tripId}_day_`)) {
           delete updated[k];
         }
       });
+      const updatedListMap = { ...tripLodgings };
+      delete updatedListMap[tripId];
       const clearOnTrip = (t: Trip): Trip =>
         t.id === tripId ? { ...t, lodging: undefined } : t;
       return {
         dayLodgings: updated,
+        tripLodgings: updatedListMap,
         trips: trips.map(clearOnTrip),
         currentTrip: currentTrip ? clearOnTrip(currentTrip) : currentTrip,
       };
@@ -717,6 +799,7 @@ export const useTripStore = create<TripState>()(
       expenses: INITIAL_EXPENSES,
       dayStartTimes: INITIAL_DAY_START_TIMES,
       dayLodgings: INITIAL_DAY_LODGINGS,
+      tripLodgings: {},
       tripFlights: INITIAL_TRIP_FLIGHTS,
       hasCompletedOnboarding: false,
     });
@@ -734,6 +817,7 @@ export const useTripStore = create<TripState>()(
     expenses: state.expenses,
     dayStartTimes: state.dayStartTimes,
     dayLodgings: state.dayLodgings,
+    tripLodgings: state.tripLodgings,
     tripFlights: state.tripFlights,
     hasCompletedOnboarding: state.hasCompletedOnboarding,
   }),

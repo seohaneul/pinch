@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import { LinkPlacesModal } from '../../src/components/places/LinkPlacesModal';
 import { PlaceDetailModal } from '../../src/components/places/PlaceDetailModal';
 import { useTripStore } from '../../src/store/useTripStore';
 import type { Place, SavedLink } from '../../src/types';
+import { isDummyOrEmptyImage, resolveBestPlaceImage } from '../../src/services/imageSearchService';
 import { openInGoogleMaps } from '../../src/utils/mapUtils';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
@@ -67,6 +68,7 @@ export default function PlacesScreen() {
     togglePin,
     removePlace,
     extractFromUrl,
+    updatePlaceImage,
   } = usePlaceStore();
 
   // 2. 링크 보관함 스토어 (여행별 릴스/블로그 링크)
@@ -125,6 +127,44 @@ export default function PlacesScreen() {
   const tripPlaces = places.filter((place) => place.trip_id === currentTripId);
 
   const tripLinks = savedLinks.filter((link) => link.trip_id === currentTripId);
+
+  // 장소 카드가 화면에 보이기 전에 더미/빈 이미지를 실제 사진으로 미리 불러오기
+  const attemptedImageIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const targets = tripPlaces.filter(
+      (p) => isDummyOrEmptyImage(p.imageUrl) && !attemptedImageIdsRef.current.has(p.id)
+    );
+    if (targets.length === 0) return;
+
+    let cancelled = false;
+    targets.forEach((p) => attemptedImageIdsRef.current.add(p.id));
+
+    (async () => {
+      const BATCH_SIZE = 3;
+      for (let i = 0; i < targets.length; i += BATCH_SIZE) {
+        if (cancelled) break;
+        const batch = targets.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+          batch.map(async (p) => {
+            const resolved = await resolveBestPlaceImage(
+              p.name,
+              p.address,
+              p.category,
+              p.latitude,
+              p.longitude
+            );
+            if (!cancelled && resolved) {
+              updatePlaceImage(p.id, resolved);
+            }
+          })
+        );
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tripPlaces, updatePlaceImage]);
 
   // 전체 보관함 장소를 현재 여행으로 복사/추가
   const handleCopyPlaceToCurrentTrip = (place: Place) => {
