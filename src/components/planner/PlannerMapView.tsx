@@ -14,7 +14,6 @@ import {
   Minimize2,
   ChevronLeft,
   ChevronRight,
-  MapPin,
 } from '@/components/common/CustomIcons';
 import { openInGoogleMaps, openMultiStopRouteInGoogleMaps } from '../../utils/mapUtils';
 import { useTripStore } from '../../store/useTripStore';

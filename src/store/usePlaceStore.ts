@@ -2,8 +2,7 @@ import { Alert } from 'react-native';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Place, PlaceCategory } from '../types';
-import { parseSnsUrl } from '../services/parserService';
+import type { Place } from '../types';
 import { isDummyOrEmptyImage, resolveBestPlaceImage } from '../services/imageSearchService';
 import { useTripStore } from './useTripStore';
 
@@ -13,8 +12,6 @@ interface PlaceState {
   places: Place[];
   selectedCategory: CategoryFilter;
   searchQuery: string;
-  isParsing: boolean;
-  isExtracting: boolean;
 
   // Actions
   setCategory: (category: CategoryFilter) => void;
@@ -24,25 +21,17 @@ interface PlaceState {
   removePlace: (id: string) => void;
   togglePin: (id: string) => void;
   updatePlaceImage: (id: string, imageUrl: string) => void;
-  extractFromUrl: (url: string, tripId?: string) => Promise<Place | null>;
   checkIsDuplicate: (name: string, url?: string, tripId?: string) => Place | null;
   getPlacesByTrip: (tripId: string) => Place[];
-  restorePlaces: (places: Place[]) => void;
   resetToDefaults: () => void;
 }
-
-import { DEMO_PLACES } from '../data/mockDemoData';
-
-const INITIAL_PLACES: Place[] = DEMO_PLACES;
 
 export const usePlaceStore = create<PlaceState>()(
   persist(
     (set, get) => ({
-      places: INITIAL_PLACES,
+      places: [],
       selectedCategory: 'ALL',
       searchQuery: '',
-      isParsing: false,
-      isExtracting: false,
 
       setCategory: (category) => set({ selectedCategory: category }),
       setSearchQuery: (query) => set({ searchQuery: query }),
@@ -75,7 +64,7 @@ export const usePlaceStore = create<PlaceState>()(
       },
 
       addPlace: (place, tripId) => {
-        const activeTripId = tripId || place.trip_id || useTripStore.getState().currentTrip?.id || 't_tokyo';
+        const activeTripId = tripId || place.trip_id || useTripStore.getState().currentTrip?.id || 't_first';
         const duplicate = get().checkIsDuplicate(place.name, place.snsUrl, activeTripId);
         if (duplicate) {
           Alert.alert('이미 보관된 장소 📌', '이미 보관함에 핀치된 장소예요!');
@@ -150,71 +139,11 @@ export const usePlaceStore = create<PlaceState>()(
         }));
       },
 
-      extractFromUrl: async (url, tripId) => {
-        set({ isParsing: true, isExtracting: true });
-        try {
-          const allTrips = useTripStore.getState().trips;
-          const currentTrip = useTripStore.getState().currentTrip;
-          const activeTripId = tripId || currentTrip?.id || 't_tokyo';
-          const targetTrip = allTrips.find((t) => t.id === activeTripId) || currentTrip;
-          const destinationHint = targetTrip?.destination || targetTrip?.title || '';
-
-          const duplicate = get().checkIsDuplicate('', url, activeTripId);
-          if (duplicate) {
-            set({ isParsing: false, isExtracting: false });
-            Alert.alert('이미 보관된 장소 📌', '이미 보관함에 핀치된 장소예요!');
-            return null;
-          }
-
-          const newPlace = await parseSnsUrl(url, destinationHint);
-          newPlace.trip_id = activeTripId;
-
-          // Check again with parsed name
-          const duplicateByName = get().checkIsDuplicate(newPlace.name, newPlace.snsUrl, activeTripId);
-          if (duplicateByName) {
-            set({ isParsing: false, isExtracting: false });
-            Alert.alert('이미 보관된 장소 📌', '이미 보관함에 핀치된 장소예요!');
-            return null;
-          }
-
-          set((state) => ({
-            places: [newPlace, ...state.places],
-            isParsing: false,
-            isExtracting: false,
-          }));
-
-          if (isDummyOrEmptyImage(newPlace.imageUrl)) {
-            resolveBestPlaceImage(
-              newPlace.name,
-              newPlace.address,
-              newPlace.category,
-              newPlace.latitude,
-              newPlace.longitude
-            ).then((resolved) => {
-              if (resolved) {
-                get().updatePlaceImage(newPlace.id, resolved);
-              }
-            });
-          }
-
-          return newPlace;
-        } catch (err) {
-          set({ isParsing: false, isExtracting: false });
-          return null;
-        }
-      },
-
-      restorePlaces: (places: Place[]) => {
-        set({ places: places || [] });
-      },
-
       resetToDefaults: () => {
         set({
-          places: INITIAL_PLACES,
+          places: [],
           selectedCategory: 'ALL',
           searchQuery: '',
-          isParsing: false,
-          isExtracting: false,
         });
       },
     }),

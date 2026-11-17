@@ -49,15 +49,14 @@ const CATEGORY_ITEMS: {
   icon: any;
   color: string;
   bg: string;
-  defaultAmount: number;
 }[] = [
-    { key: 'FOOD', label: '식비', icon: Utensils, color: '#1B2A4A', bg: '#F8FAFC', defaultAmount: 400000 },
-    { key: 'LODGING', label: '숙소', icon: HomeIcon, color: '#A29BFE', bg: '#F5F3FF', defaultAmount: 600000 },
-    { key: 'FLIGHT', label: '항공권', icon: Plane, color: '#0284C7', bg: '#F0F9FF', defaultAmount: 450000 },
-    { key: 'TRANSPORT', label: '교통', icon: Car, color: '#4ECDC4', bg: '#F0FDFA', defaultAmount: 250000 },
-    { key: 'SHOPPING', label: '쇼핑', icon: ShoppingBag, color: '#FF9F1C', bg: '#FFFBEB', defaultAmount: 350000 },
-    { key: 'ACTIVITY', label: '관광/체험', icon: Ticket, color: '#3B82F6', bg: '#EFF6FF', defaultAmount: 150000 },
-    { key: 'OTHER', label: '기타/예비비', icon: Coins, color: '#6B7280', bg: '#F3F4F6', defaultAmount: 100000 },
+    { key: 'FOOD', label: '식비', icon: Utensils, color: '#1B2A4A', bg: '#F8FAFC' },
+    { key: 'LODGING', label: '숙소', icon: HomeIcon, color: '#A29BFE', bg: '#F5F3FF' },
+    { key: 'FLIGHT', label: '항공권', icon: Plane, color: '#0284C7', bg: '#F0F9FF' },
+    { key: 'TRANSPORT', label: '교통', icon: Car, color: '#4ECDC4', bg: '#F0FDFA' },
+    { key: 'SHOPPING', label: '쇼핑', icon: ShoppingBag, color: '#FF9F1C', bg: '#FFFBEB' },
+    { key: 'ACTIVITY', label: '관광/체험', icon: Ticket, color: '#3B82F6', bg: '#EFF6FF' },
+    { key: 'OTHER', label: '기타/예비비', icon: Coins, color: '#6B7280', bg: '#F3F4F6' },
   ];
 
 export const CategoryBudgetModal: React.FC<CategoryBudgetModalProps> = ({

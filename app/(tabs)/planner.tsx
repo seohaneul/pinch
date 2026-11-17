@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   FlatList,
   TouchableOpacity,
-  Image,
   Alert,
   TextInput,
   Modal,
@@ -18,16 +17,15 @@ import { useTripStore } from '../../src/store/useTripStore';
 import { usePlaceStore } from '../../src/store/usePlaceStore';
 import { useWalletStore } from '../../src/store/useWalletStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TripMapView, PlannerMapView } from '../../src/components/planner/PlannerMapView';
+import { TripMapView } from '../../src/components/planner/PlannerMapView';
 import { OptimizeConfirmModal } from '../../src/components/planner/OptimizeConfirmModal';
 import { AddSpotModal } from '../../src/components/planner/AddSpotModal';
-import { LodgingModal } from '../../src/components/planner/LodgingModal';
 import { FlightModal } from '../../src/components/planner/FlightModal';
 import { DayStartTimeModal } from '../../src/components/planner/DayStartTimeModal';
 
 import { CustomDurationModal } from '../../src/components/planner/CustomDurationModal';
 import { CustomTransportModal } from '../../src/components/planner/CustomTransportModal';
-import { TransportMode, calculateDistance, formatTravelSummary } from '../../src/utils/geoUtils';
+import { calculateDistance, formatTravelSummary } from '../../src/utils/geoUtils';
 import {
   CurrencyCode,
   WalletCategory,
@@ -41,7 +39,6 @@ import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import { PlaceDetailModal } from '../../src/components/places/PlaceDetailModal';
 import {
   MapPin,
-  Calendar,
   Clock,
   Footprints,
   Bus,
@@ -50,13 +47,10 @@ import {
   MoveDown,
   Trash2,
   Plus,
-  ArrowUpDown,
   Navigation,
   Coins,
   Receipt,
   X,
-  Check,
-  ChevronDown,
   Hotel,
   Plane,
   Edit3,
@@ -78,15 +72,10 @@ export default function PlannerScreen() {
     addPlaceToSchedule,
     setDayStartTime,
     getDayStartTime,
-    setDayLodging,
-    getDayLodging,
     getDayLodgings,
-    tripLodgings,
-    setRangeLodging,
     getTripFlight,
     setTripFlight,
     deleteTripFlight,
-    applyFlightStartTime,
     updateCustomTransport,
   } = useTripStore();
 
@@ -121,8 +110,7 @@ export default function PlannerScreen() {
   const [addSpotModalVisible, setAddSpotModalVisible] = useState(false);
   const [selectedPlaceForDetail, setSelectedPlaceForDetail] = useState<Place | null>(null);
 
-  // Modals for lodging, day start time, flight ticket, custom duration & transport
-  const [lodgingModalVisible, setLodgingModalVisible] = useState(false);
+  // Modals for day start time, flight ticket, custom duration & transport
   const [flightModalVisible, setFlightModalVisible] = useState(false);
   const [startTimeModalVisible, setStartTimeModalVisible] = useState(false);
   const [customDurationStop, setCustomDurationStop] = useState<ScheduleItem | null>(null);
@@ -133,18 +121,20 @@ export default function PlannerScreen() {
 
   const dayStartTime = getDayStartTime(selectedDay);
   const dayLodgingsList = getDayLodgings(selectedDay, currentTrip?.id);
-  const dayLodging = dayLodgingsList[0] || null;
   const tripFlight = getTripFlight(currentTrip?.id);
 
-
   // Get current day's sorted schedule items (filtered by active trip, including FLIGHT)
-  const dayStops = scheduleItems
-    .filter(
-      (s) =>
-        s.day_number === selectedDay &&
-        (!s.trip_id || s.trip_id === currentTrip?.id)
-    )
-    .sort((a, b) => a.order_index - b.order_index);
+  const dayStops = useMemo(
+    () =>
+      scheduleItems
+        .filter(
+          (s) =>
+            s.day_number === selectedDay &&
+            (!s.trip_id || s.trip_id === currentTrip?.id)
+        )
+        .sort((a, b) => a.order_index - b.order_index),
+    [scheduleItems, selectedDay, currentTrip?.id]
+  );
 
   const getStopCategoryLabel = (cat?: string) => {
     const u = (cat || '').toUpperCase();
@@ -672,10 +662,7 @@ export default function PlannerScreen() {
                           {/* Transport Mode Toggle Pills & Custom Entry */}
                           <View className="flex-row items-center bg-surface p-1 rounded-xl border border-secondary/20">
                             <TouchableOpacity
-                              onPress={() => {
-                                updateTransportMode(nextStop.id, 'WALK');
-                                updateCustomTransport(nextStop.id, '', 0);
-                              }}
+                              onPress={() => updateCustomTransport(nextStop.id, '', 0, 'WALK')}
                               className={`p-1.5 rounded-lg mr-1 ${nextStop.transport_mode === 'WALK' && !nextStop.custom_transport_name ? 'bg-secondary' : ''
                                 }`}
                             >
@@ -686,10 +673,7 @@ export default function PlannerScreen() {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                              onPress={() => {
-                                updateTransportMode(nextStop.id, 'TRANSIT');
-                                updateCustomTransport(nextStop.id, '', 0);
-                              }}
+                              onPress={() => updateCustomTransport(nextStop.id, '', 0, 'TRANSIT')}
                               className={`p-1.5 rounded-lg mr-1 ${nextStop.transport_mode === 'TRANSIT' && !nextStop.custom_transport_name ? 'bg-secondary' : ''
                                 }`}
                             >
@@ -700,10 +684,7 @@ export default function PlannerScreen() {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                              onPress={() => {
-                                updateTransportMode(nextStop.id, 'DRIVE');
-                                updateCustomTransport(nextStop.id, '', 0);
-                              }}
+                              onPress={() => updateCustomTransport(nextStop.id, '', 0, 'DRIVE')}
                               className={`p-1.5 rounded-lg mr-1 ${nextStop.transport_mode === 'DRIVE' && !nextStop.custom_transport_name ? 'bg-secondary' : ''
                                 }`}
                             >
@@ -950,33 +931,15 @@ export default function PlannerScreen() {
         }}
       />
 
-      {/* 숙소 입력 및 확인 모달 (LodgingModal) */}
-      <LodgingModal
-        visible={lodgingModalVisible}
-        onClose={() => setLodgingModalVisible(false)}
-        dayNumber={selectedDay}
-        tripStartDate={currentTrip?.startDate}
-        tripEndDate={currentTrip?.endDate}
-        schedules={currentTrip?.schedules}
-        initialLodging={dayLodging}
-        onSave={(lodging) => setDayLodging(selectedDay, lodging)}
-        onSaveRange={(lodging, startDay, endDay) => {
-          setRangeLodging(currentTrip?.id || 't_tokyo', lodging, startDay, endDay);
-        }}
-      />
-
       {/* 항공권 입력 및 확인 모달 (FlightModal) */}
       <FlightModal
         visible={flightModalVisible}
         onClose={() => setFlightModalVisible(false)}
-        tripTitle={currentTrip?.title}
-        tripId={currentTrip?.id || 't_tokyo'}
         tripStartDate={currentTrip?.startDate}
         tripEndDate={currentTrip?.endDate}
-        schedules={currentTrip?.schedules}
         initialFlight={tripFlight}
-        onSaveFlight={(flight) => setTripFlight(currentTrip?.id || 't_tokyo', flight)}
-        onDeleteFlight={() => deleteTripFlight(currentTrip?.id || 't_tokyo')}
+        onSaveFlight={(flight) => setTripFlight(currentTrip?.id || 't_first', flight)}
+        onDeleteFlight={() => deleteTripFlight(currentTrip?.id || 't_first')}
       />
 
       {/* 일정 시작 시간 수정 모달 (DayStartTimeModal) */}

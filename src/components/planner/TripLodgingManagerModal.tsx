@@ -23,6 +23,7 @@ import {
 import type { LodgingInfo, DaySchedule } from '../../types';
 import { PlaceSearchModal } from '../places/PlaceSearchModal';
 import { formatTimeInput } from '../../utils/formatUtils';
+import { addDaysToIsoDate, getTodayIsoDate } from '../../utils/networkUtils';
 import { useTripStore } from '../../store/useTripStore';
 
 interface TripLodgingManagerModalProps {
@@ -77,8 +78,8 @@ export const TripLodgingManagerModal: React.FC<TripLodgingManagerModalProps> = (
   onClose,
   tripId,
   destination = '',
-  tripStartDate = '2026-11-10',
-  tripEndDate = '2026-11-13',
+  tripStartDate = getTodayIsoDate(),
+  tripEndDate = addDaysToIsoDate(getTodayIsoDate(), 3),
   schedules = [],
 }) => {
   const insets = useSafeAreaInsets();

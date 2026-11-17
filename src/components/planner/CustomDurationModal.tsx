@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Clock, Check, Plus } from '@/components/common/CustomIcons';
+import { X, Clock, Check } from '@/components/common/CustomIcons';
 
 interface CustomDurationModalProps {
   visible: boolean;
@@ -53,11 +53,6 @@ export const CustomDurationModal: React.FC<CustomDurationModalProps> = ({
     }
     onSave(mins);
     onClose();
-  };
-
-  const handleQuickAdd = (delta: number) => {
-    const current = parseInt(durationStr.replace(/[^0-9]/g, ''), 10) || 0;
-    setDurationStr(String(Math.max(current + delta, 5)));
   };
 
   const PRESETS = [15, 30, 45, 60, 75, 90, 120, 150, 180];

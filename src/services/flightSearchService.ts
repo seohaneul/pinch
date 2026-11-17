@@ -1,4 +1,5 @@
-import { POPULAR_AIRPORTS, type AirportItem } from './airportService';
+import { POPULAR_AIRPORTS } from './airportService';
+import { fetchWithTimeout } from '../utils/networkUtils';
 
 export interface RealFlightSchedule {
   id: string;
@@ -594,7 +595,7 @@ async function fetchIcnScheduleList(kind: 'departures' | 'arrivals'): Promise<Pa
   const op = kind === 'departures' ? 'getPaxFltSchedDepartures' : 'getPaxFltSchedArrivals';
   const url = `https://apis.data.go.kr/B551177/PaxFltSched/${op}?serviceKey=${serviceKey}&type=json&numOfRows=3000&pageNo=1`;
 
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url, { timeoutMs: 8000 });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   const rawItems = json?.response?.body?.items;

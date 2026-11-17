@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { detectSnsPlatform } from '../services/parserService';
 
+// 세션 내 이미 닫은 URL을 공유해 홈/보관함 중복 팝업 방지 및 다른 URL 재감지 허용
+const sharedDismissedUrls = new Set<string>();
+
 export function useClipboardListener() {
   const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
-  const [hasDismissed, setHasDismissed] = useState<boolean>(false);
 
   const checkClipboard = useCallback(async () => {
     try {
@@ -15,27 +18,44 @@ export function useClipboardListener() {
       if (!text) return;
 
       const trimmed = text.trim();
-      const platform = detectSnsPlatform(trimmed);
+      if (sharedDismissedUrls.has(trimmed)) {
+        if (detectedUrl === trimmed) setDetectedUrl(null);
+        return;
+      }
 
-      if (platform !== 'manual' && trimmed !== detectedUrl && !hasDismissed) {
+      const platform = detectSnsPlatform(trimmed);
+      if (platform !== 'manual' && trimmed !== detectedUrl) {
         setDetectedUrl(trimmed);
       }
-    } catch (err) {
+    } catch {
       // Ignore clipboard read errors in unsupported environments
     }
-  }, [detectedUrl, hasDismissed]);
+  }, [detectedUrl]);
 
   useEffect(() => {
     checkClipboard();
-    // Check when app regains focus
-    const interval = setInterval(checkClipboard, 3000);
-    return () => clearInterval(interval);
+    const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        checkClipboard();
+      }
+    });
+    const interval = setInterval(() => {
+      if (AppState.currentState === 'active') {
+        checkClipboard();
+      }
+    }, 4000);
+    return () => {
+      sub.remove();
+      clearInterval(interval);
+    };
   }, [checkClipboard]);
 
-  const dismissDetectedUrl = () => {
+  const dismissDetectedUrl = useCallback(() => {
+    if (detectedUrl) {
+      sharedDismissedUrls.add(detectedUrl);
+    }
     setDetectedUrl(null);
-    setHasDismissed(true);
-  };
+  }, [detectedUrl]);
 
   return {
     detectedUrl,

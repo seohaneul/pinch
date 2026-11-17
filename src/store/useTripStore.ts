@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Trip, DaySchedule, ScheduleItem, Place, Member, Expense, LodgingInfo, FlightInfo } from '../types';
+import type { Trip, DaySchedule, ScheduleItem, Place, Member, LodgingInfo, FlightInfo } from '../types';
 import type { TransportMode } from '../utils/geoUtils';
 import {
   calculateDistance,
@@ -17,7 +17,6 @@ interface TripState {
   activeTripId: string;
   selectedDay: number;
   scheduleItems: ScheduleItem[];
-  expenses: Expense[];
   dayStartTimes: Record<string, string>;
   dayLodgings: Record<string, LodgingInfo>;
   tripLodgings: Record<string, LodgingInfo[]>;
@@ -26,18 +25,14 @@ interface TripState {
 
   // Actions
   setHasCompletedOnboarding: (completed: boolean) => void;
-  getActiveTrip: () => Trip;
-  getActiveScheduleItems: () => ScheduleItem[];
   setSelectedDay: (day: number) => void;
   setActiveTrip: (id: string) => void;
   setTripFlight: (tripId: string, flight: FlightInfo) => void;
   getTripFlight: (tripId?: string) => FlightInfo | null;
   deleteTripFlight: (tripId: string) => void;
-  syncFlightToSchedule: (tripId: string, flight: FlightInfo) => void;
   setRangeLodging: (tripId: string, lodging: LodgingInfo, startDayNumber: number, endDayNumber: number) => void;
   setTripLodgings: (tripId: string, lodgings: LodgingInfo[]) => void;
   getDayLodgings: (dayNumber: number, tripId?: string) => LodgingInfo[];
-  clearTripLodgings: (tripId: string) => void;
 
   createTrip: (tripData: {
     title: string;
@@ -61,52 +56,85 @@ interface TripState {
   recalculateTimes: (dayNumber: number) => void;
   addPlaceToSchedule: (dayNumber: number, place: Place) => void;
   removeScheduleItem: (scheduleId: string) => void;
-  updateCustomTransport: (scheduleId: string, customName: string, minutes: number) => void;
+  updateCustomTransport: (
+    scheduleId: string,
+    customName: string,
+    minutes: number,
+    mode?: TransportMode
+  ) => void;
   setDayStartTime: (dayNumber: number, timeStr: string) => void;
   getDayStartTime: (dayNumber: number) => string;
   setDayLodging: (dayNumber: number, lodging: LodgingInfo) => void;
   getDayLodging: (dayNumber: number) => LodgingInfo | null;
-  applyFlightStartTime: (dayNumber: number, flightTimeStr: string, bufferMinutes?: number) => string;
   applyRecommendedItinerary: (tripId: string, items: ScheduleItem[], dayStartTimes?: Record<number, string>) => void;
-  addExpense: (expense: Omit<Expense, 'id'>) => void;
-  deleteExpense: (expenseId: string) => void;
-  restoreTripsData: (trips: Trip[], scheduleItems?: ScheduleItem[]) => void;
   resetToDefaults: () => void;
 }
 
-import {
-  DEMO_MEMBERS,
-  DEMO_SCHEDULE_ITEMS,
-  DEMO_DEFAULT_TRIP,
-  DEMO_TRIPS,
-  DEMO_DAY_START_TIMES,
-  DEMO_DAY_LODGINGS,
-  DEMO_TRIP_FLIGHTS,
-  DEMO_TRIP_EXPENSES,
-} from '../data/mockDemoData';
+function buildDaySchedules(
+  startDate: string,
+  endDate: string,
+  existingSchedules?: DaySchedule[]
+): DaySchedule[] {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffTime = Math.max(0, end.getTime() - start.getTime());
+  const dayCount = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+  const schedules: DaySchedule[] = [];
+  for (let i = 1; i <= dayCount; i++) {
+    const dayDate = new Date(start);
+    dayDate.setDate(dayDate.getDate() + (i - 1));
+    const existingDay = existingSchedules?.find((s) => s.dayNumber === i);
+    schedules.push({
+      dayNumber: i,
+      date: dayDate.toISOString().slice(0, 10),
+      placeIds: existingDay?.placeIds || [],
+      notes: existingDay?.notes,
+      startTime: existingDay?.startTime,
+      lodging: existingDay?.lodging,
+    });
+  }
+  return schedules;
+}
 
-const MOCK_MEMBERS = DEMO_MEMBERS;
-const INITIAL_SCHEDULE_ITEMS = DEMO_SCHEDULE_ITEMS;
-const DEFAULT_TRIP = DEMO_DEFAULT_TRIP;
-const INITIAL_TRIPS = DEMO_TRIPS;
-const INITIAL_EXPENSES = DEMO_TRIP_EXPENSES;
-const INITIAL_DAY_START_TIMES = DEMO_DAY_START_TIMES;
-const INITIAL_DAY_LODGINGS = DEMO_DAY_LODGINGS;
-const INITIAL_TRIP_FLIGHTS = DEMO_TRIP_FLIGHTS;
+function createDefaultEmptyTrip(): Trip {
+  const today = new Date();
+  const startDate = today.toISOString().split('T')[0];
+  const endDate = new Date(today.getTime() + 86400000 * 2).toISOString().split('T')[0];
+  return {
+    id: 't_first',
+    title: '나의 첫 여행 ✈️',
+    destination: '여행지 설정',
+    startDate,
+    endDate,
+    coverImage: '',
+    status: 'ongoing',
+    budget: 0,
+    createdAt: today.toISOString(),
+    members: [],
+    places: [],
+    schedules: buildDaySchedules(startDate, endDate),
+  };
+}
+
+const DEFAULT_TRIP = createDefaultEmptyTrip();
+const INITIAL_DAY_START_TIMES: Record<string, string> = {
+  t_first_day_1: '10:00',
+  t_first_day_2: '10:00',
+  t_first_day_3: '10:00',
+};
 
 export const useTripStore = create<TripState>()(
   persist(
     (set, get) => ({
-  trips: INITIAL_TRIPS,
+  trips: [DEFAULT_TRIP],
   currentTrip: DEFAULT_TRIP,
   activeTripId: DEFAULT_TRIP.id,
   selectedDay: 1,
-  scheduleItems: INITIAL_SCHEDULE_ITEMS,
-  expenses: INITIAL_EXPENSES,
+  scheduleItems: [],
   dayStartTimes: INITIAL_DAY_START_TIMES,
-  dayLodgings: INITIAL_DAY_LODGINGS,
+  dayLodgings: {},
   tripLodgings: {},
-  tripFlights: INITIAL_TRIP_FLIGHTS,
+  tripFlights: {},
   hasCompletedOnboarding: false,
 
   setHasCompletedOnboarding: (completed: boolean) => set({ hasCompletedOnboarding: completed }),
@@ -212,22 +240,6 @@ export const useTripStore = create<TripState>()(
     });
   },
 
-  syncFlightToSchedule: (tripId: string, flight: FlightInfo) => {
-    get().setTripFlight(tripId, flight);
-  },
-
-  getActiveTrip: () => {
-    const { trips, activeTripId } = get();
-    return trips.find((t) => t.id === activeTripId) || DEFAULT_TRIP;
-  },
-
-  getActiveScheduleItems: () => {
-    const { scheduleItems, activeTripId } = get();
-    return scheduleItems.filter(
-      (s) => !s.trip_id || s.trip_id === activeTripId
-    );
-  },
-
   setSelectedDay: (day) => set({ selectedDay: day }),
 
   setActiveTrip: (id) => {
@@ -237,21 +249,7 @@ export const useTripStore = create<TripState>()(
 
   createTrip: (tripData) => {
     const tripId = `t_${Date.now()}`;
-    const start = new Date(tripData.startDate);
-    const end = new Date(tripData.endDate);
-    const diffTime = Math.max(0, end.getTime() - start.getTime());
-    const dayCount = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
-
-    const schedules: DaySchedule[] = [];
-    for (let i = 1; i <= dayCount; i++) {
-      const dayDate = new Date(start);
-      dayDate.setDate(dayDate.getDate() + (i - 1));
-      schedules.push({
-        dayNumber: i,
-        date: dayDate.toISOString().slice(0, 10),
-        placeIds: [],
-      });
-    }
+    const schedules = buildDaySchedules(tripData.startDate, tripData.endDate);
 
     const members: Member[] = (tripData.memberNames && tripData.memberNames.length > 0)
       ? tripData.memberNames.map((name, idx) => ({
@@ -259,7 +257,7 @@ export const useTripStore = create<TripState>()(
           name,
           color: ['#1B2A4A', '#2B50AA', '#3B82F6', '#6366F1', '#0D9488'][idx % 5],
         }))
-      : MOCK_MEMBERS;
+      : [];
 
     const autoCurrency = tripData.currency || resolveCurrencyByDestination(tripData.destination);
 
@@ -328,25 +326,7 @@ export const useTripStore = create<TripState>()(
       const rebuildTrip = (t: Trip): Trip => {
         const merged = { ...t, ...updates };
         if (updates.startDate || updates.endDate) {
-          const start = new Date(merged.startDate);
-          const end = new Date(merged.endDate);
-          const diffTime = Math.max(0, end.getTime() - start.getTime());
-          const dayCount = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
-          const schedules: DaySchedule[] = [];
-          for (let i = 1; i <= dayCount; i++) {
-            const dayDate = new Date(start);
-            dayDate.setDate(dayDate.getDate() + (i - 1));
-            const existingDay = t.schedules?.find((s) => s.dayNumber === i);
-            schedules.push({
-              dayNumber: i,
-              date: dayDate.toISOString().slice(0, 10),
-              placeIds: existingDay?.placeIds || [],
-              notes: existingDay?.notes,
-              startTime: existingDay?.startTime,
-              lodging: existingDay?.lodging,
-            });
-          }
-          merged.schedules = schedules;
+          merged.schedules = buildDaySchedules(merged.startDate, merged.endDate, t.schedules);
         }
         return merged;
       };
@@ -492,7 +472,7 @@ export const useTripStore = create<TripState>()(
     set({ scheduleItems: [...otherItems, ...updatedDayItems] });
   },
 
-  updateCustomTransport: (scheduleId, customName, minutes) => {
+  updateCustomTransport: (scheduleId, customName, minutes, mode) => {
     const { scheduleItems, recalculateTimes } = get();
     const target = scheduleItems.find((s) => s.id === scheduleId);
     if (!target) return;
@@ -502,6 +482,7 @@ export const useTripStore = create<TripState>()(
         s.id === scheduleId
           ? {
               ...s,
+              ...(mode ? { transport_mode: mode } : {}),
               custom_transport_name: customName,
               custom_travel_minutes: minutes,
             }
@@ -655,39 +636,6 @@ export const useTripStore = create<TripState>()(
     return single?.name ? [single] : [];
   },
 
-  clearTripLodgings: (tripId: string) => {
-    set((state) => {
-      const { dayLodgings, tripLodgings, trips, currentTrip } = state;
-      const updated = { ...dayLodgings };
-      Object.keys(updated).forEach((k) => {
-        if (k.startsWith(`${tripId}_day_`)) {
-          delete updated[k];
-        }
-      });
-      const updatedListMap = { ...tripLodgings };
-      delete updatedListMap[tripId];
-      const clearOnTrip = (t: Trip): Trip =>
-        t.id === tripId ? { ...t, lodging: undefined } : t;
-      return {
-        dayLodgings: updated,
-        tripLodgings: updatedListMap,
-        trips: trips.map(clearOnTrip),
-        currentTrip: currentTrip ? clearOnTrip(currentTrip) : currentTrip,
-      };
-    });
-  },
-
-  applyFlightStartTime: (dayNumber, flightTimeStr, bufferMinutes = 90) => {
-    const [h, m] = flightTimeStr.split(':').map((v) => parseInt(v, 10));
-    const totalFlightMinutes = (isNaN(h) ? 12 : h) * 60 + (isNaN(m) ? 0 : m);
-    const startMins = (totalFlightMinutes + bufferMinutes) % (24 * 60);
-    const newH = Math.floor(startMins / 60).toString().padStart(2, '0');
-    const newM = (startMins % 60).toString().padStart(2, '0');
-    const formatted = `${newH}:${newM}`;
-    get().setDayStartTime(dayNumber, formatted);
-    return formatted;
-  },
-
   addPlaceToSchedule: (dayNumber, place) => {
     const { scheduleItems, recalculateTimes, activeTripId } = get();
     const isTripMatch = (s: ScheduleItem) => (!s.trip_id || s.trip_id === activeTripId);
@@ -717,16 +665,16 @@ export const useTripStore = create<TripState>()(
   },
 
   removeScheduleItem: (scheduleId) => {
-    const { scheduleItems, recalculateTimes } = get();
+    const { scheduleItems, recalculateTimes, activeTripId } = get();
     const target = scheduleItems.find((s) => s.id === scheduleId);
     if (!target) return;
 
     const remaining = scheduleItems.filter((s) => s.id !== scheduleId);
-    const targetTripId = target.trip_id || 't_tokyo';
+    const targetTripId = target.trip_id || activeTripId || 't_first';
 
     // Re-index order_index for that day AND that trip only
     const updated = remaining.map((item) => {
-      const itemTripId = item.trip_id || 't_tokyo';
+      const itemTripId = item.trip_id || activeTripId || 't_first';
       if (
         itemTripId === targetTripId &&
         item.day_number === target.day_number &&
@@ -739,18 +687,6 @@ export const useTripStore = create<TripState>()(
 
     set({ scheduleItems: updated });
     recalculateTimes(target.day_number);
-  },
-
-  addExpense: (expenseData) => {
-    const newExpense: Expense = {
-      ...expenseData,
-      id: `exp_${Date.now()}`,
-    };
-    set({ expenses: [newExpense, ...get().expenses] });
-  },
-
-  deleteExpense: (expenseId) => {
-    set({ expenses: get().expenses.filter((e) => e.id !== expenseId) });
   },
 
   applyRecommendedItinerary: (tripId: string, items: ScheduleItem[], dayStartTimes?: Record<number, string>) => {
@@ -777,30 +713,18 @@ export const useTripStore = create<TripState>()(
     }
   },
 
-  restoreTripsData: (trips: Trip[], scheduleItems?: ScheduleItem[]) => {
-    if (!trips || trips.length === 0) return;
-    const current = trips[0];
-    set({
-      trips,
-      currentTrip: current,
-      activeTripId: current.id,
-      scheduleItems: scheduleItems || [],
-      selectedDay: 1,
-    });
-  },
-
   resetToDefaults: () => {
+    const freshDefault = createDefaultEmptyTrip();
     set({
-      trips: INITIAL_TRIPS,
-      currentTrip: DEFAULT_TRIP,
-      activeTripId: DEFAULT_TRIP.id,
+      trips: [freshDefault],
+      currentTrip: freshDefault,
+      activeTripId: freshDefault.id,
       selectedDay: 1,
-      scheduleItems: INITIAL_SCHEDULE_ITEMS,
-      expenses: INITIAL_EXPENSES,
+      scheduleItems: [],
       dayStartTimes: INITIAL_DAY_START_TIMES,
-      dayLodgings: INITIAL_DAY_LODGINGS,
+      dayLodgings: {},
       tripLodgings: {},
-      tripFlights: INITIAL_TRIP_FLIGHTS,
+      tripFlights: {},
       hasCompletedOnboarding: false,
     });
   },
@@ -814,7 +738,6 @@ export const useTripStore = create<TripState>()(
     activeTripId: state.activeTripId,
     scheduleItems: state.scheduleItems,
     selectedDay: state.selectedDay,
-    expenses: state.expenses,
     dayStartTimes: state.dayStartTimes,
     dayLodgings: state.dayLodgings,
     tripLodgings: state.tripLodgings,

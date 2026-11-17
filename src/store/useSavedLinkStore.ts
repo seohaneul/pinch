@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { SavedLink, ExtractedPlaceItem } from '../types';
+import type { SavedLink } from '../types';
 import { parseLinkWithPlaces } from '../services/parserService';
 import { useTripStore } from './useTripStore';
 
@@ -13,30 +13,21 @@ interface SavedLinkState {
   addLinkFromUrl: (url: string, tripId?: string) => Promise<SavedLink | null>;
   removeSavedLink: (id: string) => void;
   updateExtractedPlaceImage: (linkId: string, placeId: string, imageUrl: string) => void;
-  getLinksByTrip: (tripId: string) => SavedLink[];
   resetToDefaults: () => void;
 }
 
-import { DEMO_SAVED_LINKS } from '../data/mockDemoData';
-
-const INITIAL_SAVED_LINKS: SavedLink[] = DEMO_SAVED_LINKS;
-
 export const useSavedLinkStore = create<SavedLinkState>()(
   persist(
-    (set, get) => ({
-      savedLinks: INITIAL_SAVED_LINKS,
+    (set) => ({
+      savedLinks: [],
       isExtractingLink: false,
-
-      getLinksByTrip: (tripId: string) => {
-        return get().savedLinks.filter((l) => l.trip_id === tripId);
-      },
 
       addLinkFromUrl: async (url: string, tripId?: string) => {
         set({ isExtractingLink: true });
         try {
           const allTrips = useTripStore.getState().trips;
           const currentTrip = useTripStore.getState().currentTrip;
-          const activeTripId = tripId || currentTrip?.id || 't_tokyo';
+          const activeTripId = tripId || currentTrip?.id || 't_first';
           const targetTrip = allTrips.find((t) => t.id === activeTripId) || currentTrip;
           const destinationHint = targetTrip?.destination || targetTrip?.title || '';
           const newSavedLink = await parseLinkWithPlaces(url, activeTripId, destinationHint);
@@ -75,7 +66,7 @@ export const useSavedLinkStore = create<SavedLinkState>()(
 
       resetToDefaults: () => {
         set({
-          savedLinks: INITIAL_SAVED_LINKS,
+          savedLinks: [],
           isExtractingLink: false,
         });
       },

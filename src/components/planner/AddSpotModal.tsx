@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -9,11 +9,9 @@ import {
   Image,
   StyleSheet,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlaceStore } from '../../store/usePlaceStore';
-import { useSavedLinkStore } from '../../store/useSavedLinkStore';
 import { useTripStore } from '../../store/useTripStore';
 import type { Place, PlaceCategory } from '../../types';
 import {
@@ -23,13 +21,9 @@ import {
   X,
   MapPin,
   Check,
-  Building,
   Hotel,
-  Tag,
   Star,
-  Compass,
 } from '@/components/common/CustomIcons';
-import { searchPlaces, SearchPlaceResult } from '../../services/placeSearchService';
 import { PlaceSearchModal } from '../places/PlaceSearchModal';
 
 interface AddSpotModalProps {
@@ -50,18 +44,12 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
   const insets = useSafeAreaInsets();
   const { currentTrip, getDayLodging } = useTripStore();
   const { places, addPlace } = usePlaceStore();
-  const { savedLinks } = useSavedLinkStore();
 
   const [tab, setTab] = useState<'pocket' | 'search' | 'manual'>('pocket');
   const [pocketScope, setPocketScope] = useState<'trip' | 'all'>('trip');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [failedImageIds, setFailedImageIds] = useState<Record<string, boolean>>({});
-
-  // Online Place Search State
-  const [searchQueryOnline, setSearchQueryOnline] = useState('');
-  const [searchResultsOnline, setSearchResultsOnline] = useState<SearchPlaceResult[]>([]);
-  const [isSearchingOnline, setIsSearchingOnline] = useState(false);
 
   // Manual Form
   const [manualName, setManualName] = useState('');
@@ -134,14 +122,17 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
   const handleAddDayLodgingAsSpot = () => {
     if (!dayLodging) return;
 
+    const fallbackLat = currentTrip?.centerLat ?? 35.6858;
+    const fallbackLng = currentTrip?.centerLng ?? 139.6908;
+
     const lodgingPlace: Place = {
       id: `lodging_spot_${dayNumber}_${Date.now()}`,
       trip_id: activeTripId,
       name: dayLodging.name,
       address: dayLodging.address || `${currentTrip?.destination || '현지'} 숙소`,
       category: 'LODGING',
-      latitude: dayLodging.latitude || (activeTripId === 't_osaka' ? 34.6937 : 35.6858),
-      longitude: dayLodging.longitude || (activeTripId === 't_osaka' ? 135.5023 : 139.6908),
+      latitude: dayLodging.latitude || fallbackLat,
+      longitude: dayLodging.longitude || fallbackLng,
       memo: dayLodging.memo || `DAY ${dayNumber} 숙소 체크인 (${dayLodging.checkInTime || '15:00'})`,
       imageUrl: dayLodging.imageUrl,
       isPinned: true,
@@ -160,7 +151,8 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
       return;
     }
 
-    const isOsaka = activeTripId === 't_osaka';
+    const baseLat = currentTrip?.centerLat ?? 35.6762;
+    const baseLng = currentTrip?.centerLng ?? 139.6503;
 
     const newPlace: Place = {
       id: `p_manual_${Date.now()}`,
@@ -168,8 +160,8 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
       name: manualName.trim(),
       address: manualAddress.trim() || `${currentTrip?.destination || '현지'} 추천 장소`,
       category: manualCategory,
-      latitude: isOsaka ? 34.6937 + (Math.random() - 0.5) * 0.04 : 35.6762 + (Math.random() - 0.5) * 0.04,
-      longitude: isOsaka ? 135.5023 + (Math.random() - 0.5) * 0.04 : 139.6503 + (Math.random() - 0.5) * 0.04,
+      latitude: baseLat,
+      longitude: baseLng,
       memo: manualCategory === 'LODGING' ? '호텔/숙소 스팟' : undefined,
       isPinned: true,
       createdAt: new Date().toISOString(),
@@ -186,93 +178,6 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
     setManualName('');
     setManualAddress('');
     onClose();
-  };
-
-  // Direct online search executor
-  const handleExecuteSearchOnline = async (queryText?: string) => {
-    const q = (queryText !== undefined ? queryText : searchQueryOnline).trim();
-    setIsSearchingOnline(true);
-    try {
-      const res = await searchPlaces(q);
-      setSearchResultsOnline(res);
-    } catch {
-      setSearchResultsOnline([]);
-    } finally {
-      setIsSearchingOnline(false);
-    }
-  };
-
-  // Online search effect
-  useEffect(() => {
-    if (tab !== 'search') return;
-    let isCancelled = false;
-    const doSearch = async () => {
-      setIsSearchingOnline(true);
-      try {
-        const res = await searchPlaces(searchQueryOnline);
-        if (!isCancelled) setSearchResultsOnline(res);
-      } catch {
-        if (!isCancelled) setSearchResultsOnline([]);
-      } finally {
-        if (!isCancelled) setIsSearchingOnline(false);
-      }
-    };
-    const timer = setTimeout(doSearch, 250);
-    return () => {
-      isCancelled = true;
-      clearTimeout(timer);
-    };
-  }, [searchQueryOnline, tab]);
-
-  const handleSelectOnlinePlace = (item: SearchPlaceResult) => {
-    const newPlace: Place = {
-      id: `p_search_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      trip_id: activeTripId,
-      name: item.name,
-      address: item.address,
-      category: item.category,
-      latitude: item.latitude,
-      longitude: item.longitude,
-      memo: item.memo || '검색하여 일정에 추가한 장소',
-      imageUrl: item.imageUrl,
-      rating: item.rating || 4.8,
-      isPinned: true,
-      createdAt: new Date().toISOString(),
-      sourcePlatform: 'manual',
-      tags: [item.category, '직접검색'],
-    };
-
-    addPlace(newPlace, activeTripId);
-    onSelectPlace(newPlace);
-    Alert.alert(
-      '일정에 추가 완료 🤏',
-      `"${item.name}" 장소를 DAY ${dayNumber} 일정 및 보관함에 추가했습니다!`
-    );
-    onClose();
-  };
-
-  const handleSaveOnlinePlaceToPocketOnly = (item: SearchPlaceResult) => {
-    const newPlace: Place = {
-      id: `p_search_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      trip_id: activeTripId,
-      name: item.name,
-      address: item.address,
-      category: item.category,
-      latitude: item.latitude,
-      longitude: item.longitude,
-      memo: item.memo || '검색하여 보관함에 담은 장소',
-      imageUrl: item.imageUrl,
-      rating: item.rating || 4.8,
-      isPinned: true,
-      createdAt: new Date().toISOString(),
-      sourcePlatform: 'manual',
-      tags: [item.category, '직접검색'],
-    };
-
-    const ok = addPlace(newPlace, activeTripId);
-    if (ok) {
-      Alert.alert('보관함 저장 완료 📌', `"${item.name}" 장소를 보관함에 담았습니다.`);
-    }
   };
 
   const CATEGORY_TABS = [
@@ -300,7 +205,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
           setTab('pocket');
           onClose();
         }}
-        initialQuery={searchQueryOnline}
+        initialQuery={searchQuery}
         targetDayNumber={dayNumber}
         onAddToSchedule={(_, place) => {
           onSelectPlace(place);
@@ -617,10 +522,7 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                     </Text>
                     {searchQuery.trim().length > 0 && (
                       <TouchableOpacity
-                        onPress={() => {
-                          setSearchQueryOnline(searchQuery);
-                          setTab('search');
-                        }}
+                        onPress={() => setTab('search')}
                         style={{
                           marginTop: 12,
                           flexDirection: 'row',
@@ -640,185 +542,6 @@ export const AddSpotModal: React.FC<AddSpotModalProps> = ({
                       </TouchableOpacity>
                     )}
                   </View>
-                )}
-              </ScrollView>
-            </View>
-          ) : (tab as string) === 'search' ? (
-            <View style={{ flex: 1 }}>
-              <View style={[styles.searchBar, { marginTop: 4, marginBottom: 8 }]}>
-                <Search size={16} color="#1B2A4A" style={{ marginRight: 8 }} />
-                <TextInput
-                  value={searchQueryOnline}
-                  onChangeText={setSearchQueryOnline}
-                  onSubmitEditing={() => handleExecuteSearchOnline()}
-                  placeholder="장소명, 맛집, 카페, 명소 검색 (예: 투몬 비치, 이치란)"
-                  placeholderTextColor="#9CA3AF"
-                  style={styles.searchInput}
-                  returnKeyType="search"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                {searchQueryOnline.length > 0 && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setSearchQueryOnline('');
-                      handleExecuteSearchOnline('');
-                    }}
-                    style={{ padding: 4, marginRight: 4 }}
-                  >
-                    <X size={14} color="#9CA3AF" />
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  onPress={() => handleExecuteSearchOnline()}
-                  style={{
-                    backgroundColor: '#1B2A4A',
-                    paddingHorizontal: 10,
-                    paddingVertical: 5,
-                    borderRadius: 8,
-                    marginLeft: 2,
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#FFFFFF' }}>검색</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Suggestions */}
-              {searchQueryOnline.trim().length === 0 && (
-                <View style={{ marginBottom: 10 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#E11D48', marginBottom: 6 }}>
-                    인기 스팟 추천:
-                  </Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 6 }}
-                    keyboardShouldPersistTaps="handled"
-                  >
-                    {['투몬 비치', '사랑의 절벽', '이치란', '블루보틀', '돈키호테', '도쿄타워'].map((chip) => (
-                      <TouchableOpacity
-                        key={chip}
-                        onPress={() => {
-                          setSearchQueryOnline(chip);
-                          handleExecuteSearchOnline(chip);
-                        }}
-                        style={{
-                          paddingHorizontal: 9,
-                          paddingVertical: 4,
-                          borderRadius: 10,
-                          backgroundColor: '#F8FAFC',
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={{ fontSize: 11, color: '#9F1239', fontWeight: '600' }}>{chip}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text style={{ fontSize: 11, color: '#94A3B8', fontWeight: '600' }}>
-                  {isSearchingOnline ? '장소 검색 중...' : `검색 결과 ${searchResultsOnline.length}개`}
-                </Text>
-                {isSearchingOnline && <ActivityIndicator size="small" color="#1B2A4A" />}
-              </View>
-
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 24, gap: 10 }}
-                keyboardShouldPersistTaps="handled"
-              >
-                {searchResultsOnline.length === 0 && !isSearchingOnline ? (
-                  <View style={styles.emptyContainer}>
-                    <MapPin size={32} color="#CBD5E1" />
-                    <Text style={styles.emptyTitle}>검색 결과가 없습니다</Text>
-                    <Text style={styles.emptySubtitle}>다른 장소명이나 키워드로 검색해보세요.</Text>
-                  </View>
-                ) : (
-                  searchResultsOnline.map((item) => (
-                    <View
-                      key={item.id}
-                      style={{
-                        backgroundColor: '#FFFFFF',
-                        borderRadius: 14,
-                        padding: 12,
-                        borderWidth: 1,
-                        borderColor: '#E2E8F0',
-                      }}
-                    >
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <View style={{ backgroundColor: '#F8FAFC', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
-                          <Text style={{ fontSize: 10, fontWeight: '800', color: '#E11D48' }}>
-                            {getKoreanCategory(item.category)}
-                          </Text>
-                        </View>
-                        {item.rating && (
-                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Star size={10} color="#EAB308" fill="#EAB308" style={{ marginRight: 2 }} />
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#854D0E' }}>
-                              {item.rating.toFixed(1)}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#0F172A', marginBottom: 3 }}>
-                        {item.name}
-                      </Text>
-                      <Text style={{ fontSize: 11, color: '#64748B', marginBottom: 4 }} numberOfLines={1}>
-                        {item.address}
-                      </Text>
-                      {item.memo && (
-                        <Text style={{ fontSize: 10, color: '#059669', marginBottom: 8 }} numberOfLines={1}>
-                          💡 {item.memo}
-                        </Text>
-                      )}
-
-                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-                        <TouchableOpacity
-                          onPress={() => handleSelectOnlinePlace(item)}
-                          style={{
-                            flex: 1.3,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            paddingVertical: 8,
-                            borderRadius: 10,
-                            backgroundColor: '#1B2A4A',
-                          }}
-                          activeOpacity={0.8}
-                        >
-                          <Plus size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
-                          <Text style={{ fontSize: 11, fontWeight: '800', color: '#FFFFFF' }}>
-                            DAY {dayNumber}에 추가 🤏
-                          </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          onPress={() => handleSaveOnlinePlaceToPocketOnly(item)}
-                          style={{
-                            flex: 1,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            paddingVertical: 8,
-                            borderRadius: 10,
-                            backgroundColor: '#F8FAFC',
-                            borderWidth: 1,
-                            borderColor: '#E2E8F0',
-                          }}
-                          activeOpacity={0.8}
-                        >
-                          <Bookmark size={12} color="#64748B" style={{ marginRight: 4 }} />
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748B' }}>
-                            보관함만 저장
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))
                 )}
               </ScrollView>
             </View>

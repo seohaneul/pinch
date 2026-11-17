@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Modal,
   View,
   Text,
   TextInput,
@@ -15,12 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
-import { MapPin, X, Mail, Lock, User as UserIcon, ArrowRight } from '@/components/common/CustomIcons';
-
-interface AuthModalProps {
-  visible: boolean;
-  onClose: () => void;
-}
+import { MapPin, Mail, Lock, User as UserIcon, ArrowRight } from '@/components/common/CustomIcons';
 
 /**
  * 앱 진입 시 필수 로그인 화면 (Full-Screen Auth Gate)
@@ -214,180 +208,6 @@ export const AuthGateScreen: React.FC = () => {
   );
 };
 
-export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
-  const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<'login' | 'signup'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [nickname, setNickname] = useState('');
-
-  const { login, signup, loginWithSocial, isLoading } = useAuthStore();
-
-  const handleSocialModalLogin = async (provider: 'google' | 'kakao') => {
-    const ok = await loginWithSocial(provider);
-    if (ok) onClose();
-  };
-
-  const handleLogin = async () => {
-    const success = await login(email, password);
-    if (success) {
-      setEmail('');
-      setPassword('');
-      onClose();
-    }
-  };
-
-  const handleSignup = async () => {
-    const success = await signup(nickname, email, password);
-    if (success) {
-      setNickname('');
-      setEmail('');
-      setPassword('');
-      onClose();
-    }
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="slide">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={[styles.overlay, { backgroundColor: 'rgba(17, 24, 39, 0.45)' }]}>
-          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-            <View style={styles.header}>
-              <View style={styles.headerLeft}>
-                <View style={styles.iconCircle}>
-                  <MapPin size={18} color="#1B2A4A" fill="#1B2A4A" />
-                </View>
-                <Text style={styles.headerTitle}>
-                  {tab === 'login' ? '핀치 로그인' : '핀치 회원가입'}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                <X size={18} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.tabTrack}>
-              <TouchableOpacity
-                onPress={() => setTab('login')}
-                style={[styles.tabBtn, tab === 'login' && styles.tabBtnActive]}
-              >
-                <Text style={[styles.tabText, tab === 'login' && styles.tabTextActive]}>
-                  로그인
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setTab('signup')}
-                style={[styles.tabBtn, tab === 'signup' && styles.tabBtnActive]}
-              >
-                <Text style={[styles.tabText, tab === 'signup' && styles.tabTextActive]}>
-                  회원가입
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {tab === 'signup' && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>닉네임</Text>
-                <View style={styles.inputWrapper}>
-                  <UserIcon size={16} color="#9CA3AF" style={{ marginRight: 8 }} />
-                  <TextInput
-                    value={nickname}
-                    onChangeText={setNickname}
-                    placeholder="예: 민지"
-                    placeholderTextColor="#9CA3AF"
-                    style={styles.textInput}
-                  />
-                </View>
-              </View>
-            )}
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>이메일</Text>
-              <View style={styles.inputWrapper}>
-                <Mail size={16} color="#9CA3AF" style={{ marginRight: 8 }} />
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="name@example.com"
-                  placeholderTextColor="#9CA3AF"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  style={styles.textInput}
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>비밀번호</Text>
-              <View style={styles.inputWrapper}>
-                <Lock size={16} color="#9CA3AF" style={{ marginRight: 8 }} />
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="비밀번호 입력"
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry
-                  style={styles.textInput}
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={0.85}
-              disabled={isLoading}
-              onPress={tab === 'login' ? handleLogin : handleSignup}
-              style={[styles.primaryBtn, isLoading && { opacity: 0.7 }]}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <>
-                  <Text style={styles.primaryBtnText}>
-                    {tab === 'login' ? '로그인하기' : '회원가입 완료하기'}
-                  </Text>
-                  <ArrowRight size={16} color="#FFF" style={{ marginLeft: 6 }} />
-                </>
-              )}
-            </TouchableOpacity>
-
-            <View style={styles.socialDividerRow}>
-              <View style={styles.socialDividerLine} />
-              <Text style={styles.socialDividerText}>간편 로그인</Text>
-              <View style={styles.socialDividerLine} />
-            </View>
-
-            <View style={styles.socialBtnGroup}>
-              <TouchableOpacity
-                activeOpacity={0.85}
-                disabled={isLoading}
-                onPress={() => handleSocialModalLogin('kakao')}
-                style={styles.kakaoBtn}
-              >
-                <View style={styles.kakaoBubbleIcon}>
-                  <Text style={styles.kakaoBubbleText}>K</Text>
-                </View>
-                <Text style={styles.kakaoBtnText}>카카오로 시작하기</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.85}
-                disabled={isLoading}
-                onPress={() => handleSocialModalLogin('google')}
-                style={styles.googleBtn}
-              >
-                <View style={styles.googleBadgeIcon}>
-                  <Text style={styles.googleBadgeText}>G</Text>
-                </View>
-                <Text style={styles.googleBtnText}>Google로 시작하기</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
-  );
-};
-
 const styles = StyleSheet.create({
   gateScreen: {
     flex: 1,
@@ -453,46 +273,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: 20,
-  },
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: 24,
-    paddingBottom: 36,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: '#EEF2F8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
   },
   tabTrack: {
     flexDirection: 'row',

@@ -500,11 +500,8 @@ export default function HomeScreen() {
       <FlightModal
         visible={flightModalVisible}
         onClose={() => setFlightModalVisible(false)}
-        tripTitle={currentTrip?.title}
-        tripId={currentTripId}
         tripStartDate={currentTrip?.startDate}
         tripEndDate={currentTrip?.endDate}
-        schedules={currentTrip?.schedules}
         initialFlight={tripFlight}
         onSaveFlight={(flight) => setTripFlight(currentTripId, flight)}
         onDeleteFlight={() => deleteTripFlight(currentTripId)}

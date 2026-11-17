@@ -21,14 +21,12 @@ interface LinkPlacesModalProps {
   visible: boolean;
   savedLink: SavedLink | null;
   onClose: () => void;
-  onPlaceAdded?: (placeName: string) => void;
 }
 
 export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
   visible,
   savedLink,
   onClose,
-  onPlaceAdded,
 }) => {
   const insets = useSafeAreaInsets();
   const { places, addPlace } = usePlaceStore();
@@ -68,7 +66,7 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
       return;
     }
 
-    const targetTripId = savedLink.trip_id || useTripStore.getState().currentTrip?.id || 't_tokyo';
+    const targetTripId = savedLink.trip_id || useTripStore.getState().currentTrip?.id || 't_first';
 
     const newPlace: Place = {
       id: `place_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
@@ -90,14 +88,13 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
 
     const success = addPlace(newPlace, targetTripId);
     if (success) {
-      if (onPlaceAdded) onPlaceAdded(item.name);
       Alert.alert('장소 핀치 완료! 📌', `"${item.name}" 장소가 장소 보관함에 담겼습니다.`);
     }
   };
 
   // 전체 장소 한 번에 담기
   const handleAddAllPlaces = () => {
-    const targetTripId = savedLink.trip_id || useTripStore.getState().currentTrip?.id || 't_tokyo';
+    const targetTripId = savedLink.trip_id || useTripStore.getState().currentTrip?.id || 't_first';
     let addedCount = 0;
     savedLink.extractedPlaces.forEach((item, idx) => {
       if (!isPlaceInPocket(item.name)) {

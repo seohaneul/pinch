@@ -52,8 +52,6 @@ export const TripSwitcherModal: React.FC<TripSwitcherModalProps> = ({ visible, o
     );
   };
 
-  const [failedCoverIds, setFailedCoverIds] = useState<Record<string, boolean>>({});
-
   return (
     <>
       <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>

@@ -32,12 +32,10 @@ import {
   Utensils,
   Hotel,
   ShoppingBag,
-  Info,
   RotateCw,
   MessageSquareQuote,
   ChevronDown,
   ChevronUp,
-  Image as ImageIcon,
 } from '@/components/common/CustomIcons';
 import type { Place, ExtractedPlaceItem, GooglePlaceDetails } from '../../types';
 import { openInGoogleMaps } from '../../utils/mapUtils';
@@ -317,7 +315,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
   const handleConfirmAddToPlanner = () => {
     const placeToSchedule: Place = {
       id: place.id || `place_${Date.now()}`,
-      trip_id: currentTrip?.id || 't_tokyo',
+      trip_id: currentTrip?.id || 't_first',
       name: place.name,
       address: place.address,
       category: place.category as any,
@@ -345,12 +343,9 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
     setIsAddingToSchedule(false);
   };
 
-  const schedules = currentTrip?.schedules || [
-    { dayNumber: 1, date: '11.10' },
-    { dayNumber: 2, date: '11.11' },
-    { dayNumber: 3, date: '11.12' },
-    { dayNumber: 4, date: '11.13' },
-  ];
+  const schedules = currentTrip?.schedules && currentTrip.schedules.length > 0
+    ? currentTrip.schedules
+    : [{ dayNumber: 1, date: new Date().toISOString().slice(0, 10) }];
 
   return (
     <Modal

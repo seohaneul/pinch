@@ -21,7 +21,11 @@ import {
   Search,
   ArrowRight,
 } from '@/components/common/CustomIcons';
-import type { FlightInfo, SingleFlightLeg, DaySchedule } from '../../types';
+import type { FlightInfo, SingleFlightLeg } from '../../types';
+import {
+  getTodayIsoDate,
+  addDaysToIsoDate as addDaysToDate,
+} from '../../utils/networkUtils';
 import {
   searchAirports,
   KOREAN_DEPARTURE_AIRPORTS,
@@ -41,11 +45,8 @@ import { formatTimeInput } from '../../utils/formatUtils';
 interface FlightModalProps {
   visible: boolean;
   onClose: () => void;
-  tripTitle?: string;
-  tripId: string;
   tripStartDate?: string;
   tripEndDate?: string;
-  schedules?: DaySchedule[];
   initialFlight: FlightInfo | null;
   onSaveFlight: (flight: FlightInfo) => void;
   onDeleteFlight?: () => void;
@@ -54,8 +55,8 @@ interface FlightModalProps {
 export const FlightModal: React.FC<FlightModalProps> = ({
   visible,
   onClose,
-  tripStartDate = '2026-11-10',
-  tripEndDate = '2026-11-13',
+  tripStartDate = getTodayIsoDate(),
+  tripEndDate = addDaysToDate(getTodayIsoDate(), 3),
   initialFlight,
   onSaveFlight,
   onDeleteFlight,
@@ -106,20 +107,6 @@ export const FlightModal: React.FC<FlightModalProps> = ({
     () => getRecommendedAirportsForDestination(currentTrip?.destination),
     [currentTrip?.destination]
   );
-
-  const addDaysToDate = (dateStr: string, days: number = 1): string => {
-    try {
-      const parts = dateStr.split('-').map(Number);
-      if (parts.length !== 3 || parts.some(isNaN)) return dateStr;
-      const d = new Date(parts[0], parts[1] - 1, parts[2] + days);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
-    } catch {
-      return dateStr;
-    }
-  };
 
   useEffect(() => {
     if (!visible) return;

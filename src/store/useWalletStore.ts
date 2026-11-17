@@ -37,7 +37,6 @@ export interface WalletState {
   setTripCurrency: (tripId: string, currency: CurrencyCode) => void;
   getTripCurrency: (tripId?: string) => CurrencyCode;
   setCategoryBudget: (tripId: string, category: string, amount: number) => void;
-  deleteCategoryBudget: (tripId: string, category: string) => void;
   getCategoryBudgets: (tripId?: string) => Record<string, number>;
   addCustomBudget: (tripId: string, item: Omit<CustomBudgetItem, 'id' | 'trip_id'>) => void;
   removeCustomBudget: (tripId: string, id: string) => void;
@@ -48,22 +47,14 @@ export interface WalletState {
   getTourPackages: (tripId?: string) => TourPackageItem[];
   addExpense: (expense: Omit<ExpenseItem, 'id' | 'created_at' | 'krw_amount'>) => void;
   deleteExpense: (id: string) => void;
-  updateExchangeRate: (currency: CurrencyCode, rate: number) => void;
   refreshLiveExchangeRates: () => Promise<void>;
   toggleTransactionSettled: (id: string) => void;
   getMemberBalances: (tripId?: string, customMembers?: WalletMember[]) => MemberBalance[];
   getTransactions: (tripId?: string, customMembers?: WalletMember[]) => SettlementTransaction[];
   getTotalKrw: (tripId?: string) => number;
   generateShareText: (tripTitle?: string, tripId?: string, customMembers?: WalletMember[]) => string;
-  restoreExpenses: (expenses: any[]) => void;
   resetToDefaults: () => void;
 }
-
-
-import { DEMO_WALLET_MEMBERS, DEMO_WALLET_EXPENSES } from '../data/mockDemoData';
-
-const MOCK_MEMBERS: WalletMember[] = DEMO_WALLET_MEMBERS;
-const INITIAL_EXPENSES: ExpenseItem[] = DEMO_WALLET_EXPENSES;
 
 const INITIAL_CUSTOM_BUDGETS: Record<string, CustomBudgetItem[]> = {};
 const INITIAL_TOUR_PACKAGES: Record<string, TourPackageItem[]> = {};
@@ -83,8 +74,8 @@ export const DEFAULT_CATEGORY_BUDGET_MAP: Record<string, number> = {
 export const useWalletStore = create<WalletState>()(
   persist(
     (set, get) => ({
-  expenses: INITIAL_EXPENSES,
-  members: MOCK_MEMBERS,
+  expenses: [],
+  members: [],
   activeTab: 'expenses',
   exchangeRates: { ...DEFAULT_EXCHANGE_RATES },
   lastExchangeRateUpdate: '실시간 환율 연동',
@@ -126,19 +117,6 @@ export const useWalletStore = create<WalletState>()(
     });
   },
 
-  deleteCategoryBudget: (tripId: string, category: string) => {
-    set((state) => {
-      const current = { ...(state.categoryBudgets[tripId] || {}) };
-      delete current[category];
-      return {
-        categoryBudgets: {
-          ...state.categoryBudgets,
-          [tripId]: current,
-        },
-      };
-    });
-  },
-
   getCategoryBudgets: (tripId?: string) => {
     if (!tripId) return {};
     const saved = get().categoryBudgets?.[tripId];
@@ -149,10 +127,6 @@ export const useWalletStore = create<WalletState>()(
       }
       return normalized;
     }
-    // Pre-fill demo budgets for Tokyo and Osaka mock trips
-    if (tripId === 't_tokyo') return { ...INITIAL_CATEGORY_BUDGETS.t_tokyo };
-    if (tripId === 't_osaka') return { ...INITIAL_CATEGORY_BUDGETS.t_osaka };
-    // For any user-created trip, start with empty budgets so user has full control
     return {};
   },
 
@@ -289,30 +263,6 @@ export const useWalletStore = create<WalletState>()(
     set({ expenses: get().expenses.filter((e) => e.id !== id) });
   },
 
-  updateExchangeRate: (currency, rate) => {
-    const updatedRates = {
-      ...get().exchangeRates,
-      [currency]: rate,
-    };
-
-    // Recalculate KRW amount for expenses with that currency
-    const updatedExpenses = get().expenses.map((item) => {
-      if (item.currency === currency) {
-        return {
-          ...item,
-          exchange_rate: rate,
-          krw_amount: convertToKrw(item.amount, currency, rate),
-        };
-      }
-      return item;
-    });
-
-    set({
-      exchangeRates: updatedRates,
-      expenses: updatedExpenses,
-    });
-  },
-
   toggleTransactionSettled: (id) => {
     const { settledTransactionIds } = get();
     if (settledTransactionIds.includes(id)) {
@@ -372,14 +322,10 @@ export const useWalletStore = create<WalletState>()(
     return formatSettlementShareText(tripTitle, totalKrw, memberBalances, txns);
   },
 
-  restoreExpenses: (expenses: any[]) => {
-    set({ expenses: expenses || [] });
-  },
-
   resetToDefaults: () => {
     set({
-      expenses: INITIAL_EXPENSES,
-      members: MOCK_MEMBERS,
+      expenses: [],
+      members: [],
       activeTab: 'expenses',
       exchangeRates: { ...DEFAULT_EXCHANGE_RATES },
       settledTransactionIds: [],

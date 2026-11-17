@@ -28,10 +28,10 @@ import {
   X,
   Edit3,
   Check,
-  Plane,
   Globe,
   Camera,
 } from '@/components/common/CustomIcons';
+import { useSavedLinkStore } from '../../src/store/useSavedLinkStore';
 
 const AVATAR_PRESETS = [
   { id: 'preset:navy', bg: '#1B2A4A', color: '#FFFFFF', label: '네이비' },
@@ -63,7 +63,6 @@ export default function ProfileScreen() {
 
   const {
     user,
-    defaultBaseCurrency,
     defaultTransportMode,
     logout,
     loginWithSocial,
@@ -205,6 +204,7 @@ export default function ProfileScreen() {
             resetPlaces();
             resetTrips();
             resetWallet();
+            useSavedLinkStore.getState().resetToDefaults();
             setAccountSheetVisible(false);
             Alert.alert('초기화 완료', '모든 데이터가 초기 상태로 정리되었습니다.');
           },

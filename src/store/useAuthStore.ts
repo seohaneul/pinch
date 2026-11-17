@@ -25,8 +25,6 @@ interface AuthState {
   signup: (nickname: string, email: string, password?: string) => Promise<boolean>;
   loginWithSocial: (provider: 'google' | 'kakao') => Promise<boolean>;
   logout: () => Promise<void>;
-  continueAsGuest: () => void;
-  checkSession: () => Promise<void>;
   updateNickname: (newNickname: string) => boolean;
   updateAvatar: (avatarUrl: string) => boolean;
   changePassword: (currentPassword: string, newPassword: string) => { success: boolean; message: string };
@@ -232,32 +230,6 @@ export const useAuthStore = create<AuthState>()(
         }
         set({ isLoggedIn: false, user: null });
         Alert.alert('로그아웃', '게스트 모드로 전환되었습니다. 기기에 저장된 여행 데이터는 안전하게 유지됩니다.');
-      },
-
-      continueAsGuest: () => {
-        set({ isLoggedIn: false, user: null });
-      },
-
-      checkSession: async () => {
-        if (!isSupabaseConfigured()) return;
-        try {
-          const { data } = await supabase.auth.getSession();
-          if (data.session?.user) {
-            const email = data.session.user.email || '';
-            const nickname = data.session.user.user_metadata?.nickname || email.split('@')[0] || '여행자';
-            set({
-              isLoggedIn: true,
-              user: {
-                id: data.session.user.id,
-                email,
-                nickname,
-                createdAt: data.session.user.created_at,
-              },
-            });
-          }
-        } catch (err) {
-          console.log('[AuthStore] Session check error:', err);
-        }
       },
 
       updateNickname: (newNickname: string) => {

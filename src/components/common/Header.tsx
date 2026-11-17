@@ -6,7 +6,6 @@ interface HeaderProps {
   title: string;
   subtitle?: string;
   rightAction?: React.ReactNode;
-  showLogo?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({

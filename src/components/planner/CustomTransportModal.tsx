@@ -14,10 +14,6 @@ import {
   X,
   Navigation,
   Check,
-  Train,
-  Car,
-  Ship,
-  Bike,
   Clock,
 } from '@/components/common/CustomIcons';
 

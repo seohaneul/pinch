@@ -28,12 +28,6 @@ interface AddPlaceModalProps {
   initialSearchQuery?: string;
 }
 
-const SAMPLE_LINKS = [
-  { label: '인스타 도쿄 핫플', url: 'https://www.instagram.com/p/fuglen_tokyo_coffee' },
-  { label: '숏츠 교토 신사', url: 'https://youtube.com/shorts/kyoto_fushimi_inari' },
-  { label: '네이버 하카타 라멘', url: 'https://blog.naver.com/ichiran_ramen_fukuoka' },
-];
-
 export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
   visible,
   onClose,
@@ -127,32 +121,6 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
               <ClipboardIcon size={13} color="#1B2A4A" style={{ marginRight: 4 }} />
               <Text style={styles.pasteBtnText}>붙여넣기</Text>
             </TouchableOpacity>
-          </View>
-
-          <View style={styles.sampleSection}>
-            <Text style={styles.sampleLabel}>예시 링크 테스트</Text>
-            <View style={styles.sampleChipsRow}>
-              {SAMPLE_LINKS.map((sample) => (
-                <TouchableOpacity
-                  key={sample.label}
-                  activeOpacity={0.75}
-                  onPress={() => setUrlInput(sample.url)}
-                  style={[
-                    styles.sampleChip,
-                    urlInput === sample.url && styles.sampleChipActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.sampleChipText,
-                      urlInput === sample.url && styles.sampleChipTextActive,
-                    ]}
-                  >
-                    {sample.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
           </View>
 
           {loading ? (
@@ -260,37 +228,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#1B2A4A',
-  },
-  sampleSection: {
-    marginBottom: 28,
-  },
-  sampleLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#9CA3AF',
-    marginBottom: 8,
-  },
-  sampleChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  sampleChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-  },
-  sampleChipActive: {
-    backgroundColor: '#1B2A4A',
-  },
-  sampleChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  sampleChipTextActive: {
-    color: '#FFFFFF',
   },
   loadingBox: {
     flexDirection: 'row',

@@ -14,7 +14,7 @@ import {
   calculateTotalRouteTravelTime,
   solveTSPNearestNeighbor,
 } from '../../utils/geoUtils';
-import { ArrowRight, X, Clock, CheckCircle, Navigation } from '@/components/common/CustomIcons';
+import { ArrowRight, X, CheckCircle } from '@/components/common/CustomIcons';
 
 interface OptimizeConfirmModalProps {
   visible: boolean;
@@ -175,15 +175,6 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(27, 42, 74, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
   },
   title: {
     fontSize: 17,

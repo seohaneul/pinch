@@ -2937,96 +2937,11 @@ const styles = StyleSheet.create({
     height: 42,
     marginBottom: 10,
   },
-  flightCandidateScroll: {
-    gap: 8,
-    paddingVertical: 2,
-  },
-  flightCandidateCard: {
-    width: 176,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 13,
-    borderWidth: 1.2,
-    borderColor: '#E2E8F0',
-    padding: 10,
-    justifyContent: 'space-between',
-  },
-  flightCandidateCardActive: {
-    backgroundColor: '#1B2A4A',
-    borderColor: '#1B2A4A',
-  },
-  flightCandTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  flightCandCodePill: {
-    backgroundColor: '#EEF2F8',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  flightCandCodePillActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-  },
-  flightCandCodeText: {
-    fontSize: 11.5,
-    fontWeight: '900',
-    color: '#1B2A4A',
-  },
-  flightCandCodeTextActive: {
-    color: '#FFFFFF',
-  },
-  flightCandAirlineText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-    maxWidth: 92,
-  },
-  flightCandTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  flightCandTimeText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  flightCandIataText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#64748B',
-    marginTop: 1,
-  },
-  flightCandArrowWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  flightCandDuration: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: '#64748B',
-    marginBottom: 2,
-  },
   flightCandNextDayBadge: {
     fontSize: 9.5,
     fontWeight: '900',
     color: '#EF4444',
     marginLeft: 3,
-  },
-  flightCandFooter: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(148, 163, 184, 0.2)',
-    paddingTop: 5,
-    alignItems: 'center',
-  },
-  flightCandApplyText: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    color: '#2B50AA',
   },
   // 빠른 공항 선택 칩
   quickAirportChipRow: {

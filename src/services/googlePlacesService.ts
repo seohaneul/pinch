@@ -96,8 +96,13 @@ export async function fetchGooglePlaceDetails(
     console.log('[GooglePlaces] Wiki real data fetch failed:', err);
   }
 
-  // 5. 기본 실제 데이터 객체 (더미데이터 생성 없이 실제 구글맵 검색 딥링크 제공)
-  if (!realDetails) {
+  const isMeaningfulResult = Boolean(
+    realDetails &&
+      ((realDetails.photos && realDetails.photos.length > 0) ||
+        (realDetails.reviews && realDetails.reviews.length > 0))
+  );
+
+  if (!realDetails || !isMeaningfulResult) {
     realDetails = {
       name: placeName,
       address: address || '',
@@ -108,12 +113,12 @@ export async function fetchGooglePlaceDetails(
         placeName + (address ? ' ' + address : '')
       )}`,
     };
+  } else {
+    // 실제 사진/리뷰가 조회된 경우에만 캐시 저장
+    try {
+      await AsyncStorage.setItem(cacheKey, JSON.stringify(realDetails));
+    } catch {}
   }
-
-  // 캐시 저장
-  try {
-    await AsyncStorage.setItem(cacheKey, JSON.stringify(realDetails));
-  } catch {}
 
   return realDetails;
 }

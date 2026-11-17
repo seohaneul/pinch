@@ -1,6 +1,7 @@
 import type { Place, PlaceCategory, SavedLink, ExtractedPlaceItem } from '../types';
 import { extractPlacesWithGemini } from './geminiService';
 import { fetchRealPlaceImage, isDummyOrEmptyImage, resolveBestPlaceImage } from './imageSearchService';
+import { getCategoryFallbackImage } from '../utils/networkUtils';
 
 export interface ExtractedMeta {
   title: string;
@@ -26,15 +27,6 @@ const CITY_ANCHOR_COORDS: Record<string, { lat: number; lng: number; address: st
   파리: { lat: 48.8566, lng: 2.3522, address: '프랑스 일드프랑스 파리' },
   런던: { lat: 51.5074, lng: -0.1278, address: '영국 런던 웨스트민스터' },
   뉴욕: { lat: 40.7128, lng: -74.006, address: '미국 뉴욕주 뉴욕 맨해튼' },
-};
-
-// 카테고리별 고해상도 백업 썸네일
-const CATEGORY_DEFAULT_IMAGES: Record<string, string> = {
-  CAFE: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&auto=format&fit=crop',
-  RESTAURANT: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop',
-  ATTRACTION: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&auto=format&fit=crop',
-  LODGING: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop',
-  SHOPPING: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&auto=format&fit=crop',
 };
 
 // 1. 플랫폼 감지
@@ -348,7 +340,7 @@ export async function parseSnsUrl(url: string, destinationHint?: string): Promis
     }
   }
   if (!imageUrl) {
-    imageUrl = CATEGORY_DEFAULT_IMAGES[category] || CATEGORY_DEFAULT_IMAGES.ATTRACTION;
+    imageUrl = getCategoryFallbackImage(category);
   }
 
   const parsedPlace: Place = {

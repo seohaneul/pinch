@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TextInput,
   Modal,
   Alert,
-  Platform,
   StyleSheet,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -17,7 +16,6 @@ import { Button } from '../../src/components/common/Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWalletStore } from '../../src/store/useWalletStore';
 import { useTripStore } from '../../src/store/useTripStore';
-import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import { CategoryBudgetModal } from '../../src/components/wallet/CategoryBudgetModal';
 import {
   CurrencyCode,
@@ -52,7 +50,6 @@ import {
   Check,
   X,
   MapPin,
-  Calendar,
   Layers,
   RefreshCw,
   ChevronDown,
@@ -80,7 +77,6 @@ export default function WalletScreen() {
     activeTab,
     exchangeRates,
     lastExchangeRateUpdate,
-    isUpdatingRates,
     setActiveTab,
     addExpense,
     deleteExpense,
@@ -107,7 +103,6 @@ export default function WalletScreen() {
   }, []);
 
   const { currentTrip, scheduleItems } = useTripStore();
-  const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
   const [categoryBudgetModalVisible, setCategoryBudgetModalVisible] = useState(false);
 
   // Tour/Package Expand state inside Budget Tab
@@ -147,20 +142,17 @@ export default function WalletScreen() {
   const [selectedPlaceName, setSelectedPlaceName] = useState<string>('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL');
 
-  // Sync currency automatically based on destination when trip changes
+  // Sync currency automatically based on destination when trip currency hasn't been customized yet
+  const storedTripCurrencies = useWalletStore((s) => s.tripCurrencies);
   useEffect(() => {
-    if (currentTrip?.id && currentTrip?.destination) {
+    if (currentTrip?.id && currentTrip?.destination && !storedTripCurrencies?.[currentTrip.id]) {
       const autoCur = resolveCurrencyByDestination(currentTrip.destination);
       setTripCurrency(currentTrip.id, autoCur);
       setCurrency(autoCur);
     } else {
       setCurrency(activeTripCurrency);
     }
-  }, [currentTrip?.id, currentTrip?.destination]);
-
-  useEffect(() => {
-    setCurrency(activeTripCurrency);
-  }, [activeTripCurrency]);
+  }, [currentTrip?.id, currentTrip?.destination, storedTripCurrencies, activeTripCurrency]);
 
   useEffect(() => {
     if (tripMembers.length > 0) {
@@ -169,22 +161,32 @@ export default function WalletScreen() {
     }
   }, [currentTrip?.id]);
 
-  // Filter expenses strictly by active trip
-  const tripExpenses = expenses.filter(
-    (e) => !e.trip_id || e.trip_id === currentTrip?.id
+  // Filter expenses strictly by active trip (memoized)
+  const tripExpenses = useMemo(
+    () => expenses.filter((e) => !e.trip_id || e.trip_id === currentTrip?.id),
+    [expenses, currentTrip?.id]
   );
 
   // Stats
   const totalKrw = getTotalKrw(currentTrip?.id);
-  const totalCustomBudgetKrw = customBudgets.reduce((sum, b) => sum + (b.amount || 0), 0);
+  const totalCustomBudgetKrw = useMemo(
+    () => customBudgets.reduce((sum, b) => sum + (b.amount || 0), 0),
+    [customBudgets]
+  );
   const totalCategoryBudgetKrw =
     Object.values(activeBudgets).reduce((sum, val) => sum + (val || 0), 0) + totalCustomBudgetKrw;
   // Strictly calculate total budget from wallet category budgets and custom budgets only
   const effectiveBudget = totalCategoryBudgetKrw;
   const budgetUsagePercent = effectiveBudget > 0 ? Math.min(Math.round((totalKrw / effectiveBudget) * 100), 100) : 0;
 
-  const memberBalances = getMemberBalances(currentTrip?.id, tripMembers);
-  const transactions = getTransactions(currentTrip?.id, tripMembers);
+  const memberBalances = useMemo(
+    () => getMemberBalances(currentTrip?.id, tripMembers),
+    [getMemberBalances, currentTrip?.id, tripMembers, expenses]
+  );
+  const transactions = useMemo(
+    () => getTransactions(currentTrip?.id, tripMembers),
+    [getTransactions, currentTrip?.id, tripMembers, expenses]
+  );
 
   const handleAddTourInTab = () => {
     if (!newTourNameInput.trim()) {
@@ -228,16 +230,24 @@ export default function WalletScreen() {
 
 
   // Filtered Expenses
-  const filteredExpenses = tripExpenses.filter((e) => {
-    if (selectedCategoryFilter === 'ALL') return true;
-    return e.category === selectedCategoryFilter;
-  });
+  const filteredExpenses = useMemo(
+    () =>
+      tripExpenses.filter((e) => {
+        if (selectedCategoryFilter === 'ALL') return true;
+        return e.category === selectedCategoryFilter;
+      }),
+    [tripExpenses, selectedCategoryFilter]
+  );
 
   // Calculate Currency totals for active trip
   const currentRate = exchangeRates[activeTripCurrency] || 1;
-  const foreignTotalDirect = tripExpenses
-    .filter((e) => e.currency === activeTripCurrency)
-    .reduce((sum, e) => sum + e.amount, 0);
+  const foreignTotalDirect = useMemo(
+    () =>
+      tripExpenses
+        .filter((e) => e.currency === activeTripCurrency)
+        .reduce((sum, e) => sum + e.amount, 0),
+    [tripExpenses, activeTripCurrency]
+  );
   const totalInSelectedCurrency =
     activeTripCurrency === 'KRW'
       ? totalKrw
@@ -259,8 +269,9 @@ export default function WalletScreen() {
   };
 
   // Active trip schedule items for linking
-  const activeScheduleItems = scheduleItems.filter(
-    (s) => !s.trip_id || s.trip_id === currentTrip?.id
+  const activeScheduleItems = useMemo(
+    () => scheduleItems.filter((s) => !s.trip_id || s.trip_id === currentTrip?.id),
+    [scheduleItems, currentTrip?.id]
   );
 
   // Toggle Split Member in modal
@@ -1484,21 +1495,15 @@ export default function WalletScreen() {
         visible={categoryBudgetModalVisible}
         onClose={() => setCategoryBudgetModalVisible(false)}
         tripTitle={currentTrip?.title}
-        tripId={currentTrip?.id || 't_tokyo'}
+        tripId={currentTrip?.id || 't_first'}
         currency={activeTripCurrency}
         exchangeRate={exchangeRates[activeTripCurrency]}
         initialBudgets={activeBudgets}
         onSave={(newBudgets) => {
           Object.entries(newBudgets).forEach(([catKey, amt]) => {
-            setCategoryBudget(currentTrip?.id || 't_tokyo', catKey, amt);
+            setCategoryBudget(currentTrip?.id || 't_first', catKey, amt);
           });
         }}
-      />
-
-      {/* Trip Switcher Modal */}
-      <TripSwitcherModal
-        visible={tripSwitcherVisible}
-        onClose={() => setTripSwitcherVisible(false)}
       />
     </View>
   );

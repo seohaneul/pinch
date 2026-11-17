@@ -217,13 +217,6 @@ export const Star = makeIcon('Star', (k) => (
   <Path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.6l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" {...b(k)} />
 ));
 
-export const Heart = makeIcon('Heart', (k) => (
-  <>
-    <Path d="M12 20s-8-4.6-8-10.4A4.4 4.4 0 0 1 12 7a4.4 4.4 0 0 1 8 2.6C20 15.4 12 20 12 20z" {...b(k)} />
-    <Path d="M7.2 9.4a1.9 1.9 0 0 1 1.6-1.5" {...l(k, true)} />
-  </>
-));
-
 export const Tag = makeIcon('Tag', (k) => (
   <>
     <Path
@@ -382,17 +375,6 @@ export const Coins = makeIcon('Coins', (k) => (
   </>
 ));
 
-export const DollarSign = makeIcon('DollarSign', (k) => (
-  <>
-    <Circle cx="12" cy="12" r="9" {...b(k)} />
-    <Path
-      d="M14.5 9.2c-.4-1-1.4-1.6-2.5-1.6-1.5 0-2.6.8-2.6 2s1 1.7 2.6 2.1 2.6.9 2.6 2.1-1.1 2.1-2.6 2.1c-1.2 0-2.2-.6-2.6-1.6M12 6v1.6M12 16.4V18"
-      {...l(k, true)}
-      strokeWidth={k.sw * 0.85}
-    />
-  </>
-));
-
 export const Receipt = makeIcon('Receipt', (k) => (
   <>
     <Path d="M5.5 3h13v18l-2.2-1.5-2.2 1.5-2.1-1.5L9.9 21l-2.2-1.5L5.5 21z" {...b(k)} />
@@ -430,50 +412,11 @@ export const Info = makeIcon('Info', (k) => (
   </>
 ));
 
-export const Shield = makeIcon('Shield', (k) => (
-  <Path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z" {...b(k)} />
-));
-
-export const ShieldCheck = makeIcon('ShieldCheck', (k) => (
-  <>
-    <Path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z" {...b(k)} />
-    <Path d="M9 12l2.2 2.2L15.5 10" {...l(k, true)} />
-  </>
-));
-
 export const Lock = makeIcon('Lock', (k) => (
   <>
     <Path d="M8 10V7.5a4 4 0 0 1 8 0V10" {...l(k)} />
     <Rect x="4.5" y="10" width="15" height="11" rx="3" {...b(k)} />
     <Path d="M12 14.5V17" {...l(k, true)} />
-  </>
-));
-
-export const KeyRound = makeIcon('KeyRound', (k) => (
-  <>
-    <Path d="M12 12l8-8M17 7l2.5 2.5M15 9l1.8 1.8" {...l(k)} />
-    <Circle cx="8.5" cy="15.5" r="4.8" {...b(k)} />
-    <Circle cx="8.5" cy="15.5" r="1.4" {...l(k, true)} />
-  </>
-));
-
-export const Zap = makeIcon('Zap', (k) => <Path d="M13.5 2.5 4.5 13.5h7l-1 8 9-11h-7z" {...b(k)} />);
-
-export const Cloud = makeIcon('Cloud', (k) => (
-  <Path d="M7 19a4.5 4.5 0 0 1-.8-8.9A6 6 0 0 1 17.6 9a5.1 5.1 0 0 1-.1 10z" {...b(k)} />
-));
-
-export const DownloadCloud = makeIcon('DownloadCloud', (k) => (
-  <>
-    <Path d="M7 19a4.5 4.5 0 0 1-.8-8.9A6 6 0 0 1 17.6 9a5.1 5.1 0 0 1-.1 10z" {...b(k)} />
-    <Path d="M12 11.5V17M9.5 14.5 12 17l2.5-2.5" {...l(k, true)} />
-  </>
-));
-
-export const UploadCloud = makeIcon('UploadCloud', (k) => (
-  <>
-    <Path d="M7 19a4.5 4.5 0 0 1-.8-8.9A6 6 0 0 1 17.6 9a5.1 5.1 0 0 1-.1 10z" {...b(k)} />
-    <Path d="M12 17v-5.5M9.5 14 12 11.5l2.5 2.5" {...l(k, true)} />
   </>
 ));
 
@@ -595,14 +538,6 @@ export const Search = makeIcon('Search', (k) => (
 ));
 
 export const Filter = makeIcon('Filter', (k) => <Path d="M3.5 4.5h17l-6.5 8v6l-4 2.5v-8.5z" {...b(k)} />);
-
-export const Sliders = makeIcon('Sliders', (k) => (
-  <>
-    <Path d="M4 7h16M4 17h16" {...l(k)} />
-    <Circle cx="9" cy="7" r="2.6" {...b(k)} />
-    <Circle cx="15" cy="17" r="2.6" {...b(k)} />
-  </>
-));
 
 export const Trash2 = makeIcon('Trash2', (k) => (
   <>

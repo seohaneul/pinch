@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -27,7 +27,6 @@ import type { Place, SavedLink } from '../../src/types';
 import { isDummyOrEmptyImage, resolveBestPlaceImage } from '../../src/services/imageSearchService';
 import { openInGoogleMaps } from '../../src/utils/mapUtils';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import {
   Search,
   Bookmark,
@@ -38,10 +37,7 @@ import {
   ExternalLink,
   Calendar,
   X,
-  Check,
   Navigation,
-  ChevronDown,
-  Layers,
   Link as LinkIcon,
 } from '@/components/common/CustomIcons';
 
@@ -62,12 +58,11 @@ export default function PlacesScreen() {
     places,
     selectedCategory,
     searchQuery,
-    isParsing,
     setCategory,
     setSearchQuery,
+    addPlace,
     togglePin,
     removePlace,
-    extractFromUrl,
     updatePlaceImage,
   } = usePlaceStore();
 
@@ -81,7 +76,6 @@ export default function PlacesScreen() {
   } = useSavedLinkStore();
 
   const { currentTrip, activeTripId, addPlaceToSchedule } = useTripStore();
-  const { addPlace } = usePlaceStore();
 
   // 세그먼트 탭: 'PLACES' (저장한 장소) vs 'LINKS' (링크 보관함)
   const [activeTab, setActiveTab] = useState<'PLACES' | 'LINKS'>('PLACES');
@@ -92,7 +86,6 @@ export default function PlacesScreen() {
   const [modalInitialTab, setModalInitialTab] = useState<'search' | 'link'>('search');
   const [modalInitialSearchQuery, setModalInitialSearchQuery] = useState('');
   const [plannerModalVisible, setPlannerModalVisible] = useState(false);
-  const [tripSwitcherVisible, setTripSwitcherVisible] = useState(false);
   const [failedLinkThumbnails, setFailedLinkThumbnails] = useState<Record<string, boolean>>({});
 
   // 링크 속 장소 확인 모달 상태
@@ -122,12 +115,18 @@ export default function PlacesScreen() {
     setSelectedPlaceForPlanner(null);
   };
 
-  // 여행별 엄격한 격리 필터링
+  // 여행별 엄격한 격리 필터링 (메모이제이션으로 불필요한 백그라운드 이미지 재요청 방지)
   const currentTripId = activeTripId || currentTrip?.id || 't_first';
 
-  const tripPlaces = places.filter((place) => place.trip_id === currentTripId);
+  const tripPlaces = useMemo(
+    () => places.filter((place) => place.trip_id === currentTripId),
+    [places, currentTripId]
+  );
 
-  const tripLinks = savedLinks.filter((link) => link.trip_id === currentTripId);
+  const tripLinks = useMemo(
+    () => savedLinks.filter((link) => link.trip_id === currentTripId),
+    [savedLinks, currentTripId]
+  );
 
   // 장소 카드가 화면에 보이기 전에 더미/빈 이미지를 실제 사진으로 미리 불러오기
   const attemptedImageIdsRef = useRef<Set<string>>(new Set());
@@ -231,22 +230,26 @@ export default function PlacesScreen() {
   // 선택된 범위(현재 여행 vs 전체 보관함)에 따른 장소 목록
   const basePlaces = pocketScope === 'TRIP' ? tripPlaces : places;
 
-  const filteredPlaces = basePlaces.filter((place) => {
-    const matchesCategory =
-      selectedCategory === 'ALL' ||
-      place.category === selectedCategory ||
-      place.category.toUpperCase() === selectedCategory;
+  const filteredPlaces = useMemo(
+    () =>
+      basePlaces.filter((place) => {
+        const matchesCategory =
+          selectedCategory === 'ALL' ||
+          place.category === selectedCategory ||
+          place.category.toUpperCase() === selectedCategory;
 
-    const query = searchQuery.toLowerCase().trim();
-    const matchesSearch =
-      !query ||
-      place.name.toLowerCase().includes(query) ||
-      place.address.toLowerCase().includes(query) ||
-      (place.memo && place.memo.toLowerCase().includes(query)) ||
-      (place.tags && place.tags.some((t) => t.toLowerCase().includes(query)));
+        const query = searchQuery.toLowerCase().trim();
+        const matchesSearch =
+          !query ||
+          place.name.toLowerCase().includes(query) ||
+          place.address.toLowerCase().includes(query) ||
+          (place.memo && place.memo.toLowerCase().includes(query)) ||
+          (place.tags && place.tags.some((t) => t.toLowerCase().includes(query)));
 
-    return matchesCategory && matchesSearch;
-  });
+        return matchesCategory && matchesSearch;
+      }),
+    [basePlaces, selectedCategory, searchQuery]
+  );
 
   // 영문 키워드(LODGING, ATTRACTION 등) 필터링 함수
   const isEnglishCategoryTag = (tag: string) => {
@@ -256,7 +259,7 @@ export default function PlacesScreen() {
 
   // 링크 핀치 핸들러: 링크 보관함에 먼저 추가하고, 장소 선택 모달을 띄움
   const handleExtractUrl = async (url: string) => {
-    const activeId = activeTripId || currentTrip?.id || 't_tokyo';
+    const activeId = activeTripId || currentTrip?.id || 't_first';
     const newSavedLink = await addLinkFromUrl(url, activeId);
 
     if (newSavedLink) {
@@ -859,12 +862,6 @@ export default function PlacesScreen() {
         </View>
       </Modal>
 
-      {/* Trip Switcher Modal */}
-      <TripSwitcherModal
-        visible={tripSwitcherVisible}
-        onClose={() => setTripSwitcherVisible(false)}
-      />
-
       {/* 장소 상세 설명 모달 (PlaceDetailModal) */}
       <PlaceDetailModal
         visible={Boolean(selectedPlaceForDetail)}
@@ -904,64 +901,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
-  },
-  addHeaderBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(27, 42, 74, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(27, 42, 74, 0.2)',
-  },
-  tripBar: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  tripBadge: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#EEF2F8',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  tripDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#1B2A4A',
-    marginRight: 6,
-  },
-  tripBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#1E293B',
-    flex: 1,
-  },
-  switchTripBtn: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  switchTripBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
   },
   segmentContainer: {
     flexDirection: 'row',
@@ -1169,24 +1108,6 @@ const styles = StyleSheet.create({
     color: '#1B2A4A',
     flex: 1,
   },
-  addHeaderBtnUnified: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1B2A4A',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    elevation: 2,
-    shadowColor: '#1B2A4A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  addHeaderBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
   scopeBar: {
     flexDirection: 'row',
     paddingHorizontal: 16,
@@ -1211,46 +1132,6 @@ const styles = StyleSheet.create({
   },
   scopePillTextActive: {
     color: '#FFFFFF',
-  },
-  quickAddRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 10,
-    gap: 10,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  quickAddCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#EEF2F8',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-  },
-  quickAddIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: '#EEF2F8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  quickAddTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#9F1239',
-  },
-  quickAddSub: {
-    fontSize: 10,
-    color: '#BE123C',
-    marginTop: 1,
   },
   floatingActionBtn: {
     position: 'absolute',
