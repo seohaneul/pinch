@@ -2,7 +2,7 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-console.log('🧪 Pinch (핀치) Comprehensive Test Suite');
+console.log('🧪 Pinchi (핀치) Comprehensive Test Suite');
 console.log('========================================');
 
 const testsDir = join(process.cwd(), '__tests__');

@@ -85,7 +85,7 @@ export const OptimizeConfirmModal: React.FC<OptimizeConfirmModalProps> = ({
             {/* After */}
             <View style={[styles.compareCard, styles.afterCard]}>
               <View style={styles.recommendedBadge}>
-                <Text style={styles.recommendedBadgeText}>Pinch 추천</Text>
+                <Text style={styles.recommendedBadgeText}>Pinchi 추천</Text>
               </View>
               <Text style={[styles.compareDist, { color: '#059669' }]}>{afterDist} km</Text>
               <Text style={styles.compareTime}>이동 약 {formatHoursMins(afterTime)}</Text>

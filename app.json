@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Pinch",
+    "name": "Pinchi",
     "slug": "pinch-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,7 +16,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.travel.pinch"
+      "package": "com.westsky.pinchi"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -45,21 +45,6 @@
       "eas": {
         "projectId": "d087a0f4-5d5b-4788-b12b-0882a97fa5bc"
       }
-    },
-    "cli": {
-      "version": ">= 5.0.0"
-    },
-    "build": {
-      "development": {
-        "developmentClient": true,
-        "distribution": "internal"
-      },
-      "preview": {
-        "android": {
-          "buildType": "apk"
-        }
-      },
-      "production": {}
     }
   }
 }

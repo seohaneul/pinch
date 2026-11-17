@@ -1,11 +1,11 @@
-# ✈️ 핀치 (Pinchi) - Pinch to Plan!
+# ✈️ 핀치 (Pinchi) - Pinchi to Plan!
 
 <p align="center">
   <img src="./assets/icon.png" width="120" height="120" alt="Pinchi App Icon" style="border-radius: 28px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);" />
 </p>
 
 <p align="center">
-  <strong>"흩어진 SNS 핫플을 핀치(Pinch)하여 내 여행으로 쏙!"</strong><br />
+  <strong>"흩어진 SNS 핫플을 핀치(Pinchi)하여 내 여행으로 쏙!"</strong><br />
   AI 기반 올인원 스마트 여행 플래닝 & 실시간 1/N 정산 플랫폼
 </p>
 
@@ -23,7 +23,7 @@
 ## 📖 목차 (Table of Contents)
 1. [프로젝트 소개 (Overview)](#-프로젝트-소개-overview)
 2. [핵심 기능 (Key Features)](#-핵심-기능-key-features)
-   - [1. 스마트 핫플 수집 & 보관함 (Pinch Pocket)](#1-스마트-핫플-수집--보관함-pinch-pocket)
+   - [1. 스마트 핫플 수집 & 보관함 (Pinchi Pocket)](#1-스마트-핫플-수집--보관함-pinchi-pocket)
    - [2. 구글 지도 실시간 데이터 연동 (Google Places)](#2-구글-지도-실시간-데이터-연동-google-places)
    - [3. 지능형 일정 & 동선 플래너 (Planner Engine)](#3-지능형-일정--동선-플래너-planner-engine)
    - [4. 전세계 도시 검색 & Gemini AI 맞춤 코스 기획](#4-전세계-도시-검색--gemini-ai-맞춤-코스-기획)
@@ -54,7 +54,7 @@
 
 ## 🚀 핵심 기능 (Key Features)
 
-### 1. 스마트 핫플 수집 & 보관함 (Pinch Pocket)
+### 1. 스마트 핫플 수집 & 보관함 (Pinchi Pocket)
 - **클립보드 자동 감지 (Smart Clipboard Listener)**: 인스타그램 릴스, 유튜브 숏츠, 네이버 블로그/지도 링크를 복사하고 앱을 열면 즉시 장소를 추출하여 보관함에 담을 수 있는 팝업 제공.
 - **다중 장소 추출 모달 (`LinkPlacesModal`)**: 하나의 영상/게시글에 여러 장소가 포함되어 있어도 원하는 장소만 쏙 골라 내 여행 일정에 주입.
 - **여행별 엄격한 격리 관리**: 현재 활성화된 여행(`activeTripId`)에 맞춰 장소 및 링크가 독립 보관되어 다른 여행과 섞이지 않음.
