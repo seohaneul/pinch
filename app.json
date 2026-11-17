@@ -35,6 +35,31 @@
         }
       ],
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "d087a0f4-5d5b-4788-b12b-0882a97fa5bc"
+      }
+    },
+    "cli": {
+      "version": ">= 5.0.0"
+    },
+    "build": {
+      "development": {
+        "developmentClient": true,
+        "distribution": "internal"
+      },
+      "preview": {
+        "android": {
+          "buildType": "apk"
+        }
+      },
+      "production": {}
+    }
   }
 }
