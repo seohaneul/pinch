@@ -14,7 +14,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FBFBFB"
+        "backgroundColor": "#FFFFFF"
       },
       "package": "com.travel.pinch"
     },
@@ -31,7 +31,7 @@
         {
           "image": "./assets/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#FBFBFB"
+          "backgroundColor": "#FFFFFF"
         }
       ]
     ]

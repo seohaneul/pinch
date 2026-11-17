@@ -134,30 +134,30 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
     const upper = category.toUpperCase();
     switch (upper) {
       case 'CAFE':
-        return '☕ 카페';
+        return '카페';
       case 'RESTAURANT':
-        return '🍴 맛집';
+        return '맛집';
       case 'ATTRACTION':
-        return '📸 명소';
+        return '명소';
       case 'LODGING':
-        return '🏨 숙소';
+        return '숙소';
       case 'SHOPPING':
-        return '🛍️ 쇼핑';
+        return '쇼핑';
       default:
-        return '📍 장소';
+        return '장소';
     }
   };
 
   const getPlatformLabel = (platform: string) => {
     switch (platform) {
       case 'instagram':
-        return '📸 인스타그램 릴스';
+        return '인스타그램 릴스';
       case 'youtube':
-        return '🎥 유튜브 숏츠';
+        return '유튜브 숏츠';
       case 'naver':
-        return '📗 네이버 블로그';
+        return '네이버 블로그';
       default:
-        return '🔗 SNS 링크';
+        return 'SNS 링크';
     }
   };
 
