@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../utils/supabase';
 
 export interface AuthUser {
@@ -11,6 +12,57 @@ export interface AuthUser {
   avatarUrl?: string;
   provider?: 'email' | 'google' | 'kakao';
   createdAt: string;
+}
+
+function parseOAuthCallbackParams(callbackUrl: string): Record<string, string> {
+  const params: Record<string, string> = {};
+  const extractPairs = (part?: string) => {
+    if (!part) return;
+    part.split('&').forEach((kv) => {
+      const idx = kv.indexOf('=');
+      if (idx === -1) return;
+      const k = decodeURIComponent(kv.slice(0, idx));
+      const v = decodeURIComponent(kv.slice(idx + 1));
+      if (k) params[k] = v;
+    });
+  };
+  const [withoutHash, hash] = callbackUrl.split('#');
+  const query = withoutHash?.split('?')[1];
+  extractPairs(query);
+  extractPairs(hash);
+  return params;
+}
+
+function buildAuthUserFromSupabase(
+  supaUser: SupabaseUser,
+  providerHint?: 'email' | 'google' | 'kakao'
+): AuthUser {
+  const meta = supaUser.user_metadata || {};
+  const email = supaUser.email || meta.email || '';
+  const appProvider = supaUser.app_metadata?.provider;
+  const resolvedProvider: 'email' | 'google' | 'kakao' =
+    providerHint ||
+    (appProvider === 'kakao' || appProvider === 'google' ? appProvider : 'email');
+
+  const nickname =
+    meta.nickname ||
+    meta.name ||
+    meta.full_name ||
+    meta.user_name ||
+    meta.preferred_username ||
+    (email ? email.split('@')[0] : '') ||
+    (resolvedProvider === 'kakao' ? '카카오 여행자' : resolvedProvider === 'google' ? '구글 여행자' : '여행자');
+
+  const avatarUrl = meta.avatar_url || meta.picture || meta.profile_image;
+
+  return {
+    id: supaUser.id,
+    email,
+    nickname,
+    avatarUrl,
+    provider: resolvedProvider,
+    createdAt: supaUser.created_at || new Date().toISOString(),
+  };
 }
 
 interface AuthState {
@@ -24,6 +76,8 @@ interface AuthState {
   login: (email: string, password?: string) => Promise<boolean>;
   signup: (nickname: string, email: string, password?: string) => Promise<boolean>;
   loginWithSocial: (provider: 'google' | 'kakao') => Promise<boolean>;
+  syncSessionFromSupabase: () => Promise<void>;
+  setSupabaseUser: (supaUser: SupabaseUser | null) => void;
   logout: () => Promise<void>;
   updateNickname: (newNickname: string) => boolean;
   updateAvatar: (avatarUrl: string) => boolean;
@@ -184,40 +238,197 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         const providerLabel = provider === 'kakao' ? '카카오' : 'Google';
 
-        if (isSupabaseConfigured()) {
-          try {
-            const { error } = await supabase.auth.signInWithOAuth({
+        try {
+          if (isSupabaseConfigured()) {
+            const Linking = await import('expo-linking');
+            const WebBrowser = await import('expo-web-browser');
+            WebBrowser.maybeCompleteAuthSession();
+
+            const redirectTo = Linking.createURL('auth/callback');
+            const isWeb = Platform.OS === 'web';
+            console.log(`[AuthStore] Starting ${provider} OAuth. redirectTo=${redirectTo}`);
+
+            const { data, error } = await supabase.auth.signInWithOAuth({
               provider,
+              options: {
+                redirectTo,
+                skipBrowserRedirect: !isWeb,
+              },
             });
-            if (!error) {
-              set({ isLoading: false });
+
+            if (error) {
+              Alert.alert(
+                `${providerLabel} 로그인 오류`,
+                error.message.includes('not enabled')
+                  ? `Supabase 대시보드에서 ${providerLabel} Provider 설정을 활성화해주세요.`
+                  : error.message
+              );
+              return false;
+            }
+
+            if (isWeb) {
               return true;
             }
-          } catch (err) {
-            console.log(`[AuthStore] ${provider} OAuth fallback:`, err);
+
+            if (!data?.url) {
+              Alert.alert('로그인 오류', '인증 주소를 받아오지 못했습니다.');
+              return false;
+            }
+
+            // Android/Expo Go에서 Chrome Custom Tabs가 딥링크 복귀 시 openAuthSessionAsync가
+            // resolve되지 않고 멈추는 현상을 막기 위해 Linking 이벤트 + AppState 복귀를 함께 감시
+            const { AppState: RNAppState } = await import('react-native');
+            const callbackUrl = await new Promise<string | null>((resolve) => {
+              let settled = false;
+              let appReturnTimer: ReturnType<typeof setTimeout> | null = null;
+              let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
+
+              const finish = (url: string | null) => {
+                if (settled) return;
+                settled = true;
+                linkSub?.remove?.();
+                appSub?.remove?.();
+                if (appReturnTimer) clearTimeout(appReturnTimer);
+                if (timeoutTimer) clearTimeout(timeoutTimer);
+                resolve(url);
+              };
+
+              const linkSub = Linking.addEventListener?.('url', (event: { url?: string }) => {
+                if (event?.url && (event.url.includes('auth/callback') || event.url.includes('access_token=') || event.url.includes('code='))) {
+                  console.log('[AuthStore] Captured OAuth deep link via Linking');
+                  try {
+                    WebBrowser.dismissBrowser?.();
+                  } catch {}
+                  finish(event.url);
+                }
+              });
+
+              const appSub = RNAppState?.addEventListener?.('change', (nextState: string) => {
+                if (nextState === 'active') {
+                  appReturnTimer = setTimeout(() => {
+                    console.log('[AuthStore] App resumed without openAuthSessionAsync resolution');
+                    finish(null);
+                  }, 1500);
+                }
+              });
+
+              timeoutTimer = setTimeout(() => {
+                console.log('[AuthStore] OAuth browser session timed out');
+                finish(null);
+              }, 60000);
+
+              WebBrowser.openAuthSessionAsync(data.url, redirectTo)
+                .then((res) => {
+                  if (res?.type === 'success' && 'url' in res && res.url) {
+                    finish(res.url);
+                  } else {
+                    finish(null);
+                  }
+                })
+                .catch(() => finish(null));
+            });
+
+            if (!callbackUrl) {
+              // 혹시 그사이 세션이 이미 저장되었는지 마지막 확인
+              const { data: sessCheck } = await supabase.auth.getSession();
+              if (sessCheck?.session?.user) {
+                const authUser = buildAuthUserFromSupabase(sessCheck.session.user, provider);
+                set({ isLoggedIn: true, user: authUser });
+                return true;
+              }
+              return false;
+            }
+
+            const params = parseOAuthCallbackParams(callbackUrl);
+            if (params.error || params.error_description) {
+              Alert.alert(
+                `${providerLabel} 로그인 실패`,
+                params.error_description || params.error
+              );
+              return false;
+            }
+
+            let sessionUser: SupabaseUser | null = null;
+            if (params.code) {
+              const { data: exData, error: exErr } =
+                await supabase.auth.exchangeCodeForSession(params.code);
+              if (exErr) throw exErr;
+              sessionUser = exData.user || exData.session?.user || null;
+            } else if (params.access_token && params.refresh_token) {
+              const { data: sessData, error: sessErr } = await supabase.auth.setSession({
+                access_token: params.access_token,
+                refresh_token: params.refresh_token,
+              });
+              if (sessErr) throw sessErr;
+              sessionUser = sessData.user || sessData.session?.user || null;
+            } else {
+              const { data: userData } = await supabase.auth.getUser();
+              sessionUser = userData.user || null;
+            }
+
+            if (!sessionUser) {
+              Alert.alert('로그인 확인 필요', '계정 세션을 확인하지 못했습니다.');
+              return false;
+            }
+
+            const authUser = buildAuthUserFromSupabase(sessionUser, provider);
+            set({ isLoggedIn: true, user: authUser });
+            Alert.alert(
+              `${providerLabel} 로그인 완료`,
+              `${authUser.nickname}님, ${providerLabel} 계정으로 연결되었습니다.`
+            );
+            return true;
           }
+
+          // Supabase 미설정 환경(오프라인/테스트) 안전 폴백
+          const currentUser = get().user;
+          const socialUser: AuthUser = {
+            id: currentUser?.id || `${provider}_${Date.now()}`,
+            email:
+              currentUser?.email ||
+              (provider === 'kakao' ? 'traveler@kakao.com' : 'traveler@gmail.com'),
+            nickname:
+              currentUser?.nickname ||
+              (provider === 'kakao' ? '카카오 여행자' : '구글 여행자'),
+            avatarUrl: currentUser?.avatarUrl,
+            provider,
+            createdAt: currentUser?.createdAt || new Date().toISOString(),
+          };
+
+          set({ isLoggedIn: true, user: socialUser });
+          Alert.alert(
+            `${providerLabel} 로그인 완료`,
+            `${socialUser.nickname}님, ${providerLabel} 계정으로 연결되었습니다.`
+          );
+          return true;
+        } catch (err: any) {
+          Alert.alert(
+            `${providerLabel} 로그인 실패`,
+            err?.message || '소셜 로그인 처리 중 문제가 발생했습니다.'
+          );
+          return false;
+        } finally {
+          set({ isLoading: false });
         }
+      },
 
-        const currentUser = get().user;
-        const socialUser: AuthUser = {
-          id: currentUser?.id || `${provider}_${Date.now()}`,
-          email:
-            currentUser?.email ||
-            (provider === 'kakao' ? 'traveler@kakao.com' : 'traveler@gmail.com'),
-          nickname:
-            currentUser?.nickname ||
-            (provider === 'kakao' ? '카카오 여행자' : '구글 여행자'),
-          avatarUrl: currentUser?.avatarUrl,
-          provider,
-          createdAt: currentUser?.createdAt || new Date().toISOString(),
-        };
+      setSupabaseUser: (supaUser) => {
+        if (!supaUser) return;
+        const authUser = buildAuthUserFromSupabase(supaUser);
+        set({ isLoggedIn: true, user: authUser, isLoading: false });
+      },
 
-        set({ isLoggedIn: true, user: socialUser, isLoading: false });
-        Alert.alert(
-          `${providerLabel} 로그인 완료`,
-          `${socialUser.nickname}님, ${providerLabel} 계정으로 연결되었습니다.`
-        );
-        return true;
+      syncSessionFromSupabase: async () => {
+        if (!isSupabaseConfigured()) return;
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (data.session?.user) {
+            const authUser = buildAuthUserFromSupabase(data.session.user);
+            set({ isLoggedIn: true, user: authUser });
+          }
+        } catch (err) {
+          console.log('[AuthStore] Session sync error:', err);
+        }
       },
 
       logout: async () => {

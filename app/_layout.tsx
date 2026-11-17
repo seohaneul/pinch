@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -6,11 +6,25 @@ import { useAuthStore } from '../src/store/useAuthStore';
 import { useTripStore } from '../src/store/useTripStore';
 import { AuthGateScreen } from '../src/components/auth/AuthModal';
 import { CreateTripModal } from '../src/components/trip/CreateTripModal';
+import { supabase, isSupabaseConfigured } from '../src/utils/supabase';
 import '../global.css';
 
 export default function RootLayout() {
-  const { isLoggedIn } = useAuthStore();
+  const { isLoggedIn, syncSessionFromSupabase, setSupabaseUser } = useAuthStore();
   const { trips, hasCompletedOnboarding, setHasCompletedOnboarding } = useTripStore();
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    syncSessionFromSupabase();
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setSupabaseUser(session.user);
+      }
+    });
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [syncSessionFromSupabase, setSupabaseUser]);
 
   const needsFirstTripOnboarding =
     !hasCompletedOnboarding ||
