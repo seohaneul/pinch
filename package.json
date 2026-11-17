@@ -42,6 +42,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@react-native/metro-config": "^0.88.0",
     "@types/react": "~19.3.0",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3"
