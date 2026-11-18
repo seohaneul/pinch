@@ -58,7 +58,7 @@ export const AuthGateScreen: React.FC = () => {
           <View style={styles.gateTopBar}>
             <View style={styles.brandBadge}>
               <MapPin size={18} color="#1B2A4A" fill="#1B2A4A" />
-              <Text style={styles.brandBadgeText}>PINCHI</Text>
+              <Text style={styles.brandBadgeText}>PINCH</Text>
             </View>
           </View>
 

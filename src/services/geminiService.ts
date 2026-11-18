@@ -39,7 +39,7 @@ async function geocodeQuery(query: string): Promise<{ lat: number; lng: number; 
   )}&limit=1`;
   const data = await fetchJsonWithTimeout<any[]>(searchUrl, {
     timeoutMs: 2500,
-    headers: { 'User-Agent': 'PinchiTravelPlanner/1.0 (contact@pinchi.app)' },
+    headers: { 'User-Agent': 'PinchTravelPlanner/1.0 (contact@pinch.app)' },
   });
   if (Array.isArray(data) && data.length > 0) {
     const item = data[0];

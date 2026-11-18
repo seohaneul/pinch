@@ -268,7 +268,7 @@ export default function ProfileScreen() {
             <ChevronRight size={18} color="#111827" strokeWidth={2.4} />
           </TouchableOpacity>
 
-          <Text style={styles.emailText}>{user?.email || 'user@pinchi.app'}</Text>
+          <Text style={styles.emailText}>{user?.email || 'user@pinch.app'}</Text>
 
           <View style={styles.providerPill}>
             <Text style={styles.providerPillText}>{providerLabel}</Text>

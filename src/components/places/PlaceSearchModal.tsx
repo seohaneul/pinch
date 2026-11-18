@@ -389,7 +389,7 @@ export const PlaceSearchModal: React.FC<PlaceSearchModalProps> = ({
           {Platform.OS === 'web' ? (
             <iframe
               key={`${mapLat.toFixed(5)}_${mapLng.toFixed(5)}`}
-              title="Pinchi Place Search Map"
+              title="Pinch Place Search Map"
               srcDoc={leafletHtml}
               style={{ width: '100%', height: '100%', border: 'none' }}
             />

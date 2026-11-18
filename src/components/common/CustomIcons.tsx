@@ -1,5 +1,5 @@
 /**
- * Pinchi Custom Icon Set
+ * Pinch Custom Icon Set
  *
  * 스타일 규칙 ("Soft Mono"):
  *  - 단색(한 가지 색)만 사용한다.

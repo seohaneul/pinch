@@ -143,7 +143,7 @@ export default function HomeScreen() {
     try {
       await Share.share({
         title: `${currentTrip?.title || '핀치 여행'} 초대`,
-        message: `[PINCHI] ${currentTrip?.title || '여행'} (${currentTrip?.startDate} ~ ${currentTrip?.endDate})\n여행지: ${currentTrip?.destination}\n저장한 스팟 ${tripPlaces.length}곳 · 일정 ${currentTripScheduleItems.length}개`,
+        message: `[PINCH] ${currentTrip?.title || '여행'} (${currentTrip?.startDate} ~ ${currentTrip?.endDate})\n여행지: ${currentTrip?.destination}\n저장한 스팟 ${tripPlaces.length}곳 · 일정 ${currentTripScheduleItems.length}개`,
       });
     } catch {
       // ignore

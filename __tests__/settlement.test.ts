@@ -240,7 +240,7 @@ describe('Smart Wallet & Settlement Engine (FN-WAL)', () => {
       assert.ok(text.includes('수현: 10,000원 보내기'));
       assert.ok(text.includes('도윤 ➡️ 민지: 40,000원'));
       assert.ok(text.includes('수현 ➡️ 민지: 10,000원'));
-      assert.ok(text.includes('핀치(Pinchi)'));
+      assert.ok(text.includes('핀치(Pinch)'));
     });
   });
 });

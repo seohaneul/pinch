@@ -1026,7 +1026,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
 
           <Text style={styles.stepIndicatorText}>
             {step === 0
-              ? 'WELCOME TO PINCHI'
+              ? 'WELCOME TO PINCH'
               : isEditMode
                 ? `여행 수정 (${step}/4)`
                 : `STEP ${step} OF 4`}
@@ -1093,7 +1093,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
               </View>
 
               <Text style={styles.heroQuestionTitle}>
-                흩어진 여행 스팟을 한곳에,{'\n'}핀치(Pinchi)와 함께 시작해요
+                흩어진 여행 스팟을 한곳에,{'\n'}핀치(Pinch)와 함께 시작해요
               </Text>
               <Text style={styles.heroQuestionSub}>
                 복잡한 여행 준비를 가장 심플하게 정리해 드리는{'\n'}3가지 핵심 기능을 소개합니다.

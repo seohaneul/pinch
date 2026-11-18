@@ -14,6 +14,23 @@ export interface AuthUser {
   createdAt: string;
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} 응답 시간이 초과되었습니다 (${Math.round(ms / 1000)}초). 네트워크 또는 Supabase Redirect URL 설정을 확인해주세요.`));
+    }, ms);
+    promise
+      .then((val) => {
+        clearTimeout(timer);
+        resolve(val);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
 function parseOAuthCallbackParams(callbackUrl: string): Record<string, string> {
   const params: Record<string, string> = {};
   const extractPairs = (part?: string) => {
@@ -244,17 +261,37 @@ export const useAuthStore = create<AuthState>()(
             const WebBrowser = await import('expo-web-browser');
             WebBrowser.maybeCompleteAuthSession();
 
-            const redirectTo = Linking.createURL('auth/callback');
             const isWeb = Platform.OS === 'web';
+            let redirectTo = 'pinch://auth/callback';
+            if (isWeb) {
+              redirectTo = Linking.createURL('auth/callback');
+            } else {
+              try {
+                const Constants = (await import('expo-constants')).default;
+                const isExpoGo =
+                  Constants.executionEnvironment === 'storeClient' ||
+                  Constants.appOwnership === 'expo';
+                if (isExpoGo) {
+                  const candidate = Linking.createURL('auth/callback');
+                  if (candidate && !candidate.includes('null') && !candidate.includes('undefined')) {
+                    redirectTo = candidate;
+                  }
+                }
+              } catch {}
+            }
             console.log(`[AuthStore] Starting ${provider} OAuth. redirectTo=${redirectTo}`);
 
-            const { data, error } = await supabase.auth.signInWithOAuth({
-              provider,
-              options: {
-                redirectTo,
-                skipBrowserRedirect: !isWeb,
-              },
-            });
+            const { data, error } = await withTimeout(
+              supabase.auth.signInWithOAuth({
+                provider,
+                options: {
+                  redirectTo,
+                  skipBrowserRedirect: !isWeb,
+                },
+              }),
+              10000,
+              `${providerLabel} OAuth 요청`
+            );
 
             if (error) {
               Alert.alert(
@@ -330,7 +367,11 @@ export const useAuthStore = create<AuthState>()(
 
             if (!callbackUrl) {
               // 혹시 그사이 세션이 이미 저장되었는지 마지막 확인
-              const { data: sessCheck } = await supabase.auth.getSession();
+              const { data: sessCheck } = await withTimeout(
+                supabase.auth.getSession(),
+                8000,
+                '세션 확인'
+              );
               if (sessCheck?.session?.user) {
                 const authUser = buildAuthUserFromSupabase(sessCheck.session.user, provider);
                 set({ isLoggedIn: true, user: authUser });
@@ -350,19 +391,33 @@ export const useAuthStore = create<AuthState>()(
 
             let sessionUser: SupabaseUser | null = null;
             if (params.code) {
-              const { data: exData, error: exErr } =
-                await supabase.auth.exchangeCodeForSession(params.code);
+              console.log('[AuthStore] Exchanging OAuth code for session...');
+              const { data: exData, error: exErr } = await withTimeout(
+                supabase.auth.exchangeCodeForSession(params.code),
+                12000,
+                'OAuth 코드 교환'
+              );
               if (exErr) throw exErr;
               sessionUser = exData.user || exData.session?.user || null;
             } else if (params.access_token && params.refresh_token) {
-              const { data: sessData, error: sessErr } = await supabase.auth.setSession({
-                access_token: params.access_token,
-                refresh_token: params.refresh_token,
-              });
+              console.log('[AuthStore] Setting OAuth session tokens...');
+              const { data: sessData, error: sessErr } = await withTimeout(
+                supabase.auth.setSession({
+                  access_token: params.access_token,
+                  refresh_token: params.refresh_token,
+                }),
+                12000,
+                'OAuth 세션 저장'
+              );
               if (sessErr) throw sessErr;
               sessionUser = sessData.user || sessData.session?.user || null;
             } else {
-              const { data: userData } = await supabase.auth.getUser();
+              console.log('[AuthStore] Fetching current Supabase user...');
+              const { data: userData } = await withTimeout(
+                supabase.auth.getUser(),
+                10000,
+                '사용자 정보 조회'
+              );
               sessionUser = userData.user || null;
             }
 

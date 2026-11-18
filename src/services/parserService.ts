@@ -270,7 +270,7 @@ export async function geocodePlace(query: string): Promise<{ latitude: number; l
     const res = await fetch(searchUrl, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'PinchiTravelPlanner/1.0 (contact@pinchi.app)',
+        'User-Agent': 'PinchTravelPlanner/1.0 (contact@pinch.app)',
       },
     });
     clearTimeout(timeoutId);

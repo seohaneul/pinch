@@ -150,7 +150,7 @@ export async function fetchRealPlaceImage(
         const data = await fetchJsonWithTimeout<any>(url, {
           timeoutMs: 3500,
           headers: {
-            'User-Agent': 'PinchiTravelApp/1.0 (contact@pinchi.app)',
+            'User-Agent': 'PinchTravelApp/1.0 (contact@pinch.app)',
             Accept: 'application/json',
           },
         });
@@ -184,7 +184,7 @@ export async function fetchRealPlaceImage(
     const data = await fetchJsonWithTimeout<any>(commonsUrl, {
       timeoutMs: 3500,
       headers: {
-        'User-Agent': 'PinchiTravelApp/1.0 (contact@pinchi.app)',
+        'User-Agent': 'PinchTravelApp/1.0 (contact@pinch.app)',
         Accept: 'application/json',
       },
     });
@@ -218,7 +218,7 @@ export async function fetchRealPlaceImage(
     const data = await fetchJsonWithTimeout<any>(geoUrl, {
       timeoutMs: 3500,
       headers: {
-        'User-Agent': 'PinchiTravelApp/1.0 (contact@pinchi.app)',
+        'User-Agent': 'PinchTravelApp/1.0 (contact@pinch.app)',
       },
     });
     const pages = data?.query?.pages;

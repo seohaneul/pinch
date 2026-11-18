@@ -355,7 +355,7 @@ export const PlannerMapView: React.FC<PlannerMapViewProps> = ({
     >
       {Platform.OS === 'web' ? (
         <iframe
-          title="Pinchi Planner Map"
+          title="Pinch Planner Map"
           srcDoc={mapHtml}
           style={{
             width: '100%',
