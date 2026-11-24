@@ -13,8 +13,13 @@ export const StyleSheet = {
   create: (styles) => styles,
 };
 
+export const AppState = {
+  addEventListener: () => ({ remove: () => {} }),
+};
+
 export default {
   Alert,
   Platform,
   StyleSheet,
+  AppState,
 };

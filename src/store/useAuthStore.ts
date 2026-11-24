@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, Platform } from 'react-native';
+import { Alert, Platform, AppState } from 'react-native';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../utils/supabase';
 
@@ -262,23 +262,13 @@ export const useAuthStore = create<AuthState>()(
             WebBrowser.maybeCompleteAuthSession();
 
             const isWeb = Platform.OS === 'web';
-            let redirectTo = 'pinch://auth/callback';
-            if (isWeb) {
-              redirectTo = Linking.createURL('auth/callback');
-            } else {
-              try {
-                const Constants = (await import('expo-constants')).default;
-                const isExpoGo =
-                  Constants.executionEnvironment === 'storeClient' ||
-                  Constants.appOwnership === 'expo';
-                if (isExpoGo) {
-                  const candidate = Linking.createURL('auth/callback');
-                  if (candidate && !candidate.includes('null') && !candidate.includes('undefined')) {
-                    redirectTo = candidate;
-                  }
-                }
-              } catch {}
-            }
+            const rawRedirect = Linking.createURL('auth/callback');
+            const redirectTo =
+              !isWeb && (!rawRedirect || rawRedirect.includes('null') || rawRedirect.includes('undefined'))
+                ? 'pinch://auth/callback'
+                : rawRedirect.startsWith('pinch:///')
+                  ? rawRedirect.replace('pinch:///', 'pinch://')
+                  : rawRedirect;
             console.log(`[AuthStore] Starting ${provider} OAuth. redirectTo=${redirectTo}`);
 
             const { data, error } = await withTimeout(
@@ -314,7 +304,6 @@ export const useAuthStore = create<AuthState>()(
 
             // Android/Expo Go에서 Chrome Custom Tabs가 딥링크 복귀 시 openAuthSessionAsync가
             // resolve되지 않고 멈추는 현상을 막기 위해 Linking 이벤트 + AppState 복귀를 함께 감시
-            const { AppState: RNAppState } = await import('react-native');
             const callbackUrl = await new Promise<string | null>((resolve) => {
               let settled = false;
               let appReturnTimer: ReturnType<typeof setTimeout> | null = null;
@@ -340,7 +329,7 @@ export const useAuthStore = create<AuthState>()(
                 }
               });
 
-              const appSub = RNAppState?.addEventListener?.('change', (nextState: string) => {
+              const appSub = AppState?.addEventListener?.('change', (nextState: string) => {
                 if (nextState === 'active') {
                   appReturnTimer = setTimeout(() => {
                     console.log('[AuthStore] App resumed without openAuthSessionAsync resolution');
