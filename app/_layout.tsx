@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Linking from 'expo-linking';
 import { useAuthStore } from '../src/store/useAuthStore';
 import { useTripStore } from '../src/store/useTripStore';
 import { AuthGateScreen } from '../src/components/auth/AuthModal';
@@ -10,21 +11,35 @@ import { supabase, isSupabaseConfigured } from '../src/utils/supabase';
 import '../global.css';
 
 export default function RootLayout() {
-  const { isLoggedIn, syncSessionFromSupabase, setSupabaseUser } = useAuthStore();
+  const { isLoggedIn, syncSessionFromSupabase, setSupabaseUser, handleOAuthCallbackUrl } = useAuthStore();
   const { trips, hasCompletedOnboarding, setHasCompletedOnboarding } = useTripStore();
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
     syncSessionFromSupabase();
+
+    const maybeHandleOAuthUrl = (url?: string | null) => {
+      if (!url) return;
+      if (url.includes('auth/callback') || url.includes('access_token=') || url.includes('code=')) {
+        handleOAuthCallbackUrl(url);
+      }
+    };
+
+    Linking.getInitialURL().then(maybeHandleOAuthUrl).catch(() => {});
+    const linkSub = Linking.addEventListener('url', (event) => {
+      maybeHandleOAuthUrl(event.url);
+    });
+
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setSupabaseUser(session.user);
       }
     });
     return () => {
+      linkSub.remove();
       authListener.subscription.unsubscribe();
     };
-  }, [syncSessionFromSupabase, setSupabaseUser]);
+  }, [syncSessionFromSupabase, setSupabaseUser, handleOAuthCallbackUrl]);
 
   const needsFirstTripOnboarding =
     !hasCompletedOnboarding ||

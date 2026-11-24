@@ -26,7 +26,7 @@ export const AuthGateScreen: React.FC = () => {
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
 
-  const { login, signup, loginWithSocial, isLoading } = useAuthStore();
+  const { login, signup, loginWithSocial, isLoading, authError, authStatus, clearAuthError, cancelAuthLoading } = useAuthStore();
 
   const handleSubmit = async () => {
     if (tab === 'login') {
@@ -81,7 +81,10 @@ export const AuthGateScreen: React.FC = () => {
           {/* Mode Switcher */}
           <View style={styles.tabTrack}>
             <TouchableOpacity
-              onPress={() => setTab('login')}
+              onPress={() => {
+                clearAuthError();
+                setTab('login');
+              }}
               style={[styles.tabBtn, tab === 'login' && styles.tabBtnActive]}
             >
               <Text style={[styles.tabText, tab === 'login' && styles.tabTextActive]}>
@@ -89,7 +92,10 @@ export const AuthGateScreen: React.FC = () => {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => setTab('signup')}
+              onPress={() => {
+                clearAuthError();
+                setTab('signup');
+              }}
               style={[styles.tabBtn, tab === 'signup' && styles.tabBtnActive]}
             >
               <Text style={[styles.tabText, tab === 'signup' && styles.tabTextActive]}>
@@ -152,6 +158,12 @@ export const AuthGateScreen: React.FC = () => {
             로그인 시 서비스 이용약관 및 개인정보 처리방침에 동의하는 것으로 간주합니다.
           </Text>
 
+          {authError ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{authError}</Text>
+            </View>
+          ) : null}
+
           <TouchableOpacity
             activeOpacity={0.88}
             disabled={isLoading}
@@ -159,7 +171,10 @@ export const AuthGateScreen: React.FC = () => {
             style={[styles.primaryBtn, isLoading && { opacity: 0.7 }]}
           >
             {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <ActivityIndicator color="#FFFFFF" size="small" />
+                <Text style={styles.primaryBtnText}>처리 중...</Text>
+              </View>
             ) : (
               <>
                 <Text style={styles.primaryBtnText}>
@@ -169,6 +184,17 @@ export const AuthGateScreen: React.FC = () => {
               </>
             )}
           </TouchableOpacity>
+
+          {isLoading && (
+            <View style={{ alignItems: 'center', marginTop: 6 }}>
+              {authStatus ? (
+                <Text style={styles.authStatusText}>{authStatus}</Text>
+              ) : null}
+              <TouchableOpacity onPress={cancelAuthLoading} style={styles.cancelLoadingBtn}>
+                <Text style={styles.cancelLoadingText}>로딩이 오래 걸리면 여기 눌러 취소</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* 간편 소셜 로그인 (카카오 & 구글) */}
           <View style={styles.socialDividerRow}>
@@ -340,6 +366,39 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15.5,
     fontWeight: '800',
+  },
+  errorBanner: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  errorBannerText: {
+    color: '#DC2626',
+    fontSize: 12.5,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  cancelLoadingBtn: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+    marginTop: 2,
+  },
+  authStatusText: {
+    fontSize: 11.5,
+    color: '#4B5563',
+    textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: 2,
+  },
+  cancelLoadingText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    textDecorationLine: 'underline',
   },
   socialDividerRow: {
     flexDirection: 'row',

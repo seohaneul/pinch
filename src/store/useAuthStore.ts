@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Platform, AppState } from 'react-native';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../utils/supabase';
 
@@ -82,17 +84,31 @@ function buildAuthUserFromSupabase(
   };
 }
 
+let inFlightOAuthUrl: string | null = null;
+let lastHandledOAuthUrl: string | null = null;
+
+function showAuthNotice(title: string, message: string) {
+  if (Platform.OS !== 'web') {
+    Alert.alert(title, message);
+  }
+}
+
 interface AuthState {
   isLoggedIn: boolean;
   user: AuthUser | null;
   defaultBaseCurrency: 'KRW' | 'JPY' | 'USD';
   defaultTransportMode: 'TRANSIT' | 'WALK';
   isLoading: boolean;
+  authError: string | null;
+  authStatus: string | null;
 
   // Actions
+  clearAuthError: () => void;
+  cancelAuthLoading: () => void;
   login: (email: string, password?: string) => Promise<boolean>;
   signup: (nickname: string, email: string, password?: string) => Promise<boolean>;
   loginWithSocial: (provider: 'google' | 'kakao') => Promise<boolean>;
+  handleOAuthCallbackUrl: (url: string, providerHint?: 'google' | 'kakao') => Promise<boolean>;
   syncSessionFromSupabase: () => Promise<void>;
   setSupabaseUser: (supaUser: SupabaseUser | null) => void;
   logout: () => Promise<void>;
@@ -113,39 +129,52 @@ export const useAuthStore = create<AuthState>()(
       defaultBaseCurrency: 'KRW',
       defaultTransportMode: 'TRANSIT',
       isLoading: false,
+      authError: null,
+      authStatus: null,
+
+      clearAuthError: () => set({ authError: null }),
+      cancelAuthLoading: () => set({ isLoading: false, authError: null, authStatus: null }),
 
       login: async (email: string, password?: string) => {
         const cleanEmail = email.trim();
         const pwd = password?.trim();
 
         if (!cleanEmail) {
-          Alert.alert('알림', '이메일을 입력해주세요.');
+          const msg = '이메일을 입력해주세요.';
+          set({ authError: msg });
+          showAuthNotice('알림', msg);
           return false;
         }
         if (!pwd) {
-          Alert.alert('알림', '비밀번호를 입력해주세요.');
+          const msg = '비밀번호를 입력해주세요.';
+          set({ authError: msg });
+          showAuthNotice('알림', msg);
           return false;
         }
 
-        set({ isLoading: true });
+        set({ isLoading: true, authError: null });
 
-        // 1. Supabase 연동 시 실제 클라우드 로그인 시도
-        if (isSupabaseConfigured()) {
-          try {
-            const { data, error } = await supabase.auth.signInWithPassword({
-              email: cleanEmail,
-              password: pwd,
-            });
+        try {
+          // 1. Supabase 연동 시 실제 클라우드 로그인 시도
+          if (isSupabaseConfigured()) {
+            const { data, error } = await withTimeout(
+              supabase.auth.signInWithPassword({
+                email: cleanEmail,
+                password: pwd,
+              }),
+              10000,
+              '이메일 로그인'
+            );
 
             if (error) {
-              set({ isLoading: false });
               let msg = error.message;
               if (error.message.includes('Invalid login credentials')) {
                 msg = '이메일 또는 비밀번호가 일치하지 않습니다.';
               } else if (error.message.includes('Email not confirmed')) {
-                msg = '이메일 인증이 완료되지 않았습니다.';
+                msg = '이메일 인증이 완료되지 않았습니다. 가입한 메일함에서 인증 링크를 확인해주세요.';
               }
-              Alert.alert('로그인 실패', msg);
+              set({ authError: msg });
+              showAuthNotice('로그인 실패', msg);
               return false;
             }
 
@@ -159,27 +188,38 @@ export const useAuthStore = create<AuthState>()(
                 createdAt: data.user.created_at || new Date().toISOString(),
               };
 
-              set({ isLoggedIn: true, user: authUser, isLoading: false });
-              Alert.alert('로그인 성공 🎉', `${nickname}님, 환영합니다!`);
+              set({ isLoggedIn: true, user: authUser, authError: null });
+              showAuthNotice('로그인 성공 🎉', `${nickname}님, 환영합니다!`);
               return true;
             }
-          } catch (err: any) {
-            console.log('[AuthStore] Supabase login error:', err);
+
+            const unknownMsg = '로그인 정보를 확인하지 못했습니다. 다시 시도해주세요.';
+            set({ authError: unknownMsg });
+            showAuthNotice('로그인 실패', unknownMsg);
+            return false;
           }
+
+          // 2. Supabase 미설정 환경(오프라인/테스트) 안전 폴백
+          const nickname = cleanEmail.split('@')[0] || '여행자';
+          const fallbackUser: AuthUser = {
+            id: `user_${Date.now()}`,
+            email: cleanEmail,
+            nickname,
+            createdAt: new Date().toISOString(),
+          };
+
+          set({ isLoggedIn: true, user: fallbackUser, authError: null });
+          showAuthNotice('로그인 완료 🎉', `${nickname}님, 환영합니다! (로컬 안전 모드)`);
+          return true;
+        } catch (err: any) {
+          console.log('[AuthStore] Supabase login error:', err);
+          const msg = err?.message || '로그인 중 네트워크 오류가 발생했습니다.';
+          set({ authError: msg });
+          showAuthNotice('로그인 실패', msg);
+          return false;
+        } finally {
+          set({ isLoading: false });
         }
-
-        // 2. Supabase 미설정 또는 로컬 모드일 때 안전한 폴백 로그인
-        const nickname = cleanEmail.split('@')[0] || '여행자';
-        const fallbackUser: AuthUser = {
-          id: `user_${Date.now()}`,
-          email: cleanEmail,
-          nickname,
-          createdAt: new Date().toISOString(),
-        };
-
-        set({ isLoggedIn: true, user: fallbackUser, isLoading: false });
-        Alert.alert('로그인 완료 🎉', `${nickname}님, 환영합니다! (로컬 안전 모드)`);
-        return true;
       },
 
       signup: async (nickname: string, email: string, password?: string) => {
@@ -188,36 +228,55 @@ export const useAuthStore = create<AuthState>()(
         const pwd = password?.trim();
 
         if (!cleanNickname || !cleanEmail || !pwd) {
-          Alert.alert('알림', '닉네임, 이메일, 비밀번호를 모두 입력해주세요.');
+          const msg = '닉네임, 이메일, 비밀번호를 모두 입력해주세요.';
+          set({ authError: msg });
+          showAuthNotice('알림', msg);
           return false;
         }
         if (pwd.length < 6) {
-          Alert.alert('알림', '비밀번호는 최소 6자 이상이어야 합니다.');
+          const msg = '비밀번호는 최소 6자 이상이어야 합니다.';
+          set({ authError: msg });
+          showAuthNotice('알림', msg);
           return false;
         }
 
-        set({ isLoading: true });
+        set({ isLoading: true, authError: null });
 
-        // 1. Supabase 연동 시 실제 클라우드 회원가입 시도
-        if (isSupabaseConfigured()) {
-          try {
-            const { data, error } = await supabase.auth.signUp({
-              email: cleanEmail,
-              password: pwd,
-              options: {
-                data: {
-                  nickname: cleanNickname,
+        try {
+          // 1. Supabase 연동 시 실제 클라우드 회원가입 시도
+          if (isSupabaseConfigured()) {
+            const { data, error } = await withTimeout(
+              supabase.auth.signUp({
+                email: cleanEmail,
+                password: pwd,
+                options: {
+                  data: {
+                    nickname: cleanNickname,
+                  },
                 },
-              },
-            });
+              }),
+              12000,
+              '회원가입'
+            );
 
             if (error) {
-              set({ isLoading: false });
               let msg = error.message;
               if (error.message.includes('User already registered')) {
                 msg = '이미 가입된 이메일 주소입니다. 로그인을 진행해 주세요.';
+              } else if (error.message.includes('rate limit')) {
+                msg = '잠시 후 다시 시도해 주세요 (이메일 요청 제한).';
+              } else if (error.message.includes('invalid')) {
+                msg = '올바른 이메일 형식을 입력해 주세요.';
               }
-              Alert.alert('회원가입 실패', msg);
+              set({ authError: msg });
+              showAuthNotice('회원가입 실패', msg);
+              return false;
+            }
+
+            if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+              const dupMsg = '이미 가입된 이메일 주소입니다. 로그인을 진행해 주세요.';
+              set({ authError: dupMsg });
+              showAuthNotice('회원가입 실패', dupMsg);
               return false;
             }
 
@@ -229,47 +288,61 @@ export const useAuthStore = create<AuthState>()(
                 createdAt: data.user.created_at || new Date().toISOString(),
               };
 
-              set({ isLoggedIn: true, user: authUser, isLoading: false });
-              Alert.alert('회원가입 완료 ✈️', `핀치에 오신 것을 환영합니다, ${cleanNickname}님!`);
+              set({ isLoggedIn: true, user: authUser, authError: null });
+              showAuthNotice('회원가입 완료 ✈️', `핀치에 오신 것을 환영합니다, ${cleanNickname}님!`);
               return true;
             }
-          } catch (err: any) {
-            console.log('[AuthStore] Supabase signup error:', err);
+
+            const unknownMsg = '회원가입 처리 결과를 확인하지 못했습니다. 다시 시도해주세요.';
+            set({ authError: unknownMsg });
+            showAuthNotice('회원가입 실패', unknownMsg);
+            return false;
           }
+
+          // 2. Supabase 미설정 환경(오프라인/테스트) 안전 폴백
+          const fallbackUser: AuthUser = {
+            id: `user_${Date.now()}`,
+            email: cleanEmail,
+            nickname: cleanNickname,
+            createdAt: new Date().toISOString(),
+          };
+
+          set({ isLoggedIn: true, user: fallbackUser, authError: null });
+          showAuthNotice('회원가입 완료 ✈️', `핀치에 오신 것을 환영합니다, ${cleanNickname}님!`);
+          return true;
+        } catch (err: any) {
+          console.log('[AuthStore] Supabase signup error:', err);
+          const msg = err?.message || '회원가입 중 네트워크 오류가 발생했습니다.';
+          set({ authError: msg });
+          showAuthNotice('회원가입 실패', msg);
+          return false;
+        } finally {
+          set({ isLoading: false });
         }
-
-        // 2. Supabase 미설정 또는 로컬 모드일 때 안전한 폴백 회원가입
-        const fallbackUser: AuthUser = {
-          id: `user_${Date.now()}`,
-          email: cleanEmail,
-          nickname: cleanNickname,
-          createdAt: new Date().toISOString(),
-        };
-
-        set({ isLoggedIn: true, user: fallbackUser, isLoading: false });
-        Alert.alert('회원가입 완료 ✈️', `핀치에 오신 것을 환영합니다, ${cleanNickname}님!`);
-        return true;
       },
 
       loginWithSocial: async (provider: 'google' | 'kakao') => {
-        set({ isLoading: true });
+        set({ isLoading: true, authError: null, authStatus: 'OAuth 로그인 주소 요청 중...' });
         const providerLabel = provider === 'kakao' ? '카카오' : 'Google';
 
         try {
           if (isSupabaseConfigured()) {
-            const Linking = await import('expo-linking');
-            const WebBrowser = await import('expo-web-browser');
             WebBrowser.maybeCompleteAuthSession();
 
             const isWeb = Platform.OS === 'web';
             const rawRedirect = Linking.createURL('auth/callback');
-            const redirectTo =
+            let redirectTo =
               !isWeb && (!rawRedirect || rawRedirect.includes('null') || rawRedirect.includes('undefined'))
                 ? 'pinch://auth/callback'
-                : rawRedirect.startsWith('pinch:///')
-                  ? rawRedirect.replace('pinch:///', 'pinch://')
-                  : rawRedirect;
+                : rawRedirect;
+            if (!isWeb && redirectTo.startsWith('pinch:///')) {
+              redirectTo = redirectTo.replace('pinch:///', 'pinch://');
+            }
+            if (!isWeb && redirectTo.startsWith('exps://')) {
+              redirectTo = redirectTo.replace('exps://', 'exp://');
+            }
             console.log(`[AuthStore] Starting ${provider} OAuth. redirectTo=${redirectTo}`);
+            set({ authStatus: `인증 요청 중... (${redirectTo})` });
 
             const { data, error } = await withTimeout(
               supabase.auth.signInWithOAuth({
@@ -284,26 +357,31 @@ export const useAuthStore = create<AuthState>()(
             );
 
             if (error) {
-              Alert.alert(
-                `${providerLabel} 로그인 오류`,
-                error.message.includes('not enabled')
-                  ? `Supabase 대시보드에서 ${providerLabel} Provider 설정을 활성화해주세요.`
-                  : error.message
-              );
+              const msg = error.message.includes('not enabled')
+                ? `Supabase 대시보드에서 ${providerLabel} Provider 설정을 활성화해주세요.`
+                : error.message;
+              set({ authError: msg });
+              showAuthNotice(`${providerLabel} 로그인 오류`, msg);
               return false;
             }
 
             if (isWeb) {
+              if (data?.url && typeof window !== 'undefined') {
+                window.location.assign(data.url);
+              }
               return true;
             }
 
             if (!data?.url) {
-              Alert.alert('로그인 오류', '인증 주소를 받아오지 못했습니다.');
+              const msg = '인증 주소를 받아오지 못했습니다.';
+              set({ authError: msg });
+              showAuthNotice('로그인 오류', msg);
               return false;
             }
 
             // Android/Expo Go에서 Chrome Custom Tabs가 딥링크 복귀 시 openAuthSessionAsync가
             // resolve되지 않고 멈추는 현상을 막기 위해 Linking 이벤트 + AppState 복귀를 함께 감시
+            let didTimeout = false;
             const callbackUrl = await new Promise<string | null>((resolve) => {
               let settled = false;
               let appReturnTimer: ReturnType<typeof setTimeout> | null = null;
@@ -340,21 +418,44 @@ export const useAuthStore = create<AuthState>()(
 
               timeoutTimer = setTimeout(() => {
                 console.log('[AuthStore] OAuth browser session timed out');
+                didTimeout = true;
                 finish(null);
-              }, 60000);
+              }, 45000);
 
+              console.log('[AuthStore] Opening OAuth browser session...');
+              set({ authStatus: `브라우저 로그인 대기 중...\n복귀 주소: ${redirectTo}` });
               WebBrowser.openAuthSessionAsync(data.url, redirectTo)
                 .then((res) => {
+                  console.log('[AuthStore] openAuthSessionAsync resolved:', res?.type);
                   if (res?.type === 'success' && 'url' in res && res.url) {
                     finish(res.url);
                   } else {
-                    finish(null);
+                    // Android에서 Custom Tabs가 닫힌 직후 Linking 이벤트가 수백ms 늦게 도착할 수 있음
+                    if (!appReturnTimer) {
+                      appReturnTimer = setTimeout(() => finish(null), 500);
+                    }
                   }
                 })
-                .catch(() => finish(null));
+                .catch((browserErr) => {
+                  console.log('[AuthStore] openAuthSessionAsync error:', browserErr);
+                  finish(null);
+                });
             });
 
-            if (!callbackUrl) {
+            let resolvedCallbackUrl = callbackUrl;
+            if (!resolvedCallbackUrl) {
+              const initialUrl = await Linking.getInitialURL?.().catch(() => null);
+              if (
+                initialUrl &&
+                (initialUrl.includes('auth/callback') ||
+                  initialUrl.includes('access_token=') ||
+                  initialUrl.includes('code='))
+              ) {
+                resolvedCallbackUrl = initialUrl;
+              }
+            }
+
+            if (!resolvedCallbackUrl) {
               // 혹시 그사이 세션이 이미 저장되었는지 마지막 확인
               const { data: sessCheck } = await withTimeout(
                 supabase.auth.getSession(),
@@ -363,65 +464,18 @@ export const useAuthStore = create<AuthState>()(
               );
               if (sessCheck?.session?.user) {
                 const authUser = buildAuthUserFromSupabase(sessCheck.session.user, provider);
-                set({ isLoggedIn: true, user: authUser });
+                set({ isLoggedIn: true, user: authUser, authError: null });
                 return true;
+              }
+              if (didTimeout) {
+                const msg = `${providerLabel} 로그인 응답 시간이 초과되었습니다. 브라우저 또는 Redirect URL 설정을 확인해주세요.`;
+                set({ authError: msg });
+                showAuthNotice(`${providerLabel} 로그인 지연`, msg);
               }
               return false;
             }
 
-            const params = parseOAuthCallbackParams(callbackUrl);
-            if (params.error || params.error_description) {
-              Alert.alert(
-                `${providerLabel} 로그인 실패`,
-                params.error_description || params.error
-              );
-              return false;
-            }
-
-            let sessionUser: SupabaseUser | null = null;
-            if (params.code) {
-              console.log('[AuthStore] Exchanging OAuth code for session...');
-              const { data: exData, error: exErr } = await withTimeout(
-                supabase.auth.exchangeCodeForSession(params.code),
-                12000,
-                'OAuth 코드 교환'
-              );
-              if (exErr) throw exErr;
-              sessionUser = exData.user || exData.session?.user || null;
-            } else if (params.access_token && params.refresh_token) {
-              console.log('[AuthStore] Setting OAuth session tokens...');
-              const { data: sessData, error: sessErr } = await withTimeout(
-                supabase.auth.setSession({
-                  access_token: params.access_token,
-                  refresh_token: params.refresh_token,
-                }),
-                12000,
-                'OAuth 세션 저장'
-              );
-              if (sessErr) throw sessErr;
-              sessionUser = sessData.user || sessData.session?.user || null;
-            } else {
-              console.log('[AuthStore] Fetching current Supabase user...');
-              const { data: userData } = await withTimeout(
-                supabase.auth.getUser(),
-                10000,
-                '사용자 정보 조회'
-              );
-              sessionUser = userData.user || null;
-            }
-
-            if (!sessionUser) {
-              Alert.alert('로그인 확인 필요', '계정 세션을 확인하지 못했습니다.');
-              return false;
-            }
-
-            const authUser = buildAuthUserFromSupabase(sessionUser, provider);
-            set({ isLoggedIn: true, user: authUser });
-            Alert.alert(
-              `${providerLabel} 로그인 완료`,
-              `${authUser.nickname}님, ${providerLabel} 계정으로 연결되었습니다.`
-            );
-            return true;
+            return await get().handleOAuthCallbackUrl(resolvedCallbackUrl, provider);
           }
 
           // Supabase 미설정 환경(오프라인/테스트) 안전 폴백
@@ -439,20 +493,96 @@ export const useAuthStore = create<AuthState>()(
             createdAt: currentUser?.createdAt || new Date().toISOString(),
           };
 
-          set({ isLoggedIn: true, user: socialUser });
-          Alert.alert(
+          set({ isLoggedIn: true, user: socialUser, authError: null });
+          showAuthNotice(
             `${providerLabel} 로그인 완료`,
             `${socialUser.nickname}님, ${providerLabel} 계정으로 연결되었습니다.`
           );
           return true;
         } catch (err: any) {
-          Alert.alert(
-            `${providerLabel} 로그인 실패`,
-            err?.message || '소셜 로그인 처리 중 문제가 발생했습니다.'
-          );
+          const msg = err?.message || '소셜 로그인 처리 중 문제가 발생했습니다.';
+          set({ authError: msg });
+          showAuthNotice(`${providerLabel} 로그인 실패`, msg);
           return false;
         } finally {
-          set({ isLoading: false });
+          set({ isLoading: false, authStatus: null });
+        }
+      },
+
+      handleOAuthCallbackUrl: async (callbackUrl: string, providerHint?: 'google' | 'kakao') => {
+        if (!isSupabaseConfigured() || !callbackUrl) return false;
+        if (get().isLoggedIn || lastHandledOAuthUrl === callbackUrl) return true;
+        if (inFlightOAuthUrl === callbackUrl) return false;
+        inFlightOAuthUrl = callbackUrl;
+
+        const providerLabel =
+          providerHint === 'kakao' ? '카카오' : providerHint === 'google' ? 'Google' : '소셜';
+
+        set({ isLoading: true, authError: null, authStatus: '콜백 수신 완료! 세션 저장 중...' });
+        try {
+          const params = parseOAuthCallbackParams(callbackUrl);
+          if (params.error || params.error_description) {
+            const msg = params.error_description || params.error;
+            set({ authError: msg });
+            showAuthNotice(`${providerLabel} 로그인 실패`, msg);
+            return false;
+          }
+
+          let sessionUser: SupabaseUser | null = null;
+          if (params.code) {
+            console.log('[AuthStore] Exchanging OAuth code for session...');
+            const { data: exData, error: exErr } = await withTimeout(
+              supabase.auth.exchangeCodeForSession(params.code),
+              12000,
+              'OAuth 코드 교환'
+            );
+            if (exErr) throw exErr;
+            sessionUser = exData.user || exData.session?.user || null;
+          } else if (params.access_token && params.refresh_token) {
+            console.log('[AuthStore] Setting OAuth session tokens...');
+            const { data: sessData, error: sessErr } = await withTimeout(
+              supabase.auth.setSession({
+                access_token: params.access_token,
+                refresh_token: params.refresh_token,
+              }),
+              12000,
+              'OAuth 세션 저장'
+            );
+            if (sessErr) throw sessErr;
+            sessionUser = sessData.user || sessData.session?.user || null;
+          } else {
+            console.log('[AuthStore] Fetching current Supabase user...');
+            const { data: userData } = await withTimeout(
+              supabase.auth.getUser(),
+              10000,
+              '사용자 정보 조회'
+            );
+            sessionUser = userData.user || null;
+          }
+
+          if (!sessionUser) {
+            const msg = '계정 세션을 확인하지 못했습니다.';
+            set({ authError: msg });
+            showAuthNotice('로그인 확인 필요', msg);
+            return false;
+          }
+
+          lastHandledOAuthUrl = callbackUrl;
+          const authUser = buildAuthUserFromSupabase(sessionUser, providerHint);
+          set({ isLoggedIn: true, user: authUser, authError: null });
+          showAuthNotice(
+            `${providerLabel} 로그인 완료`,
+            `${authUser.nickname}님, ${providerLabel} 계정으로 연결되었습니다.`
+          );
+          return true;
+        } catch (err: any) {
+          const msg = err?.message || '소셜 로그인 처리 중 문제가 발생했습니다.';
+          set({ authError: msg });
+          showAuthNotice(`${providerLabel} 로그인 실패`, msg);
+          return false;
+        } finally {
+          inFlightOAuthUrl = null;
+          set({ isLoading: false, authStatus: null });
         }
       },
 

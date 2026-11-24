@@ -20,6 +20,15 @@ export async function resolve(specifier, context, nextResolve) {
     };
   }
 
+  // Mock Expo Linking / WebBrowser for node testing
+  if (specifier === 'expo-linking' || specifier === 'expo-web-browser') {
+    return {
+      format: 'module',
+      shortCircuit: true,
+      url: pathToFileURL('./scripts/expoMock.mjs').href,
+    };
+  }
+
   try {
     return await nextResolve(specifier, context);
   } catch (err) {
