@@ -362,23 +362,24 @@ export default function WalletScreen() {
   return (
     <View className="flex-1 bg-background">
       <Header
-        title="WALLET"
-        subtitle="이중통화 실시간 환율 & 최소 송금 정산"
+        title="가계부"
+        subtitle={`${currentTrip?.title || '여행'} · 실시간 환율 & 1/N 정산`}
         rightAction={
           <View className="flex-row items-center gap-2">
             <TouchableOpacity
-              onPress={handleCopyShareText}
-              className="w-10 h-10 rounded-full bg-secondary/10 items-center justify-center"
-              accessibilityLabel="정산서 복사"
+              onPress={() => setCalculatorVisible(true)}
+              className="px-3 h-9 rounded-full bg-primary/10 flex-row items-center justify-center"
+              accessibilityLabel="환율 계산기"
             >
-              <Share2 size={18} color="#2B50AA" />
+              <Coins size={15} color="#1B2A4A" style={{ marginRight: 4 }} />
+              <Text className="text-xs font-extrabold text-primary">환율</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => setModalVisible(true)}
-              className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center"
-              accessibilityLabel="지출 추가"
+              onPress={handleCopyShareText}
+              className="w-9 h-9 rounded-full bg-secondary/10 items-center justify-center"
+              accessibilityLabel="정산서 복사"
             >
-              <Plus size={20} color="#1B2A4A" />
+              <Share2 size={17} color="#2B50AA" />
             </TouchableOpacity>
           </View>
         }
@@ -1145,8 +1146,10 @@ export default function WalletScreen() {
                           >
                             <Text className="text-xs font-bold text-white">{tx.from.name[0]}</Text>
                           </View>
-                          <View>
-                            <Text className="text-xs font-bold text-darkText">{tx.from.name}</Text>
+                          <View style={{ flexShrink: 1 }}>
+                            <Text className="text-xs font-bold text-darkText" numberOfLines={1}>
+                              {tx.from.name}
+                            </Text>
                             <Text className="text-[10px] text-rose-500 font-semibold">보내는 분</Text>
                           </View>
                         </View>
@@ -1167,8 +1170,10 @@ export default function WalletScreen() {
 
                         {/* To Member */}
                         <View className="flex-row items-center flex-1 justify-end">
-                          <View className="items-end mr-2">
-                            <Text className="text-xs font-bold text-darkText">{tx.to.name}</Text>
+                          <View className="items-end mr-2" style={{ flexShrink: 1 }}>
+                            <Text className="text-xs font-bold text-darkText" numberOfLines={1}>
+                              {tx.to.name}
+                            </Text>
                             <Text className="text-[10px] text-emerald-600 font-semibold">받는 분</Text>
                           </View>
                           <View

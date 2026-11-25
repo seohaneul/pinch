@@ -402,7 +402,7 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Top-Left Bold Title */}
-        <Text style={styles.pageTitle}>PROFILE</Text>
+        <Text style={styles.pageTitle}>내 정보</Text>
 
         {/* Centered Circular Avatar + Photo Edit + Nickname + Email */}
         <View style={styles.profileCenterBox}>
@@ -433,7 +433,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Quick Bar (여행 수정 & 클라우드 백업 삭제됨) */}
+        {/* Quick Bar (주요 탭 바로가기) */}
         <View style={styles.quickActionRow}>
           <TouchableOpacity
             activeOpacity={0.7}
@@ -446,20 +446,20 @@ export default function ProfileScreen() {
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={handleOpenEditPhoto}
+            onPress={() => router.push('/(tabs)/planner')}
             style={styles.quickActionCol}
           >
-            <Edit3 size={24} color="#6B7280" strokeWidth={1.7} />
-            <Text style={styles.quickActionLabel}>프로필 사진</Text>
+            <Globe size={24} color="#6B7280" strokeWidth={1.7} />
+            <Text style={styles.quickActionLabel}>일정/동선</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => setSocialConnectModalVisible(true)}
+            onPress={() => router.push('/(tabs)/wallet')}
             style={styles.quickActionCol}
           >
-            <Globe size={24} color="#6B7280" strokeWidth={1.7} />
-            <Text style={styles.quickActionLabel}>소셜 연동</Text>
+            <Edit3 size={24} color="#6B7280" strokeWidth={1.7} />
+            <Text style={styles.quickActionLabel}>가계부</Text>
           </TouchableOpacity>
         </View>
 

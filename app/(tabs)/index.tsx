@@ -235,8 +235,7 @@ export default function HomeScreen() {
               <Text style={styles.heroDateLine} numberOfLines={1}>
                 {currentTrip?.startDate?.replace(/-/g, '.')} -{' '}
                 {currentTrip?.endDate?.slice(5).replace(/-/g, '.')} ·{' '}
-                {dayCount > 1 ? `${dayCount - 1}박 ${dayCount}일` : '당일치기'} (
-                {calculateDDay(currentTrip?.startDate)})
+                {dayCount > 1 ? `${dayCount - 1}박 ${dayCount}일` : '당일치기'}
               </Text>
 
               <Text style={styles.heroTitleLine} numberOfLines={1}>
@@ -391,14 +390,6 @@ export default function HomeScreen() {
                 </Text>
                 <ArrowRight size={16} color="#FFFFFF" />
               </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => router.push('/(tabs)/planner')}
-              style={styles.outlinedActionBtn}
-            >
-              <Text style={styles.outlinedActionBtnText}>일정 및 동선 플래너 열기</Text>
             </TouchableOpacity>
           </View>
 
@@ -668,11 +659,11 @@ const styles = StyleSheet.create({
   },
   quickCardsRow: {
     paddingBottom: 18,
-    gap: 10,
+    gap: 8,
   },
   quickSquareCard: {
-    width: 96,
-    height: 106,
+    width: 84,
+    height: 102,
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
     paddingVertical: 14,

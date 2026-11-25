@@ -322,7 +322,7 @@ export default function PlacesScreen() {
   return (
     <View style={styles.container}>
       <Header
-        title="BOOKMARK"
+        title="보관함"
         subtitle={`${currentTrip?.title || '여행'} · 스팟 ${tripPlaces.length}곳 · 링크 ${tripLinks.length}개`}
       />
 
@@ -441,24 +441,6 @@ export default function PlacesScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Online search prompt when search query entered */}
-            {searchQuery.trim().length > 0 && (
-              <TouchableOpacity
-                onPress={() => {
-                  setModalInitialTab('search');
-                  setModalInitialSearchQuery(searchQuery.trim());
-                  setModalVisible(true);
-                }}
-                style={styles.searchOnlinePrompt}
-                activeOpacity={0.8}
-              >
-                <Search size={13} color="#1B2A4A" style={{ marginRight: 6 }} />
-                <Text style={styles.searchOnlinePromptText} numberOfLines={1}>
-                  "{searchQuery}" 지도에서 위치 검색 및 추가하기 ↗
-                </Text>
-              </TouchableOpacity>
-            )}
-
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 16 }}>
               {CATEGORIES.map((cat) => {
                 const isSelected = selectedCategory === cat.value;
@@ -561,6 +543,7 @@ export default function PlacesScreen() {
                             <View className="flex-row flex-wrap mb-1">
                               {place.tags
                                 .filter((t) => !isEnglishCategoryTag(t))
+                                .slice(0, 3)
                                 .map((t, idx) => (
                                   <Text key={idx} className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-md mr-1 mb-1">
                                     #{t}
@@ -582,7 +565,7 @@ export default function PlacesScreen() {
                             <View />
                           )}
 
-                          <View className="flex-row items-center gap-1.5">
+                          <View className="flex-row flex-wrap items-center justify-end gap-1.5 flex-1 ml-2">
                             {/* 전체 보관함 모드에서 현재 여행에 없는 장소인 경우: 현재 여행에 담기 버튼 */}
                             {pocketScope === 'ALL' && place.trip_id && place.trip_id !== currentTripId && (
                               <TouchableOpacity
@@ -934,16 +917,18 @@ export default function PlacesScreen() {
       {/* 화면 우측 하단 플로팅 액션 버튼 (FAB) */}
       <TouchableOpacity
         onPress={() => {
-          setModalInitialTab('search');
+          setModalInitialTab(activeTab === 'LINKS' ? 'link' : 'search');
           setModalInitialSearchQuery('');
           setModalVisible(true);
         }}
         style={[styles.floatingActionBtn, { bottom: Math.max(insets.bottom, 16) + 12 }]}
         activeOpacity={0.88}
-        accessibilityLabel="스팟 추가"
+        accessibilityLabel={activeTab === 'LINKS' ? '링크 추가' : '스팟 추가'}
       >
         <Plus size={18} color="#FFFFFF" style={{ marginRight: 5 }} />
-        <Text style={styles.floatingActionBtnText}>스팟 추가</Text>
+        <Text style={styles.floatingActionBtnText}>
+          {activeTab === 'LINKS' ? '링크 추가' : '스팟 추가'}
+        </Text>
       </TouchableOpacity>
     </View>
   );

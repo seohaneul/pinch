@@ -40,6 +40,7 @@ import { openInGoogleMaps, openGoogleMapsDirections } from '../../src/utils/mapU
 import { formatAmountInput, resolveCurrencyByDestination } from '../../src/utils/formatUtils';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import { CreateTripModal } from '../../src/components/trip/CreateTripModal';
+import { TripLodgingManagerModal } from '../../src/components/planner/TripLodgingManagerModal';
 import { PlaceDetailModal } from '../../src/components/places/PlaceDetailModal';
 import {
   MapPin,
@@ -102,6 +103,7 @@ export default function PlannerScreen() {
   // Expense modal for stop
   const [expenseModalVisible, setExpenseModalVisible] = useState(false);
   const [createTripModalVisible, setCreateTripModalVisible] = useState(false);
+  const [lodgingModalVisible, setLodgingModalVisible] = useState(false);
   const [selectedStopForExpense, setSelectedStopForExpense] = useState<ScheduleItem | null>(null);
   const [expenseTitle, setExpenseTitle] = useState('');
   const [expenseAmountStr, setExpenseAmountStr] = useState('');
@@ -288,15 +290,23 @@ export default function PlannerScreen() {
   return (
     <View className="flex-1 bg-background">
       <Header
-        title="PLANNER"
+        title="일정/동선"
         subtitle={currentTrip.title}
         rightAction={
-          <TouchableOpacity
-            onPress={handleOptimizeRoute}
-            className="flex-row items-center bg-primary px-3.5 py-2 rounded-xl"
-          >
-            <Text className="text-xs font-bold text-white">동선 최적화</Text>
-          </TouchableOpacity>
+          <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              onPress={() => setTripSwitcherVisible(true)}
+              className="bg-gray-100 px-3 py-2 rounded-xl"
+            >
+              <Text className="text-xs font-bold text-darkText">여행 변경</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleOptimizeRoute}
+              className="flex-row items-center bg-primary px-3.5 py-2 rounded-xl"
+            >
+              <Text className="text-xs font-bold text-white">동선 최적화</Text>
+            </TouchableOpacity>
+          </View>
         }
       />
 
@@ -449,9 +459,16 @@ export default function PlannerScreen() {
               </View>
             ) : (
               <View className="py-2.5 items-center justify-center">
-                <Text className="text-xs font-bold text-mutedText">
-                  등록된 숙소가 없습니다. 홈의 숙소 카드에서 숙소를 등록해보세요.
+                <Text className="text-xs font-bold text-mutedText mb-2">
+                  등록된 숙소가 없습니다.
                 </Text>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setLodgingModalVisible(true)}
+                  className="bg-primary/10 px-3.5 py-1.5 rounded-full"
+                >
+                  <Text className="text-xs font-extrabold text-primary">+ 숙소 등록하기</Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -573,8 +590,8 @@ export default function PlannerScreen() {
                           )}
                         </TouchableOpacity>
 
-                        {/* Stay Duration & Add Expense Quick Action */}
-                        <View className="flex-row items-center justify-between pt-2 border-t border-gray-100 mt-1">
+                        {/* Stay Duration & Add Expense Quick Action (2-row layout) */}
+                        <View className="pt-2 border-t border-gray-100 mt-1 gap-2">
                           {stop.category === 'FLIGHT' ? (
                             <Text className="text-[11px] text-mutedText font-medium">항공 이동 일정</Text>
                           ) : (
@@ -586,7 +603,7 @@ export default function PlannerScreen() {
                                 <TouchableOpacity
                                   key={mins}
                                   onPress={() => updateStayDuration(stop.id, mins)}
-                                  className={`px-1.5 py-0.5 rounded-md mr-1 ${isSelected ? 'bg-darkText' : 'bg-gray-100'
+                                  className={`px-2 py-0.5 rounded-md mr-1 ${isSelected ? 'bg-darkText' : 'bg-gray-100'
                                     }`}
                                 >
                                   <Text
@@ -601,7 +618,7 @@ export default function PlannerScreen() {
 
                             {/* Show custom stay duration if not one of presets */}
                             {![30, 60, 90, 120].includes(stop.stay_duration_minutes) && (
-                              <View className="px-1.5 py-0.5 rounded-md mr-1 bg-darkText">
+                              <View className="px-2 py-0.5 rounded-md mr-1 bg-darkText">
                                 <Text className="text-[10px] font-bold text-white">
                                   {stop.stay_duration_minutes}분
                                 </Text>
@@ -611,7 +628,7 @@ export default function PlannerScreen() {
                             {/* Direct stay duration edit button */}
                             <TouchableOpacity
                               onPress={() => setCustomDurationStop(stop)}
-                              className="px-1.5 py-0.5 rounded-md bg-primary/10 flex-row items-center"
+                              className="px-2 py-0.5 rounded-md bg-primary/10 flex-row items-center"
                             >
                               <Edit3 size={9} color="#1B2A4A" />
                               <Text className="text-[10px] font-bold text-primary ml-0.5">
@@ -621,10 +638,10 @@ export default function PlannerScreen() {
                           </View>
                           )}
 
-                          <View className="flex-row items-center gap-1.5">
+                          <View className="flex-row items-center justify-end gap-1.5">
                             <TouchableOpacity
                               onPress={() => openInGoogleMaps(stop.place_name, stop.latitude, stop.longitude, stop.address)}
-                              className="bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-row items-center"
+                              className="bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full flex-row items-center"
                               accessibilityLabel="구글 지도 열기"
                             >
                               <Navigation size={11} color="#059669" />
@@ -648,10 +665,10 @@ export default function PlannerScreen() {
                       </Card>
                     </View>
 
-                    {/* Transport Connector Mode Selector between consecutive stops */}
+                    {/* Transport Connector Mode Selector between consecutive stops (2-row layout) */}
                     {!isLast && nextStop && (
                       <View className="pl-7 my-2 relative">
-                        <View className="bg-secondary/10 border border-secondary/30 rounded-2xl p-2.5 flex-row items-center justify-between">
+                        <View className="bg-secondary/10 border border-secondary/30 rounded-2xl p-2.5 gap-2">
                           <TouchableOpacity
                             activeOpacity={0.7}
                             onPress={() =>
@@ -667,21 +684,23 @@ export default function PlannerScreen() {
                                 stop.address
                               )
                             }
-                            className="flex-row items-center flex-1 mr-2"
+                            className="flex-row items-center justify-between"
                           >
-                            <Navigation size={13} color="#3BB3AA" className="mr-1.5" />
-                            <Text className="text-xs font-bold color-secondary-dark flex-shrink" numberOfLines={1}>
-                              {nextStop.custom_transport_name
-                                ? `${nextStop.custom_transport_name} · 약 ${nextStop.custom_travel_minutes || nextStop.travel_duration_minutes}분`
-                                : formatTravelSummary(nextDist, nextStop.transport_mode, nextStop.travel_duration_minutes)}
-                            </Text>
-                            <Text className="text-[10px] font-bold text-emerald-700 ml-1 bg-emerald-100/60 px-1.5 py-0.5 rounded">
+                            <View className="flex-row items-center flex-1 mr-2">
+                              <Navigation size={13} color="#3BB3AA" className="mr-1.5" />
+                              <Text className="text-xs font-bold color-secondary-dark flex-shrink" numberOfLines={1}>
+                                {nextStop.custom_transport_name
+                                  ? `${nextStop.custom_transport_name} · 약 ${nextStop.custom_travel_minutes || nextStop.travel_duration_minutes}분`
+                                  : formatTravelSummary(nextDist, nextStop.transport_mode, nextStop.travel_duration_minutes)}
+                              </Text>
+                            </View>
+                            <Text className="text-[10px] font-bold text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded">
                               길찾기 ↗
                             </Text>
                           </TouchableOpacity>
 
                           {/* Transport Mode Toggle Pills & Custom Entry */}
-                          <View className="flex-row items-center bg-surface p-1 rounded-xl border border-secondary/20">
+                          <View className="flex-row items-center justify-end bg-surface p-1 rounded-xl border border-secondary/20 self-end">
                             <TouchableOpacity
                               onPress={() => updateCustomTransport(nextStop.id, '', 0, 'WALK')}
                               className={`p-1.5 rounded-lg mr-1 ${nextStop.transport_mode === 'WALK' && !nextStop.custom_transport_name ? 'bg-secondary' : ''
@@ -926,6 +945,17 @@ export default function PlannerScreen() {
       <TripSwitcherModal
         visible={tripSwitcherVisible}
         onClose={() => setTripSwitcherVisible(false)}
+      />
+
+      {/* Trip Lodging Manager Modal */}
+      <TripLodgingManagerModal
+        visible={lodgingModalVisible}
+        onClose={() => setLodgingModalVisible(false)}
+        tripId={currentTrip.id}
+        destination={currentTrip.destination}
+        tripStartDate={currentTrip.startDate}
+        tripEndDate={currentTrip.endDate}
+        schedules={currentTrip.schedules}
       />
 
       {/* Optimize Route Confirmation Modal (Req [3]) */}
