@@ -109,7 +109,7 @@ export const CustomTransportModal: React.FC<CustomTransportModalProps> = ({
                 <Navigation size={18} color="#4ECDC4" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.title}>이동수단 직접 입력 🚅</Text>
+                <Text style={styles.title}>이동수단 직접 입력</Text>
                 <Text style={styles.subtitle} numberOfLines={1}>
                   {effectiveFromName} ➔ {effectiveToName}
                 </Text>

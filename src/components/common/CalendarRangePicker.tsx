@@ -45,7 +45,7 @@ function getDurationText(startStr: string, endStr: string): string {
   const diffTime = e.getTime() - s.getTime();
   const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
   if (diffDays === 0) return '당일치기 여행 🏃';
-  if (diffDays > 0) return `${diffDays}박 ${diffDays + 1}일 여행 ✈️`;
+  if (diffDays > 0) return `${diffDays}박 ${diffDays + 1}일`;
   return '';
 }
 

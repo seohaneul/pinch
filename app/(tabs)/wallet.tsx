@@ -212,7 +212,7 @@ export default function WalletScreen() {
     });
     setNewTourNameInput('');
     setNewTourAmountInput('');
-    Alert.alert('투어/패키지 등록 완료 🎟️', `"${newTourNameInput.trim()}" (${num.toLocaleString()}원)이 관광/체험 예산에 추가되었습니다.`);
+    Alert.alert('투어/패키지 등록 완료', `"${newTourNameInput.trim()}" (${num.toLocaleString()}원)이 관광/체험 예산에 추가되었습니다.`);
   };
 
   const handleAddCustomBudgetInTab = () => {
@@ -473,7 +473,7 @@ export default function WalletScreen() {
               <View className="flex-row items-center justify-between mb-2">
                 <View className="flex-row items-center">
                   <Coins size={15} color="#1B2A4A" className="mr-1" />
-                  <Text className="text-xs font-bold text-mutedText">총 계획 예산 🎯</Text>
+                  <Text className="text-xs font-bold text-mutedText">총 계획 예산</Text>
                 </View>
                 {/* Currency Selector Pills */}
                 <ScrollView
@@ -601,7 +601,7 @@ export default function WalletScreen() {
                             }`}
                         >
                           {isOverBudget
-                            ? `${(catSpent - catBudget).toLocaleString()}원 초과 ⚠️`
+                            ? `${(catSpent - catBudget).toLocaleString()}원 초과`
                             : `${(catBudget - catSpent).toLocaleString()}원 남음 (${catPercent}%)`}
                         </Text>
                       </View>

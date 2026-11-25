@@ -1094,7 +1094,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
           {step === 0 && (
             <View style={styles.stepSection}>
               <View style={styles.onboardingBadge}>
-                <Text style={styles.onboardingBadgeText}>SMART TRAVEL PLANNER</Text>
+                <Text style={styles.onboardingBadgeText}>PINCH TRAVEL</Text>
               </View>
 
               <Text style={styles.heroQuestionTitle}>

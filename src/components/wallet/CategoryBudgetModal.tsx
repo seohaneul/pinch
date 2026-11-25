@@ -177,7 +177,7 @@ export const CategoryBudgetModal: React.FC<CategoryBudgetModalProps> = ({
 
   const handleSave = () => {
     onSave(budgets);
-    Alert.alert('예산 설정 완료 💳', '카테고리별 여행 예산이 성공적으로 저장되었습니다.');
+    Alert.alert('예산 설정 완료', '카테고리별 여행 예산이 성공적으로 저장되었습니다.');
     onClose();
   };
 
@@ -199,7 +199,7 @@ export const CategoryBudgetModal: React.FC<CategoryBudgetModalProps> = ({
             <View>
               <View style={styles.titleRow}>
                 <Coins size={18} color="#1B2A4A" style={{ marginRight: 6 }} />
-                <Text style={styles.title}>카테고리별 예산 설정 💰</Text>
+                <Text style={styles.title}>카테고리별 예산 설정</Text>
               </View>
               <Text style={styles.subtitle}>
                 {tripTitle ? `[${tripTitle}] ` : ''}항공권, 숙소, 투어/패키지 및 직접 항목 계획

@@ -336,7 +336,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
     } else {
       addPlaceToSchedule(selectedDay, placeToSchedule);
       Alert.alert(
-        '일정에 핀치 완료! 🤏',
+        '일정에 추가 완료',
         `"${place.name}" 장소를 Day ${selectedDay} 일정에 핀치했어요!\n동선 플래너 탭에서 최적 경로를 확인해보세요.`
       );
     }
@@ -382,7 +382,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
               <View style={styles.imageLoadingOverlay}>
                 <ActivityIndicator size="small" color="#FFFFFF" />
                 <Text style={styles.imageLoadingText}>
-                  {isLoadingGoogle ? '구글맵 최신 장소 데이터 연동 중... 🗺️' : '실제 장소 사진 찾는 중... 📸'}
+                  {isLoadingGoogle ? '장소 정보 불러오는 중...' : '사진 불러오는 중...'}
                 </Text>
               </View>
             )}
@@ -826,7 +826,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                     </View>
                   </View>
                   <Text style={styles.defaultInsightHint}>
-                    💡 상단 [심층 꿀팁 조회]를 누르면 대표 메뉴, 인생샷 명당, 웨이팅 팁을 AI가 즉시 알려드려요!
+                    상단 [심층 꿀팁 조회]를 누르면 대표 메뉴, 추천 스팟, 웨이팅 팁을 바로 확인할 수 있어요.
                   </Text>
                 </View>
               )}
@@ -882,7 +882,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                   style={styles.confirmScheduleBtn}
                 >
                   <Text style={styles.confirmScheduleBtnText}>
-                    Day {selectedDay} 일정에 핀치하기 🤏
+                    Day {selectedDay} 일정에 추가하기
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -929,7 +929,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
               >
                 <Calendar size={15} color="#FFFFFF" />
                 <Text style={styles.primaryActionBtnText}>
-                  {isAddingToSchedule ? '선택 닫기' : '동선 플래너에 담기 🤏'}
+                  {isAddingToSchedule ? '선택 닫기' : '일정에 추가하기'}
                 </Text>
               </TouchableOpacity>
             )}

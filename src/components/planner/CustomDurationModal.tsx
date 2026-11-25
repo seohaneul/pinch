@@ -78,7 +78,7 @@ export const CustomDurationModal: React.FC<CustomDurationModalProps> = ({
                 <Clock size={18} color="#1B2A4A" />
               </View>
               <View>
-                <Text style={styles.title}>체류 시간 직접 입력 ⏱️</Text>
+                <Text style={styles.title}>체류 시간 직접 입력</Text>
                 <Text style={styles.subtitle} numberOfLines={1}>
                   [{effectivePlaceName}] 장소에서 얼마나 머무를 예정인가요?
                 </Text>

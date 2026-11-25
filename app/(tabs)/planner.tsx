@@ -208,7 +208,7 @@ export default function PlannerScreen() {
 
     setExpenseModalVisible(false);
     Alert.alert(
-      '가계부에 핀치 완료! 💳',
+      '가계부에 등록 완료',
       `"${selectedStopForExpense.place_name}" 지출이 여행 가계부에 등록되었습니다.`
     );
     setSelectedStopForExpense(null);
@@ -257,7 +257,7 @@ export default function PlannerScreen() {
   if (!currentTrip) {
     return (
       <View className="flex-1 bg-background">
-        <Header title="동선 플래너 🗺️" subtitle="나만의 여행 일정과 최단 동선" />
+        <Header title="일정/동선" subtitle="나만의 여행 일정과 이동 동선" />
         <View className="flex-1 items-center justify-center p-6">
           <View className="w-16 h-16 rounded-3xl bg-primary/10 items-center justify-center mb-4">
             <Plane size={32} color="#1B2A4A" />
@@ -811,7 +811,7 @@ export default function PlannerScreen() {
               <View className="flex-row items-center">
                 <Receipt size={18} color="#1B2A4A" />
                 <Text className="text-base font-extrabold text-darkText ml-1.5">
-                  일정 연동 지출 기록 💳
+                  일정 연동 지출 기록
                 </Text>
               </View>
               <TouchableOpacity
@@ -987,7 +987,7 @@ export default function PlannerScreen() {
           addPlaceToSchedule(day, targetPlace);
           setSelectedPlaceForDetail(null);
           Alert.alert(
-            '일정에 핀치 완료! 🤏',
+            '일정에 추가 완료',
             `"${targetPlace.name}" 장소를 Day ${day} 일정에 핀치했어요!\n동선 플래너에서 확인해보세요.`
           );
         }}

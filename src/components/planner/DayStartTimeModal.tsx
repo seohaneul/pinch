@@ -57,7 +57,7 @@ export const DayStartTimeModal: React.FC<DayStartTimeModalProps> = ({
 
     onSaveStartTime(trimmed);
     Alert.alert(
-      '일정 시작 시간 변경 완료 ⏰',
+      '일정 시작 시간 변경 완료',
       `DAY ${dayNumber} 일정이 ${trimmed}부터 시작되도록 모든 방문 스팟의 도착 시간이 자동 재계산되었습니다.`
     );
     onClose();
@@ -96,7 +96,7 @@ export const DayStartTimeModal: React.FC<DayStartTimeModalProps> = ({
                 <Clock size={18} color="#1B2A4A" />
               </View>
               <View>
-                <Text style={styles.title}>DAY {dayNumber} 시작 시간 수정 ⏰</Text>
+                <Text style={styles.title}>DAY {dayNumber} 시작 시간 수정</Text>
                 <Text style={styles.subtitle}>
                   시작 시간에 맞춰 모든 일정 장소의 도착 시간이 자동 재계산됩니다
                 </Text>

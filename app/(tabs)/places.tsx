@@ -110,7 +110,7 @@ export default function PlacesScreen() {
     addPlaceToSchedule(targetDay, selectedPlaceForPlanner);
     setPlannerModalVisible(false);
     Alert.alert(
-      '일정에 핀치 완료! 🤏',
+      '일정에 추가 완료',
       `"${selectedPlaceForPlanner.name}" 장소를 Day ${targetDay} 일정에 핀치했어요!\n동선 플래너 탭에서 최단 경로를 확인해보세요.`
     );
     setSelectedPlaceForPlanner(null);
@@ -222,7 +222,7 @@ export default function PlacesScreen() {
     const success = addPlace(newPlace, currentTripId);
     if (success) {
       Alert.alert(
-        '현재 여행에 담기 완료! 📌',
+        '현재 여행에 담기 완료',
         `"${place.name}" 장소를 ${currentTrip?.title || '현재 여행'} 보관함에 추가했습니다.`
       );
     }
@@ -268,7 +268,7 @@ export default function PlacesScreen() {
       dismissDetectedUrl();
       setSelectedLinkForPlaces(newSavedLink);
       Alert.alert(
-        '링크 핀치 성공! ✈️',
+        '링크 저장 완료',
         `"${newSavedLink.title}" 링크가 보관함에 저장되었습니다.\n포함된 장소 ${newSavedLink.extractedPlaces.length}곳 중 원하는 장소를 담아보세요!`
       );
     } else {
@@ -736,7 +736,7 @@ export default function PlacesScreen() {
                     {isExtracting ? (
                       <View style={[styles.placesCountBadge, { backgroundColor: '#EEF2F8' }]}>
                         <ActivityIndicator size="small" color="#1B2A4A" style={{ marginRight: 5 }} />
-                        <Text style={styles.placesCountBadgeText}>AI 장소 추출 중...</Text>
+                        <Text style={styles.placesCountBadgeText}>장소 추출 중...</Text>
                       </View>
                     ) : (
                       <View style={styles.placesCountBadge}>
@@ -885,7 +885,7 @@ export default function PlacesScreen() {
                 </ScrollView>
 
                 <Button
-                  title={`Day ${targetDay} 일정에 핀치하기 🤏`}
+                  title={`Day ${targetDay} 일정에 추가`}
                   onPress={handleConfirmAddToPlanner}
                   variant="primary"
                   size="lg"
@@ -908,7 +908,7 @@ export default function PlacesScreen() {
           addPlaceToSchedule(day, targetPlace);
           setSelectedPlaceForDetail(null);
           Alert.alert(
-            '일정에 핀치 완료! 🤏',
+            '일정에 추가 완료',
             `"${targetPlace.name}" 장소를 Day ${day} 일정에 핀치했어요!\n동선 플래너 탭에서 확인해보세요.`
           );
         }}

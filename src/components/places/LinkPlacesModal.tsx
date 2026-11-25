@@ -88,7 +88,7 @@ export const LinkPlacesModal: React.FC<LinkPlacesModalProps> = ({
 
     const success = addPlace(newPlace, targetTripId);
     if (success) {
-      Alert.alert('장소 핀치 완료! 📌', `"${item.name}" 장소가 장소 보관함에 담겼습니다.`);
+      Alert.alert('장소 저장 완료', `"${item.name}" 장소가 보관함에 담겼습니다.`);
     }
   };
 

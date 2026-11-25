@@ -61,7 +61,7 @@ export const OptimizeConfirmModal: React.FC<OptimizeConfirmModalProps> = ({
             <View style={styles.headerLeft}>
               <View>
                 <Text style={styles.title}>DAY {dayNumber} 동선 최적화 확인</Text>
-                <Text style={styles.subtitle}>수학적 최단 경로(TSP) 알고리즘 분석 결과</Text>
+                <Text style={styles.subtitle}>이동 거리를 줄인 추천 동선 순서</Text>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -96,7 +96,7 @@ export const OptimizeConfirmModal: React.FC<OptimizeConfirmModalProps> = ({
           <View style={styles.savingsBanner}>
             <Text style={styles.savingsText}>
               {savedTime > 0
-                ? `약 ${savedTime}분 (${savedDist > 0 ? savedDist + 'km' : '이동'}) 절약돼요! 🤏`
+                ? `약 ${savedTime}분 (${savedDist > 0 ? savedDist + 'km' : '이동'}) 단축됩니다.`
                 : '현재 동선이 이미 가장 효율적인 최적 경로예요!'}
             </Text>
           </View>
