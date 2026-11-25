@@ -9,7 +9,7 @@ let currentKey =
 
 // 플레이스홀더 기본값
 if (!currentUrl) {
-  currentUrl = 'https://pinchi-cloud.supabase.co';
+  currentUrl = 'https://pinch-cloud.supabase.co';
 }
 if (!currentKey) {
   currentKey = 'placeholder-anon-key';

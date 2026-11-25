@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/TailwindCSS-NativeWind_v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="TailwindCSS" />
   <img src="https://img.shields.io/badge/Google_Gemini-2.5_Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini AI" />
-  <img src="https://img.shields.io/badge/Tests-50%2F50_Passing-10B981?style=for-the-badge&logo=jest&logoColor=white" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-58%2F58_Passing-10B981?style=for-the-badge&logo=jest&logoColor=white" alt="Tests" />
 </p>
 
 ---

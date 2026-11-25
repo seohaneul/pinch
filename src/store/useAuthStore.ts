@@ -369,8 +369,10 @@ export const useAuthStore = create<AuthState>()(
             if (!isWeb && redirectTo.startsWith('exps://')) {
               redirectTo = redirectTo.replace('exps://', 'exp://');
             }
-            console.log(`[AuthStore] Starting ${provider} OAuth. redirectTo=${redirectTo}`);
-            set({ authStatus: `인증 요청 중... (${redirectTo})` });
+            if (typeof __DEV__ !== 'undefined' && __DEV__) {
+              console.log(`[AuthStore] Starting ${provider} OAuth. redirectTo=${redirectTo}`);
+            }
+            set({ authStatus: '인증 화면을 준비하고 있어요...' });
 
             const { data, error } = await withTimeout(
               supabase.auth.signInWithOAuth({
@@ -450,8 +452,10 @@ export const useAuthStore = create<AuthState>()(
                 finish(null);
               }, 45000);
 
-              console.log('[AuthStore] Opening OAuth browser session...');
-              set({ authStatus: `브라우저 로그인 대기 중...\n복귀 주소: ${redirectTo}` });
+              if (typeof __DEV__ !== 'undefined' && __DEV__) {
+                console.log('[AuthStore] Opening OAuth browser session...');
+              }
+              set({ authStatus: '브라우저에서 로그인을 완료해 주세요...' });
               WebBrowser.openAuthSessionAsync(data.url, redirectTo)
                 .then((res) => {
                   console.log('[AuthStore] openAuthSessionAsync resolved:', res?.type);

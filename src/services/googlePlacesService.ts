@@ -39,7 +39,9 @@ export async function fetchGooglePlaceDetails(
     } catch {}
   }
 
-  console.log('[GooglePlaces] 🌐 Fetching live details for:', placeName, 'Using Key Prefix:', GOOGLE_API_KEY.slice(0, 8));
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    console.log('[GooglePlaces] Fetching live details for:', placeName);
+  }
   let realDetails: GooglePlaceDetails | null = null;
 
   // 2. 공식 Google Places API 호출 (API 키가 설정된 경우)
