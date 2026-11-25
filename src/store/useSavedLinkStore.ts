@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { userScopedAsyncStorage } from './userScopedStorage';
 import type { SavedLink } from '../types';
 import { parseLinkWithPlaces } from '../services/parserService';
 import { useTripStore } from './useTripStore';
@@ -73,7 +73,8 @@ export const useSavedLinkStore = create<SavedLinkState>()(
     }),
     {
       name: 'pinch-saved-links-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => userScopedAsyncStorage),
+      skipHydration: true,
       partialize: (state) => ({
         savedLinks: state.savedLinks,
       }),

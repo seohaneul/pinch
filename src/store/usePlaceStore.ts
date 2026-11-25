@@ -1,7 +1,7 @@
 import { Alert } from 'react-native';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { userScopedAsyncStorage } from './userScopedStorage';
 import type { Place } from '../types';
 import { isDummyOrEmptyImage, resolveBestPlaceImage } from '../services/imageSearchService';
 import { useTripStore } from './useTripStore';
@@ -149,7 +149,8 @@ export const usePlaceStore = create<PlaceState>()(
     }),
     {
       name: 'pinch-place-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => userScopedAsyncStorage),
+      skipHydration: true,
       partialize: (state) => ({
         places: state.places,
       }),

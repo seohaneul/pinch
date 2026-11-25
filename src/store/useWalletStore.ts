@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { userScopedAsyncStorage } from './userScopedStorage';
 import type {
   CurrencyCode,
   ExpenseItem,
@@ -338,7 +338,8 @@ export const useWalletStore = create<WalletState>()(
 }),
 {
   name: 'pinch-wallet-storage',
-  storage: createJSONStorage(() => AsyncStorage),
+  storage: createJSONStorage(() => userScopedAsyncStorage),
+  skipHydration: true,
   partialize: (state) => ({
     expenses: state.expenses,
     exchangeRates: state.exchangeRates,

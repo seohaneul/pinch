@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import { useAuthStore } from '../src/store/useAuthStore';
 import { useTripStore } from '../src/store/useTripStore';
+import { initUserDataScope, useUserDataScope } from '../src/store/userDataScope';
 import { AuthGateScreen } from '../src/components/auth/AuthModal';
 import { CreateTripModal } from '../src/components/trip/CreateTripModal';
 import { supabase, isSupabaseConfigured } from '../src/utils/supabase';
@@ -13,6 +15,11 @@ import '../global.css';
 export default function RootLayout() {
   const { isLoggedIn, syncSessionFromSupabase, setSupabaseUser, handleOAuthCallbackUrl } = useAuthStore();
   const { trips, hasCompletedOnboarding, setHasCompletedOnboarding } = useTripStore();
+  const isDataReady = useUserDataScope((s) => s.ready);
+
+  useEffect(() => {
+    initUserDataScope();
+  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
@@ -49,7 +56,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
-      {!isLoggedIn ? (
+      {!isDataReady ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' }}>
+          <ActivityIndicator size="large" color="#1B2A4A" />
+        </View>
+      ) : !isLoggedIn ? (
         <AuthGateScreen />
       ) : (
         <>

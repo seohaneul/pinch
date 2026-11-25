@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { userScopedAsyncStorage } from './userScopedStorage';
 import type { Trip, DaySchedule, ScheduleItem, Place, Member, LodgingInfo, FlightInfo } from '../types';
 import type { TransportMode } from '../utils/geoUtils';
 import {
@@ -731,7 +731,8 @@ export const useTripStore = create<TripState>()(
 }),
 {
   name: 'pinch-trip-storage',
-  storage: createJSONStorage(() => AsyncStorage),
+  storage: createJSONStorage(() => userScopedAsyncStorage),
+  skipHydration: true,
   partialize: (state) => ({
     trips: state.trips,
     currentTrip: state.currentTrip,

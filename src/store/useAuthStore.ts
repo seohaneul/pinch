@@ -614,7 +614,7 @@ export const useAuthStore = create<AuthState>()(
           }
         }
         set({ isLoggedIn: false, user: null });
-        Alert.alert('로그아웃', '게스트 모드로 전환되었습니다. 기기에 저장된 여행 데이터는 안전하게 유지됩니다.');
+        Alert.alert('로그아웃', '로그아웃되었습니다. 같은 계정으로 다시 로그인하면 여행 데이터가 복원됩니다.');
       },
 
       updateNickname: (newNickname: string) => {
