@@ -16,10 +16,12 @@ import { useTripStore } from '../../src/store/useTripStore';
 import { usePlaceStore } from '../../src/store/usePlaceStore';
 import { useSavedLinkStore } from '../../src/store/useSavedLinkStore';
 import { useWalletStore } from '../../src/store/useWalletStore';
+import { useChecklistStore } from '../../src/store/useChecklistStore';
 import { useClipboardListener } from '../../src/hooks/useClipboardListener';
 import { ClipboardToast } from '../../src/components/places/ClipboardToast';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
 import { CreateTripModal } from '../../src/components/trip/CreateTripModal';
+import { ChecklistModal } from '../../src/components/trip/ChecklistModal';
 import { FlightModal } from '../../src/components/planner/FlightModal';
 import { TripLodgingManagerModal } from '../../src/components/planner/TripLodgingManagerModal';
 import { LinkPlacesModal } from '../../src/components/places/LinkPlacesModal';
@@ -38,6 +40,7 @@ import {
   Share2,
   Search,
   MapPin,
+  Check,
 } from '@/components/common/CustomIcons';
 
 export default function HomeScreen() {
@@ -86,6 +89,9 @@ export default function HomeScreen() {
   const tripLodging = firstTripLodging || firstRegisteredDayLodging || currentTrip?.lodging || null;
   const totalKrw = getTotalKrw(currentTripId);
   const memberCount = currentTrip?.members?.length || 1;
+  const checklistItems = useChecklistStore((s) => s.itemsByTrip[currentTripId] || []);
+  const checklistDoneCount = checklistItems.filter((i) => i.checked).length;
+  const [checklistModalVisible, setChecklistModalVisible] = useState(false);
 
   const calculateDDay = (startDate?: string) => {
     if (!startDate) return 'D-Day';
@@ -333,6 +339,22 @@ export default function HomeScreen() {
                 {totalKrw > 0 ? `지출 내역\n₩${totalKrw.toLocaleString()}` : '가계부·정산\n관리하기'}
               </Text>
             </TouchableOpacity>
+
+            {/* 5) 준비물 체크리스트 카드 */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setChecklistModalVisible(true)}
+              style={styles.quickSquareCard}
+            >
+              <View style={styles.quickIconWrap}>
+                <Check size={24} color="#1B2A4A" />
+              </View>
+              <Text style={styles.quickCardLabel} numberOfLines={2}>
+                {checklistItems.length > 0
+                  ? `준비물 체크\n${checklistDoneCount}/${checklistItems.length} 완료`
+                  : '준비물\n체크리스트'}
+              </Text>
+            </TouchableOpacity>
           </ScrollView>
 
           {/* ==================== 메인 카드 1: 내 여행 일정 & 동선 ==================== */}
@@ -529,6 +551,14 @@ export default function HomeScreen() {
       <PlaceSearchModal
         visible={placeSearchVisible}
         onClose={() => setPlaceSearchVisible(false)}
+      />
+
+      {/* 여행 준비물 체크리스트 모달 */}
+      <ChecklistModal
+        visible={checklistModalVisible}
+        onClose={() => setChecklistModalVisible(false)}
+        tripId={currentTripId}
+        tripTitle={currentTrip?.title}
       />
     </View>
   );

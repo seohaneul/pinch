@@ -244,3 +244,10 @@ export interface SavedLink {
   status?: 'extracting' | 'ready' | 'error';
 }
 
+export interface ChecklistItem {
+  id: string;
+  trip_id: string;
+  label: string;
+  checked: boolean;
+}
+

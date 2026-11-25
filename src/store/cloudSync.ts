@@ -5,6 +5,7 @@ import { usePlaceStore } from './usePlaceStore';
 import { useSavedLinkStore } from './useSavedLinkStore';
 import { useTripStore } from './useTripStore';
 import { useWalletStore } from './useWalletStore';
+import { useChecklistStore } from './useChecklistStore';
 
 const SYNC_META_PREFIX = 'pinch-sync-meta::';
 const DEBOUNCE_MS = 1500;
@@ -15,6 +16,7 @@ interface CloudBackupPayload {
   updatedAt: string;
   place: { places: ReturnType<typeof usePlaceStore.getState>['places'] };
   savedLinks: { savedLinks: ReturnType<typeof useSavedLinkStore.getState>['savedLinks'] };
+  checklist?: { itemsByTrip: ReturnType<typeof useChecklistStore.getState>['itemsByTrip'] };
   trip: {
     trips: ReturnType<typeof useTripStore.getState>['trips'];
     currentTrip: ReturnType<typeof useTripStore.getState>['currentTrip'];
@@ -69,6 +71,7 @@ function buildBackupPayload(): CloudBackupPayload {
     updatedAt: new Date().toISOString(),
     place: { places: place.places },
     savedLinks: { savedLinks: savedLinks.savedLinks },
+    checklist: { itemsByTrip: useChecklistStore.getState().itemsByTrip },
     trip: {
       trips: trip.trips,
       currentTrip: trip.currentTrip,
@@ -118,6 +121,9 @@ function applyBackupPayload(payload: Partial<CloudBackupPayload>) {
     }
     if (payload.savedLinks?.savedLinks) {
       useSavedLinkStore.setState({ savedLinks: payload.savedLinks.savedLinks });
+    }
+    if (payload.checklist?.itemsByTrip) {
+      useChecklistStore.setState({ itemsByTrip: payload.checklist.itemsByTrip });
     }
     if (payload.trip) {
       useTripStore.setState({
@@ -285,6 +291,7 @@ export function attachCloudSyncListeners(): void {
   useSavedLinkStore.subscribe(schedulePush);
   useTripStore.subscribe(schedulePush);
   useWalletStore.subscribe(schedulePush);
+  useChecklistStore.subscribe(schedulePush);
 }
 
 /**

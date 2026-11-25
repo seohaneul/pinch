@@ -4,6 +4,7 @@ import { usePlaceStore } from './usePlaceStore';
 import { useSavedLinkStore } from './useSavedLinkStore';
 import { useTripStore } from './useTripStore';
 import { useWalletStore } from './useWalletStore';
+import { useChecklistStore } from './useChecklistStore';
 import {
   migrateLegacyData,
   setStorageScope,
@@ -38,6 +39,7 @@ function resetAllStoresInMemory() {
   useSavedLinkStore.getState().resetToDefaults();
   useTripStore.getState().resetToDefaults();
   useWalletStore.getState().resetToDefaults();
+  useChecklistStore.getState().resetToDefaults();
 }
 
 async function rehydrateAllStores() {
@@ -46,6 +48,7 @@ async function rehydrateAllStores() {
     Promise.resolve(useSavedLinkStore.persist.rehydrate()),
     Promise.resolve(useTripStore.persist.rehydrate()),
     Promise.resolve(useWalletStore.persist.rehydrate()),
+    Promise.resolve(useChecklistStore.persist.rehydrate()),
   ]);
 }
 

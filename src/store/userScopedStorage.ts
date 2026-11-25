@@ -14,6 +14,7 @@ export const USER_DATA_STORE_KEYS = [
   'pinch-saved-links-storage',
   'pinch-trip-storage',
   'pinch-wallet-storage',
+  'pinch-checklist-storage',
 ] as const;
 
 export type UserDataStoreKey = (typeof USER_DATA_STORE_KEYS)[number];
