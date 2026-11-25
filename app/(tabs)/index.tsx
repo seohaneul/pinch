@@ -89,7 +89,8 @@ export default function HomeScreen() {
   const tripLodging = firstTripLodging || firstRegisteredDayLodging || currentTrip?.lodging || null;
   const totalKrw = getTotalKrw(currentTripId);
   const memberCount = currentTrip?.members?.length || 1;
-  const checklistItems = useChecklistStore((s) => s.itemsByTrip[currentTripId] || []);
+  const checklistItemsByTrip = useChecklistStore((s) => s.itemsByTrip);
+  const checklistItems = checklistItemsByTrip[currentTripId] || [];
   const checklistDoneCount = checklistItems.filter((i) => i.checked).length;
   const [checklistModalVisible, setChecklistModalVisible] = useState(false);
 
