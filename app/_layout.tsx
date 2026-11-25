@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  AppState,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -128,8 +139,18 @@ export default function RootLayout() {
           />
 
           {/* 비밀번호 재설정 메일 링크 복귀 시 새 비밀번호 설정 모달 */}
-          <Modal visible={needsPasswordReset} transparent animationType="fade">
-            <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.55)', justifyContent: 'center', padding: 24 }}>
+          <Modal
+            visible={needsPasswordReset}
+            transparent
+            animationType="fade"
+            onRequestClose={() => {
+              useAuthStore.setState({ needsPasswordReset: false });
+            }}
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.55)', justifyContent: 'center', padding: 24 }}
+            >
               <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20 }}>
                 <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 6 }}>
                   새 비밀번호 설정
@@ -185,8 +206,14 @@ export default function RootLayout() {
                     {recoverySaving ? '변경 중...' : '새 비밀번호 저장'}
                   </Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => useAuthStore.setState({ needsPasswordReset: false })}
+                  style={{ marginTop: 10, alignItems: 'center', paddingVertical: 6 }}
+                >
+                  <Text style={{ color: '#6B7280', fontSize: 13, fontWeight: '600' }}>나중에 변경</Text>
+                </TouchableOpacity>
               </View>
-            </View>
+            </KeyboardAvoidingView>
           </Modal>
         </>
       )}

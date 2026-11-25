@@ -53,7 +53,7 @@ export const OptimizeConfirmModal: React.FC<OptimizeConfirmModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}>
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           {/* Header */}

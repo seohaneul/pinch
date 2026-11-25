@@ -13,6 +13,7 @@ import {
   Image,
   Platform,
   Share,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -493,14 +494,16 @@ export default function ProfileScreen() {
             <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            activeOpacity={0.65}
-            onPress={handleOpenChangePassword}
-            style={styles.menuRow}
-          >
-            <Text style={styles.menuRowTitle}>비밀번호 변경</Text>
-            <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
-          </TouchableOpacity>
+          {user?.provider !== 'kakao' && user?.provider !== 'google' && (
+            <TouchableOpacity
+              activeOpacity={0.65}
+              onPress={handleOpenChangePassword}
+              style={styles.menuRow}
+            >
+              <Text style={styles.menuRowTitle}>비밀번호 변경</Text>
+              <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             activeOpacity={0.65}
@@ -523,9 +526,17 @@ export default function ProfileScreen() {
       </ScrollView>
 
       {/* 프로필 사진 수정 모달 */}
-      <Modal visible={editPhotoModalVisible} transparent animationType="fade">
+      <Modal
+        visible={editPhotoModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditPhotoModalVisible(false)}
+      >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalOverlay}
+          >
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>프로필 사진 수정</Text>
@@ -607,12 +618,17 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
       </Modal>
 
       {/* 구글 & 카카오 소셜 로그인 연동 모달 */}
-      <Modal visible={socialConnectModalVisible} transparent animationType="fade">
+      <Modal
+        visible={socialConnectModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSocialConnectModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -656,9 +672,17 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* 닉네임 변경 모달 */}
-      <Modal visible={editNicknameModalVisible} transparent animationType="fade">
+      <Modal
+        visible={editNicknameModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditNicknameModalVisible(false)}
+      >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalOverlay}
+          >
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>프로필 닉네임 변경</Text>
@@ -682,14 +706,22 @@ export default function ProfileScreen() {
                 <Text style={styles.modalPrimaryBtnText}>저장하기</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
       </Modal>
 
       {/* 비밀번호 변경 모달 */}
-      <Modal visible={changePasswordModalVisible} transparent animationType="fade">
+      <Modal
+        visible={changePasswordModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setChangePasswordModalVisible(false)}
+      >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalOverlay}
+          >
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>비밀번호 변경</Text>
@@ -729,12 +761,17 @@ export default function ProfileScreen() {
                 <Text style={styles.modalPrimaryBtnText}>비밀번호 변경하기</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
       </Modal>
 
       {/* APP 설정 모달 */}
-      <Modal visible={appSettingsModalVisible} transparent animationType="fade">
+      <Modal
+        visible={appSettingsModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAppSettingsModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -777,7 +814,12 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* 계정 및 데이터 관리 모달 */}
-      <Modal visible={accountSheetVisible} transparent animationType="fade">
+      <Modal
+        visible={accountSheetVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAccountSheetVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -836,9 +878,17 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* JSON 데이터 가져오기 모달 */}
-      <Modal visible={importModalVisible} transparent animationType="fade">
+      <Modal
+        visible={importModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setImportModalVisible(false)}
+      >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalOverlay}
+          >
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>여행 데이터 가져오기 (JSON)</Text>
@@ -893,7 +943,7 @@ export default function ProfileScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
       </Modal>
 

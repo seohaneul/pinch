@@ -9,6 +9,8 @@ import {
   TextInput,
   Modal,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Header } from '../../src/components/common/Header';
 import { Card, Badge, EmptyState } from '../../src/components/common/Card';
@@ -82,8 +84,8 @@ export default function PlannerScreen() {
   const { places, togglePin, removePlace } = usePlaceStore();
   const { addExpense, members, exchangeRates } = useWalletStore();
 
-  // Active trip members fallback
-  const tripMembers = (currentTrip?.members && currentTrip.members.length > 0)
+  // Active trip members fallback (혼자 여행일 때도 '나'로 지출 기록 가능)
+  const rawTripMembers = (currentTrip?.members && currentTrip.members.length > 0)
     ? currentTrip.members.map((m, idx) => ({
       id: m.id,
       name: m.name,
@@ -91,6 +93,9 @@ export default function PlannerScreen() {
       color: m.color || ['#1B2A4A', '#4ECDC4', '#FFE66D', '#A06CD5', '#20BF55'][idx % 5],
     }))
     : members;
+  const tripMembers = rawTripMembers.length > 0
+    ? rawTripMembers
+    : [{ id: 'self', name: '나', color: '#1B2A4A' }];
 
   // Expense modal for stop
   const [expenseModalVisible, setExpenseModalVisible] = useState(false);
@@ -184,7 +189,7 @@ export default function PlannerScreen() {
     }
 
     addExpense({
-      trip_id: currentTrip?.id || 't_tokyo',
+      trip_id: currentTrip?.id || 't_first',
       schedule_id: selectedStopForExpense.id,
       place_name: selectedStopForExpense.place_name,
       title: expenseTitle.trim() || `${selectedStopForExpense.place_name} 지출`,
@@ -501,7 +506,7 @@ export default function PlannerScreen() {
                             <View className="bg-primary/10 px-2 py-0.5 rounded-md mr-2 flex-row items-center">
                               <Clock size={11} color="#1B2A4A" />
                               <Text className="text-[11px] font-bold color-primary ml-1">
-                                {stop.arrival_time} 도착
+                                {stop.arrival_time} {stop.category === 'FLIGHT' ? '출발' : '도착'}
                               </Text>
                             </View>
                             <Badge
@@ -529,7 +534,12 @@ export default function PlannerScreen() {
                               </TouchableOpacity>
                             )}
                             <TouchableOpacity
-                              onPress={() => removeScheduleItem(stop.id)}
+                              onPress={() =>
+                                Alert.alert('일정 삭제', `'${stop.place_name}' 일정을 삭제할까요?`, [
+                                  { text: '취소', style: 'cancel' },
+                                  { text: '삭제', style: 'destructive', onPress: () => removeScheduleItem(stop.id) },
+                                ])
+                              }
                               className="p-1 bg-rose-50 rounded-lg"
                             >
                               <Trash2 size={12} color="#111C33" />
@@ -558,6 +568,9 @@ export default function PlannerScreen() {
 
                         {/* Stay Duration & Add Expense Quick Action */}
                         <View className="flex-row items-center justify-between pt-2 border-t border-gray-100 mt-1">
+                          {stop.category === 'FLIGHT' ? (
+                            <Text className="text-[11px] text-mutedText font-medium">항공 이동 일정</Text>
+                          ) : (
                           <View className="flex-row items-center flex-wrap">
                             <Text className="text-[11px] text-mutedText mr-1.5 font-medium">체류:</Text>
                             {[30, 60, 90, 120].map((mins) => {
@@ -599,6 +612,7 @@ export default function PlannerScreen() {
                               </Text>
                             </TouchableOpacity>
                           </View>
+                          )}
 
                           <View className="flex-row items-center gap-1.5">
                             <TouchableOpacity
@@ -754,7 +768,10 @@ export default function PlannerScreen() {
         visible={expenseModalVisible}
         onRequestClose={() => setExpenseModalVisible(false)}
       >
-        <View className="flex-1 justify-end bg-black/40">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1 justify-end bg-black/40"
+        >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
@@ -887,7 +904,7 @@ export default function PlannerScreen() {
               </ScrollView>
             )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Trip Switcher Modal */}

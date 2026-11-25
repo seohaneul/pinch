@@ -36,7 +36,7 @@ export async function resolveBestPlaceImage(
 
   try {
     const realImg = await fetchRealPlaceImage(placeName, address, category, latitude, longitude);
-    if (realImg && !isDummyOrEmptyImage(realImg)) {
+    if (realImg && (!isDummyOrEmptyImage(realImg) || Object.values(CURATED_REAL_IMAGES).includes(realImg))) {
       return realImg;
     }
   } catch {

@@ -52,11 +52,11 @@ export const usePlaceStore = create<PlaceState>()(
             if (targetTripId && p.trip_id !== targetTripId) {
               return false;
             }
-            if (normalizedName) {
-              return p.name.trim().toLowerCase() === normalizedName;
+            if (normalizedName && p.name.trim().toLowerCase() === normalizedName) {
+              return true;
             }
-            if (normalizedUrl && p.snsUrl) {
-              return p.snsUrl.trim().toLowerCase() === normalizedUrl;
+            if (normalizedUrl && p.snsUrl && p.snsUrl.trim().toLowerCase() === normalizedUrl) {
+              return true;
             }
             return false;
           }) || null

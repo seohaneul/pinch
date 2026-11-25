@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -69,14 +71,21 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
 
   const handleSubmitLink = async () => {
     if (!urlInput.trim() || loading) return;
-    await onExtract(urlInput.trim());
-    setUrlInput('');
-    onClose();
+    try {
+      await onExtract(urlInput.trim());
+      setUrlInput('');
+      onClose();
+    } catch {
+      // 추출 실패 시 입력값과 모달을 유지해 사용자가 다시 시도할 수 있게 함
+    }
   };
 
   return (
     <Modal visible={visible} transparent={false} animationType="slide" onRequestClose={onClose}>
-      <View style={[styles.screen, { paddingTop: Math.max(insets.top, 14) }]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={[styles.screen, { paddingTop: Math.max(insets.top, 14) }]}
+      >
         {/* Top Bar */}
         <View style={styles.topBar}>
           <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
@@ -144,7 +153,7 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
             </Text>
           </TouchableOpacity>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

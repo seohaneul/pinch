@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { userScopedAsyncStorage } from './userScopedStorage';
+import { useAuthStore } from './useAuthStore';
 import type { Trip, DaySchedule, ScheduleItem, Place, Member, LodgingInfo, FlightInfo } from '../types';
 import type { TransportMode } from '../utils/geoUtils';
 import {
@@ -70,19 +71,39 @@ interface TripState {
   resetToDefaults: () => void;
 }
 
+function parseDatePartsUtc(isoDate: string): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate.trim());
+  if (m) {
+    return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+  const parsed = Date.parse(isoDate);
+  if (Number.isNaN(parsed)) return NaN;
+  const d = new Date(parsed);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+function getLocalIsoDate(offsetDays = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function buildDaySchedules(
   startDate: string,
   endDate: string,
   existingSchedules?: DaySchedule[]
 ): DaySchedule[] {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const diffTime = Math.max(0, end.getTime() - start.getTime());
-  const dayCount = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+  const startMs = parseDatePartsUtc(startDate);
+  const endMs = parseDatePartsUtc(endDate);
+  const safeStartMs = Number.isNaN(startMs) ? parseDatePartsUtc(getLocalIsoDate(0)) : startMs;
+  const diffTime = Number.isNaN(endMs) ? 0 : Math.max(0, endMs - safeStartMs);
+  const dayCount = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1);
   const schedules: DaySchedule[] = [];
   for (let i = 1; i <= dayCount; i++) {
-    const dayDate = new Date(start);
-    dayDate.setDate(dayDate.getDate() + (i - 1));
+    const dayDate = new Date(safeStartMs + (i - 1) * 86400000);
     const existingDay = existingSchedules?.find((s) => s.dayNumber === i);
     schedules.push({
       dayNumber: i,
@@ -97,9 +118,8 @@ function buildDaySchedules(
 }
 
 function createDefaultEmptyTrip(): Trip {
-  const today = new Date();
-  const startDate = today.toISOString().split('T')[0];
-  const endDate = new Date(today.getTime() + 86400000 * 2).toISOString().split('T')[0];
+  const startDate = getLocalIsoDate(0);
+  const endDate = getLocalIsoDate(2);
   return {
     id: 't_first',
     title: '나의 첫 여행 ✈️',
@@ -109,7 +129,7 @@ function createDefaultEmptyTrip(): Trip {
     coverImage: '',
     status: 'ongoing',
     budget: 0,
-    createdAt: today.toISOString(),
+    createdAt: new Date().toISOString(),
     members: [],
     places: [],
     schedules: buildDaySchedules(startDate, endDate),
@@ -297,14 +317,32 @@ export const useTripStore = create<TripState>()(
   },
 
   deleteTrip: (tripId: string) => {
-    const { trips, activeTripId } = get();
+    const { trips, activeTripId, scheduleItems, dayStartTimes, dayLodgings, tripLodgings, tripFlights } = get();
     const remaining = trips.filter((t) => t.id !== tripId);
+
+    const nextScheduleItems = scheduleItems.filter((s) => s.trip_id !== tripId);
+    const prefix = `${tripId}_`;
+    const nextDayStartTimes = Object.fromEntries(
+      Object.entries(dayStartTimes).filter(([k]) => !k.startsWith(prefix))
+    );
+    const nextDayLodgings = Object.fromEntries(
+      Object.entries(dayLodgings).filter(([k]) => !k.startsWith(prefix))
+    );
+    const { [tripId]: _removedLodgings, ...nextTripLodgings } = tripLodgings;
+    const { [tripId]: _removedFlights, ...nextTripFlights } = tripFlights;
+
     if (remaining.length === 0) {
+      const freshDefault = createDefaultEmptyTrip();
       set({
-        trips: [DEFAULT_TRIP],
-        currentTrip: DEFAULT_TRIP,
-        activeTripId: DEFAULT_TRIP.id,
+        trips: [freshDefault],
+        currentTrip: freshDefault,
+        activeTripId: freshDefault.id,
         selectedDay: 1,
+        scheduleItems: nextScheduleItems,
+        dayStartTimes: nextDayStartTimes,
+        dayLodgings: nextDayLodgings,
+        tripLodgings: nextTripLodgings,
+        tripFlights: nextTripFlights,
       });
       return;
     }
@@ -315,9 +353,21 @@ export const useTripStore = create<TripState>()(
         currentTrip: remaining[0],
         activeTripId: remaining[0].id,
         selectedDay: 1,
+        scheduleItems: nextScheduleItems,
+        dayStartTimes: nextDayStartTimes,
+        dayLodgings: nextDayLodgings,
+        tripLodgings: nextTripLodgings,
+        tripFlights: nextTripFlights,
       });
     } else {
-      set({ trips: remaining });
+      set({
+        trips: remaining,
+        scheduleItems: nextScheduleItems,
+        dayStartTimes: nextDayStartTimes,
+        dayLodgings: nextDayLodgings,
+        tripLodgings: nextTripLodgings,
+        tripFlights: nextTripFlights,
+      });
     }
   },
 
@@ -402,13 +452,21 @@ export const useTripStore = create<TripState>()(
       .filter((s) => s.day_number === dayNumber && isTripMatch(s))
       .sort((a, b) => a.order_index - b.order_index);
 
-    if (dayItems.length <= 2) return;
+    const outboundFlights = dayItems.filter((s) => s.category === 'FLIGHT' && s.order_index < 900);
+    const returnFlights = dayItems.filter((s) => s.category === 'FLIGHT' && s.order_index >= 900);
+    const placeItems = dayItems.filter((s) => s.category !== 'FLIGHT');
 
-    const optimized = solveTSPNearestNeighbor(dayItems);
-    const updatedDayItems = optimized.map((item, idx) => ({
-      ...item,
-      order_index: idx + 1,
-    }));
+    if (placeItems.length <= 2) return;
+
+    const optimized = solveTSPNearestNeighbor(placeItems);
+    const updatedDayItems = [
+      ...outboundFlights,
+      ...optimized.map((item, idx) => ({
+        ...item,
+        order_index: idx + 1,
+      })),
+      ...returnFlights,
+    ];
 
     const otherItems = scheduleItems.filter((s) => s.day_number !== dayNumber || !isTripMatch(s));
     set({ scheduleItems: [...otherItems, ...updatedDayItems] });
@@ -641,8 +699,11 @@ export const useTripStore = create<TripState>()(
     const isTripMatch = (s: ScheduleItem) => (!s.trip_id || s.trip_id === activeTripId);
     const dayItems = scheduleItems.filter((s) => s.day_number === dayNumber && isTripMatch(s));
 
+    const defaultMode: TransportMode =
+      useAuthStore.getState().defaultTransportMode === 'TRANSIT' ? 'TRANSIT' : 'WALK';
+
     const newItem: ScheduleItem = {
-      id: `sched_${Date.now()}`,
+      id: `sched_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       trip_id: activeTripId,
       place_id: place.id,
       place_name: place.name,
@@ -652,7 +713,7 @@ export const useTripStore = create<TripState>()(
       day_number: dayNumber,
       order_index: dayItems.length + 1,
       stay_duration_minutes: 60,
-      transport_mode: 'WALK',
+      transport_mode: defaultMode,
       travel_duration_minutes: 0,
       arrival_time: '10:00 AM',
       address: place.address,

@@ -8,6 +8,8 @@ import {
   Modal,
   Alert,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Header } from '../../src/components/common/Header';
@@ -121,8 +123,8 @@ export default function WalletScreen() {
   const customBudgets = getCustomBudgets(currentTrip?.id);
 
 
-  // Active trip members fallback
-  const tripMembers: WalletMember[] = (currentTrip?.members && currentTrip.members.length > 0)
+  // Active trip members fallback (혼자 여행일 때도 '나'로 지출 등록 가능)
+  const rawTripMembers: WalletMember[] = (currentTrip?.members && currentTrip.members.length > 0)
     ? currentTrip.members.map((m, idx) => ({
       id: m.id,
       name: m.name,
@@ -130,6 +132,9 @@ export default function WalletScreen() {
       color: m.color || ['#1B2A4A', '#4ECDC4', '#FFE66D', '#1A535C', '#4D96FF'][idx % 5],
     }))
     : members;
+  const tripMembers: WalletMember[] = rawTripMembers.length > 0
+    ? rawTripMembers
+    : [{ id: 'self', name: '나', color: '#1B2A4A' }];
 
   // Modal State for Adding Expense
   const [modalVisible, setModalVisible] = useState(false);
@@ -315,7 +320,7 @@ export default function WalletScreen() {
     }
 
     addExpense({
-      trip_id: currentTrip?.id || 't_tokyo',
+      trip_id: currentTrip?.id || 't_first',
       place_name: selectedPlaceName || undefined,
       title: title.trim(),
       paid_by: paidBy,
@@ -458,7 +463,8 @@ export default function WalletScreen() {
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 48 }}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 104 }}
       >
         {/* TAB 1: BUDGET SETTING & PLANNING */}
         {activeTab === 'budget' && (
@@ -521,7 +527,11 @@ export default function WalletScreen() {
                   실지출 누적: {totalKrw.toLocaleString()}원
                 </Text>
                 <Text className="text-xs font-bold text-primary">
-                  남은 예산: {Math.max(effectiveBudget - totalKrw, 0).toLocaleString()}원 ({100 - budgetUsagePercent}%)
+                  {effectiveBudget <= 0
+                    ? '예산 미설정'
+                    : totalKrw > effectiveBudget
+                      ? `예산 초과: +${(totalKrw - effectiveBudget).toLocaleString()}원`
+                      : `남은 예산: ${(effectiveBudget - totalKrw).toLocaleString()}원 (${100 - budgetUsagePercent}%)`}
                 </Text>
               </View>
             </View>
@@ -644,7 +654,16 @@ export default function WalletScreen() {
                                   {tp.amount.toLocaleString()}원
                                 </Text>
                                 <TouchableOpacity
-                                  onPress={() => removeTourPackage(currentTrip?.id || 't_tokyo', tp.id)}
+                                  onPress={() =>
+                                    Alert.alert('투어 삭제', `'${tp.name}' 항목을 삭제할까요?`, [
+                                      { text: '취소', style: 'cancel' },
+                                      {
+                                        text: '삭제',
+                                        style: 'destructive',
+                                        onPress: () => removeTourPackage(currentTrip?.id || 't_first', tp.id),
+                                      },
+                                    ])
+                                  }
                                   className="p-1"
                                 >
                                   <Trash2 size={12} color="#EF4444" />
@@ -722,7 +741,16 @@ export default function WalletScreen() {
                         {cb.amount.toLocaleString()}원
                       </Text>
                       <TouchableOpacity
-                        onPress={() => removeCustomBudget(currentTrip?.id || 't_tokyo', cb.id)}
+                        onPress={() =>
+                          Alert.alert('예산 항목 삭제', `'${cb.name}' 항목을 삭제할까요?`, [
+                            { text: '취소', style: 'cancel' },
+                            {
+                              text: '삭제',
+                              style: 'destructive',
+                              onPress: () => removeCustomBudget(currentTrip?.id || 't_first', cb.id),
+                            },
+                          ])
+                        }
                         className="p-1"
                       >
                         <Trash2 size={13} color="#EF4444" />
@@ -859,7 +887,11 @@ export default function WalletScreen() {
                   설정 예산: {effectiveBudget.toLocaleString()}원
                 </Text>
                 <Text className="text-xs font-bold text-primary">
-                  남은 예산: {Math.max(effectiveBudget - totalKrw, 0).toLocaleString()}원 ({100 - budgetUsagePercent}%)
+                  {effectiveBudget <= 0
+                    ? '예산 미설정'
+                    : totalKrw > effectiveBudget
+                      ? `예산 초과: +${(totalKrw - effectiveBudget).toLocaleString()}원`
+                      : `남은 예산: ${(effectiveBudget - totalKrw).toLocaleString()}원 (${100 - budgetUsagePercent}%)`}
                 </Text>
               </View>
             </View>
@@ -1207,7 +1239,7 @@ export default function WalletScreen() {
       </ScrollView>
 
       {/* Floating Add Expense Button */}
-      <View className="absolute bottom-6 right-6">
+      <View className="absolute right-6" style={{ bottom: Math.max(insets.bottom, 16) + 8 }}>
         <TouchableOpacity
           onPress={() => setModalVisible(true)}
           className="bg-primary px-5 py-3.5 rounded-full flex-row items-center shadow-lg"
@@ -1232,7 +1264,10 @@ export default function WalletScreen() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View className="flex-1 justify-end bg-black/45">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1 justify-end bg-black/45"
+        >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
@@ -1396,14 +1431,20 @@ export default function WalletScreen() {
 
               {/* Paid By (Payer) */}
               <Text className="text-xs font-bold text-mutedText mb-1.5">결제한 사람</Text>
-              <View className="flex-row gap-2 mb-4">
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+                className="mb-4"
+              >
                 {tripMembers.map((m) => {
                   const isSelected = paidBy === m.id;
                   return (
                     <TouchableOpacity
                       key={m.id}
                       onPress={() => setPaidBy(m.id)}
-                      className={`flex-1 py-2 px-3 rounded-2xl border flex-row items-center justify-center ${isSelected
+                      style={{ minWidth: 84 }}
+                      className={`py-2 px-3 rounded-2xl border flex-row items-center justify-center ${isSelected
                           ? 'bg-darkText border-darkText'
                           : 'bg-white border-borderLine'
                         }`}
@@ -1423,7 +1464,7 @@ export default function WalletScreen() {
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </ScrollView>
 
               {/* Split Members */}
               <View className="flex-row items-center justify-between mb-1.5">
@@ -1437,14 +1478,20 @@ export default function WalletScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View className="flex-row gap-2 mb-6">
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+                className="mb-6"
+              >
                 {tripMembers.map((m) => {
                   const isChecked = splitMembers.includes(m.id);
                   return (
                     <TouchableOpacity
                       key={m.id}
                       onPress={() => handleToggleSplitMember(m.id)}
-                      className={`flex-1 py-2.5 px-3 rounded-2xl border items-center justify-center ${isChecked
+                      style={{ minWidth: 92 }}
+                      className={`py-2.5 px-3 rounded-2xl border items-center justify-center ${isChecked
                           ? 'bg-primary/10 border-primary'
                           : 'bg-white border-borderLine'
                         }`}
@@ -1474,7 +1521,7 @@ export default function WalletScreen() {
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </ScrollView>
 
               {/* Submit Button */}
               <Button
@@ -1487,7 +1534,7 @@ export default function WalletScreen() {
               <View className="h-6" />
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Category Budget Modal */}

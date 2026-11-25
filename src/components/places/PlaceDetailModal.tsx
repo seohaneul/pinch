@@ -168,7 +168,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [place?.name, place?.id]);
+  }, [visible, place?.name, place?.id]);
 
   const handleRefreshRealImage = async () => {
     if (isLoadingImage || !place) return;
@@ -273,7 +273,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     } catch {
-      Alert.alert('알림', '주소가 복사되었습니다.');
+      Alert.alert('복사 실패', '주소를 클립보드에 복사하지 못했습니다.');
     }
   };
 
@@ -842,7 +842,11 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                   </Text>
                 </View>
 
-                <View style={styles.dayTabsRow}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.dayTabsRow}
+                >
                   {schedules.map((sch) => {
                     const isSelected = selectedDay === sch.dayNumber;
                     return (
@@ -870,7 +874,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                       </TouchableOpacity>
                     );
                   })}
-                </View>
+                </ScrollView>
 
                 <TouchableOpacity
                   activeOpacity={0.85}
@@ -1327,9 +1331,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   dayTabBtn: {
-    flex: 1,
+    minWidth: 74,
     paddingVertical: 10,
-    paddingHorizontal: 4,
+    paddingHorizontal: 10,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',

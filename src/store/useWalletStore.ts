@@ -205,12 +205,36 @@ export const useWalletStore = create<WalletState>()(
   },
 
   removeTourPackage: (tripId: string, id: string) => {
-    set((state) => ({
-      tourPackages: {
-        ...state.tourPackages,
-        [tripId]: (state.tourPackages[tripId] || []).filter((t) => t.id !== id),
-      },
-    }));
+    set((state) => {
+      const existing = state.tourPackages[tripId] || [];
+      const removed = existing.find((t) => t.id === id);
+      const updatedList = existing.filter((t) => t.id !== id);
+      const currentBudgets = state.categoryBudgets[tripId];
+
+      if (!removed || !currentBudgets) {
+        return {
+          tourPackages: {
+            ...state.tourPackages,
+            [tripId]: updatedList,
+          },
+        };
+      }
+
+      const nextActivity = Math.max(0, (currentBudgets.ACTIVITY || 0) - removed.amount);
+      return {
+        tourPackages: {
+          ...state.tourPackages,
+          [tripId]: updatedList,
+        },
+        categoryBudgets: {
+          ...state.categoryBudgets,
+          [tripId]: {
+            ...currentBudgets,
+            ACTIVITY: nextActivity,
+          },
+        },
+      };
+    });
   },
 
   getTourPackages: (tripId?: string) => {
@@ -288,10 +312,14 @@ export const useWalletStore = create<WalletState>()(
       ? expenses.filter((e) => !e.trip_id || e.trip_id === tripId)
       : expenses;
     const txns = calculateMinCashFlowSettlement(activeMembers, targetExpenses);
-    return txns.map((t) => ({
-      ...t,
-      is_settled: settledTransactionIds.includes(t.id),
-    }));
+    return txns.map((t) => {
+      const scopedId = tripId ? `${tripId}::${t.from.id}->${t.to.id}` : t.id;
+      return {
+        ...t,
+        id: scopedId,
+        is_settled: settledTransactionIds.includes(scopedId),
+      };
+    });
   },
 
   getTotalKrw: (tripId?: string) => {

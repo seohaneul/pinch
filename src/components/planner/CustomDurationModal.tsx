@@ -7,6 +7,8 @@ import {
   TextInput,
   StyleSheet,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Clock, Check } from '@/components/common/CustomIcons';
@@ -59,7 +61,10 @@ export const CustomDurationModal: React.FC<CustomDurationModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.overlay}
+      >
         <TouchableOpacity
           style={StyleSheet.absoluteFill}
           activeOpacity={1}
@@ -136,7 +141,7 @@ export const CustomDurationModal: React.FC<CustomDurationModalProps> = ({
             <Text style={styles.submitBtnText}>체류 시간 {durationStr}분으로 적용하기</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

@@ -135,7 +135,7 @@ function applyBackupPayload(payload: Partial<CloudBackupPayload>) {
     if (payload.wallet) {
       useWalletStore.setState({
         expenses: payload.wallet.expenses || [],
-        exchangeRates: payload.wallet.exchangeRates,
+        exchangeRates: payload.wallet.exchangeRates || { JPY: 9.15, USD: 1380, EUR: 1490, KRW: 1 },
         settledTransactionIds: payload.wallet.settledTransactionIds || [],
         tripCurrencies: payload.wallet.tripCurrencies || {},
         categoryBudgets: payload.wallet.categoryBudgets || {},

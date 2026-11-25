@@ -504,7 +504,8 @@ export default function PlacesScreen() {
             <ScrollView
               style={{ flex: 1, paddingHorizontal: 16, paddingTop: 10 }}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 36 }}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 96 }}
             >
               {filteredPlaces.map((place) => (
                 <TouchableOpacity
@@ -615,7 +616,15 @@ export default function PlacesScreen() {
                               </Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity onPress={() => removePlace(place.id)} className="p-1">
+                            <TouchableOpacity
+                              onPress={() =>
+                                Alert.alert('장소 삭제', `'${place.name}' 장소를 보관함에서 삭제할까요?`, [
+                                  { text: '취소', style: 'cancel' },
+                                  { text: '삭제', style: 'destructive', onPress: () => removePlace(place.id) },
+                                ])
+                              }
+                              className="p-1"
+                            >
                               <Trash2 size={13} color="#CBD5E0" />
                             </TouchableOpacity>
                           </View>
@@ -699,7 +708,12 @@ export default function PlacesScreen() {
                       </Text>
                     </View>
                     <TouchableOpacity
-                      onPress={() => removeSavedLink(link.id)}
+                      onPress={() =>
+                        Alert.alert('링크 삭제', '저장된 링크를 삭제할까요?', [
+                          { text: '취소', style: 'cancel' },
+                          { text: '삭제', style: 'destructive', onPress: () => removeSavedLink(link.id) },
+                        ])
+                      }
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <Trash2 size={14} color="#CBD5E1" />
@@ -745,7 +759,10 @@ export default function PlacesScreen() {
               actionButton={
                 <Button
                   title="첫 링크 핀치하기"
-                  onPress={() => setModalVisible(true)}
+                  onPress={() => {
+                    setModalInitialTab('link');
+                    setModalVisible(true);
+                  }}
                   size="sm"
                 />
               }
@@ -815,7 +832,12 @@ export default function PlacesScreen() {
                 <Text className="text-xs font-bold text-mutedText mb-2">
                   담을 일차 선택 ({currentTrip?.title || '도쿄 여행'})
                 </Text>
-                <View className="flex-row gap-2 mb-6">
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8 }}
+                  className="mb-6"
+                >
                   {(currentTrip?.schedules || [
                     { dayNumber: 1, date: '11.10' },
                     { dayNumber: 2, date: '11.11' },
@@ -827,7 +849,8 @@ export default function PlacesScreen() {
                       <TouchableOpacity
                         key={sch.dayNumber}
                         onPress={() => setTargetDay(sch.dayNumber)}
-                        className={`flex-1 py-3 px-2 rounded-2xl border items-center justify-center ${isSelected
+                        style={{ minWidth: 74 }}
+                        className={`py-3 px-3 rounded-2xl border items-center justify-center ${isSelected
                           ? 'bg-primary border-primary'
                           : 'bg-white border-borderLine'
                           }`}
@@ -847,7 +870,7 @@ export default function PlacesScreen() {
                       </TouchableOpacity>
                     );
                   })}
-                </View>
+                </ScrollView>
 
                 <Button
                   title={`Day ${targetDay} 일정에 핀치하기 🤏`}

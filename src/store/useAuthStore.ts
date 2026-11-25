@@ -7,7 +7,7 @@ import * as WebBrowser from 'expo-web-browser';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../utils/supabase';
 import { clearScopedData } from './userScopedStorage';
-import { flushCloudSync } from './cloudSync';
+import { flushCloudSync, setActiveCloudSyncUser } from './cloudSync';
 
 export interface AuthUser {
   id: string;
@@ -808,6 +808,7 @@ export const useAuthStore = create<AuthState>()(
         }
 
         set({ isLoading: true });
+        setActiveCloudSyncUser(null);
         try {
           if (isSupabaseConfigured()) {
             try {
@@ -821,6 +822,7 @@ export const useAuthStore = create<AuthState>()(
             );
             if (error) {
               console.log('[AuthStore] delete_own_account failed:', error);
+              setActiveCloudSyncUser(user.id);
               return {
                 success: false,
                 message: '계정 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요. 계속되면 문의해 주세요.',

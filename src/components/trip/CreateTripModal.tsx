@@ -284,6 +284,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
   const [retDepTime, setRetDepTime] = useState('15:00');
   const [retArrTime, setRetArrTime] = useState('17:40');
   const [retArrivalNextDay, setRetArrivalNextDay] = useState(false);
+  const [flightSkipped, setFlightSkipped] = useState(false);
 
   // 공항 검색 활성 드롭다운 필드
   const [activeAirportField, setActiveAirportField] = useState<
@@ -450,6 +451,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     flight: RealFlightSchedule
   ) => {
     setActiveAirportField(null);
+    setFlightSkipped(false);
     if (leg === 'outbound') {
       setOutAirline(`${flight.airline} ${flight.flightNumber}`);
       setOutDepAirport(flight.departureAirport);
@@ -807,10 +809,21 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     setTripCurrency(targetTrip.id, autoCurrency);
 
     // 2. 항공편 저장 (항공편은 일정 경로에 추가하지 않고 전용 항공권 정보로만 관리)
-    if (!options?.skipFlight && (outDepAirport.trim() || outArrAirport.trim() || outAirline.trim())) {
+    if (!options?.skipFlight && !flightSkipped && (outArrAirport.trim() || outAirline.trim())) {
+      const splitAirlineAndNum = (val: string, fallbackAirline: string, fallbackNum: string) => {
+        const t = val.trim();
+        if (!t) return { airline: fallbackAirline, flightNumber: fallbackNum };
+        const idx = t.lastIndexOf(' ');
+        if (idx > 0) {
+          return { airline: t.slice(0, idx).trim(), flightNumber: t.slice(idx + 1).trim() };
+        }
+        return { airline: t, flightNumber: fallbackNum };
+      };
+      const outParsed = splitAirlineAndNum(outAirline, '출발 항공편', '출발편');
+      const retParsed = splitAirlineAndNum(retAirline || outAirline, '귀국 항공편', '귀국편');
       const outLeg = {
-        airline: outAirline.trim() || '출발 항공편',
-        flightNumber: outAirline.trim() || '출발편',
+        airline: outParsed.airline,
+        flightNumber: outParsed.flightNumber,
         departureAirport: outDepAirport.trim() || '인천 (ICN)',
         arrivalAirport: outArrAirport.trim() || `${finalCities[0]} 공항`,
         departureDate: startDate,
@@ -820,8 +833,8 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
         arrivalNextDay: outArrivalNextDay,
       };
       const retLeg = {
-        airline: retAirline.trim() || outAirline.trim() || '귀국 항공편',
-        flightNumber: retAirline.trim() || outAirline.trim() || '귀국편',
+        airline: retParsed.airline,
+        flightNumber: retParsed.flightNumber,
         departureAirport: retDepAirport.trim() || outArrAirport.trim() || `${finalCities[0]} 공항`,
         arrivalAirport: retArrAirport.trim() || '인천 (ICN)',
         departureDate: endDate || startDate,
@@ -1982,7 +1995,10 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
 
               <TouchableOpacity
                 activeOpacity={0.75}
-                onPress={() => setStep(4)}
+                onPress={() => {
+                  setFlightSkipped(true);
+                  setStep(4);
+                }}
                 style={styles.skipTextBtn}
               >
                 <Text style={styles.skipTextBtnLabel}>항공권은 나중에 설정할게요</Text>

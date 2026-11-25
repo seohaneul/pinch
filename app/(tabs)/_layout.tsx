@@ -1,9 +1,13 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, Bookmark, MapPin, Wallet, User } from '@/components/common/CustomIcons';
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 8);
+
   return (
     <Tabs
       screenOptions={{
@@ -14,8 +18,8 @@ export default function TabLayout() {
           backgroundColor: '#FFFFFF',
           borderTopColor: '#F1F3F5',
           borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 86 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 26 : 9,
+          height: 54 + bottomInset,
+          paddingBottom: bottomInset,
           paddingTop: 7,
           elevation: 0,
         },
@@ -73,7 +77,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: ' 내 정보',
+          title: '내 정보',
           tabBarIcon: ({ color, focused }) => (
             <View>
               <User size={22} color={color} fill={focused ? color : 'none'} strokeWidth={focused ? 2.1 : 1.7} />

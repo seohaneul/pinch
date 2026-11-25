@@ -31,44 +31,47 @@ export async function callGeminiGenerateContent(
   payload: Record<string, unknown>,
   timeoutMs = 10000
 ): Promise<any | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    if (isSupabaseConfigured() && getSupabaseUrl()) {
-      try {
-        const { data: sessData } = await supabase.auth.getSession();
-        const accessToken = sessData?.session?.access_token;
-        if (accessToken) {
-          const proxyUrl = `${getSupabaseUrl()}/functions/v1/gemini-proxy`;
-          const proxyRes = await fetch(proxyUrl, {
-            method: 'POST',
-            signal: controller.signal,
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-              apikey: getSupabaseAnonKey(),
-            },
-            body: JSON.stringify({ model, payload }),
-          });
-          if (proxyRes.ok) {
-            return await proxyRes.json();
-          }
+  if (isSupabaseConfigured() && getSupabaseUrl()) {
+    const proxyController = new AbortController();
+    const proxyTimer = setTimeout(() => proxyController.abort(), timeoutMs);
+    try {
+      const { data: sessData } = await supabase.auth.getSession();
+      const accessToken = sessData?.session?.access_token;
+      if (accessToken) {
+        const proxyUrl = `${getSupabaseUrl()}/functions/v1/gemini-proxy`;
+        const proxyRes = await fetch(proxyUrl, {
+          method: 'POST',
+          signal: proxyController.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            apikey: getSupabaseAnonKey(),
+          },
+          body: JSON.stringify({ model, payload }),
+        });
+        if (proxyRes.ok) {
+          return await proxyRes.json();
         }
-      } catch {
-        // 프록시 미배포 또는 일시 오류 시 아래 로컬 키 폴백으로 진행
       }
+    } catch {
+      // 프록시 미배포 또는 일시 오류 시 아래 로컬 키 폴백으로 진행
+    } finally {
+      clearTimeout(proxyTimer);
     }
+  }
 
-    const directKey = getDirectGeminiKey();
-    if (!directKey || directKey.includes('placeholder')) {
-      return null;
-    }
+  const directKey = getDirectGeminiKey();
+  if (!directKey || directKey.includes('placeholder')) {
+    return null;
+  }
 
+  const directController = new AbortController();
+  const directTimer = setTimeout(() => directController.abort(), timeoutMs);
+  try {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
     const response = await fetch(endpoint, {
       method: 'POST',
-      signal: controller.signal,
+      signal: directController.signal,
       headers: {
         'Content-Type': 'application/json',
         'x-goog-api-key': directKey,
@@ -80,6 +83,6 @@ export async function callGeminiGenerateContent(
   } catch {
     return null;
   } finally {
-    clearTimeout(timer);
+    clearTimeout(directTimer);
   }
 }

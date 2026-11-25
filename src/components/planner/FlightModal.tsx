@@ -9,6 +9,8 @@ import {
   StyleSheet,
   Alert,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -110,6 +112,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
 
   useEffect(() => {
     if (!visible) return;
+    setActiveTab('outbound');
     setActiveAirportField(null);
     setOutAirlineFilter('ALL');
     setOutFlightSearchQuery('');
@@ -396,7 +399,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
   };
 
   const handleSave = () => {
-    if (!outDepAirport.trim() && !outArrAirport.trim()) {
+    if (!outDepAirport.trim() || !outArrAirport.trim()) {
       Alert.alert('알림', '가는 편 출발/도착 공항을 검색하여 선택해 주세요.');
       setActiveTab('outbound');
       return;
@@ -1026,7 +1029,10 @@ export const FlightModal: React.FC<FlightModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.overlay}
+      >
         <TouchableOpacity
           style={StyleSheet.absoluteFill}
           activeOpacity={1}
@@ -1149,7 +1155,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
