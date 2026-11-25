@@ -9,6 +9,11 @@ import {
   setStorageScope,
   suspendStorageWrites,
 } from './userScopedStorage';
+import {
+  attachCloudSyncListeners,
+  setActiveCloudSyncUser,
+  syncCloudOnLogin,
+} from './cloudSync';
 
 /**
  * 로그인한 계정에 맞춰 로컬 데이터(여행/장소/링크/가계부)를 전환한다.
@@ -52,6 +57,7 @@ async function applyUserScope(userId: string | null) {
 
   useUserDataScope.setState({ ready: false });
   try {
+    setActiveCloudSyncUser(null);
     // 동기 구간: 이전 계정 저장소를 덮어쓰지 않도록 쓰기를 막고 메모리만 비운다.
     suspendStorageWrites(true);
     resetAllStoresInMemory();
@@ -61,6 +67,8 @@ async function applyUserScope(userId: string | null) {
     if (userId) {
       await migrateLegacyData(userId);
       await rehydrateAllStores();
+      await syncCloudOnLogin(userId);
+      setActiveCloudSyncUser(userId);
     }
     appliedUserId = userId;
   } catch (err) {
@@ -83,6 +91,7 @@ function scheduleApply() {
 export function initUserDataScope() {
   if (initialized) return;
   initialized = true;
+  attachCloudSyncListeners();
 
   useAuthStore.subscribe((state, prev) => {
     const next = state.isLoggedIn && state.user ? state.user.id : null;

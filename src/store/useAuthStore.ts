@@ -7,6 +7,7 @@ import * as WebBrowser from 'expo-web-browser';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../utils/supabase';
 import { clearScopedData } from './userScopedStorage';
+import { flushCloudSync } from './cloudSync';
 
 export interface AuthUser {
   id: string;
@@ -640,12 +641,15 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         if (isSupabaseConfigured()) {
           try {
+            await flushCloudSync();
+          } catch {}
+          try {
             await supabase.auth.signOut();
           } catch (e) {
             // Ignore
           }
         }
-        set({ isLoggedIn: false, user: null });
+        set({ isLoggedIn: false, user: null, needsPasswordReset: false });
         Alert.alert('로그아웃', '로그아웃되었습니다. 같은 계정으로 다시 로그인하면 여행 데이터가 복원됩니다.');
       },
 
