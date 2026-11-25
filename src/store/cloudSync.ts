@@ -109,7 +109,7 @@ function hasMeaningfulLocalData(): boolean {
   );
 }
 
-function applyBackupPayload(payload: CloudBackupPayload) {
+function applyBackupPayload(payload: Partial<CloudBackupPayload>) {
   isApplyingCloudData = true;
   try {
     if (payload.place?.places) {
@@ -284,4 +284,70 @@ export function attachCloudSyncListeners(): void {
   useSavedLinkStore.subscribe(schedulePush);
   useTripStore.subscribe(schedulePush);
   useWalletStore.subscribe(schedulePush);
+}
+
+/**
+ * JSON 내보내기 파일 또는 CloudBackupPayload 문자열을 검증하고 현재 계정에 복원한다.
+ */
+export async function importBackupJson(
+  userId: string,
+  rawJson: string
+): Promise<{ success: boolean; message: string }> {
+  const trimmed = rawJson.trim();
+  if (!trimmed) {
+    return { success: false, message: '복원할 JSON 데이터를 입력해 주세요.' };
+  }
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return { success: false, message: '올바른 JSON 형식이 아닙니다. 내보낸 백업 내용을 확인해 주세요.' };
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    return { success: false, message: '유효한 Pinch 백업 데이터가 아닙니다.' };
+  }
+
+  // handleExportData() 포맷({ app: 'Pinch', data: { 'pinch-...-storage': ... } })과
+  // CloudBackupPayload 포맷({ place, savedLinks, trip, wallet }) 모두 지원
+  const source = parsed.data && typeof parsed.data === 'object' ? parsed.data : parsed;
+
+  const place = source['pinch-place-storage'] ?? source.place ?? null;
+  const savedLinks = source['pinch-saved-links-storage'] ?? source.savedLinks ?? null;
+  const trip = source['pinch-trip-storage'] ?? source.trip ?? null;
+  const wallet = source['pinch-wallet-storage'] ?? source.wallet ?? null;
+
+  const hasValidSlice =
+    (place && Array.isArray(place.places)) ||
+    (savedLinks && Array.isArray(savedLinks.savedLinks)) ||
+    (trip && Array.isArray(trip.trips)) ||
+    (wallet && Array.isArray(wallet.expenses));
+
+  if (!hasValidSlice) {
+    return {
+      success: false,
+      message: 'Pinch 백업 데이터(여행·장소·링크·가계부)를 찾을 수 없습니다.',
+    };
+  }
+
+  const payload: Partial<CloudBackupPayload> = {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    place: place && Array.isArray(place.places) ? place : undefined,
+    savedLinks: savedLinks && Array.isArray(savedLinks.savedLinks) ? savedLinks : undefined,
+    trip: trip && Array.isArray(trip.trips) ? trip : undefined,
+    wallet: wallet && Array.isArray(wallet.expenses) ? wallet : undefined,
+  };
+
+  applyBackupPayload(payload);
+  await setLastLocalChangeAt(userId, Date.now());
+  await pushCloudBackup(userId);
+
+  const tripCount = payload.trip?.trips?.length ?? 0;
+  const placeCount = payload.place?.places?.length ?? 0;
+  return {
+    success: true,
+    message: `데이터를 복원했습니다. (여행 ${tripCount}개, 장소 ${placeCount}개)`,
+  };
 }

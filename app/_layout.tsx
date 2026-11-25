@@ -10,6 +10,7 @@ import { initUserDataScope, useUserDataScope } from '../src/store/userDataScope'
 import { flushCloudSync } from '../src/store/cloudSync';
 import { AuthGateScreen } from '../src/components/auth/AuthModal';
 import { CreateTripModal } from '../src/components/trip/CreateTripModal';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { supabase, isSupabaseConfigured } from '../src/utils/supabase';
 import '../global.css';
 
@@ -96,7 +97,8 @@ export default function RootLayout() {
     (trips.length === 1 && trips[0].id === 't_first' && trips[0].destination === '여행지 설정');
 
   return (
-    <SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
       <StatusBar style="dark" />
       {!isDataReady ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' }}>
@@ -188,6 +190,7 @@ export default function RootLayout() {
           </Modal>
         </>
       )}
-    </SafeAreaProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

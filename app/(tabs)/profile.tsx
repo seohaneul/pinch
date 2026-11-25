@@ -15,6 +15,7 @@ import {
   Share,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlaceStore } from '../../src/store/usePlaceStore';
 import { useTripStore } from '../../src/store/useTripStore';
@@ -34,6 +35,8 @@ import {
 } from '@/components/common/CustomIcons';
 import { useSavedLinkStore } from '../../src/store/useSavedLinkStore';
 import { readScopedData } from '../../src/store/userScopedStorage';
+import { importBackupJson } from '../../src/store/cloudSync';
+import { LegalModal } from '../../src/components/LegalModal';
 
 const AVATAR_PRESETS = [
   { id: 'preset:navy', bg: '#1B2A4A', color: '#FFFFFF', label: '네이비' },
@@ -54,9 +57,13 @@ export default function ProfileScreen() {
   const [changePasswordModalVisible, setChangePasswordModalVisible] = useState(false);
   const [appSettingsModalVisible, setAppSettingsModalVisible] = useState(false);
   const [accountSheetVisible, setAccountSheetVisible] = useState(false);
+  const [legalModalVisible, setLegalModalVisible] = useState(false);
+  const [importModalVisible, setImportModalVisible] = useState(false);
 
   // Form states
   const [newNicknameInput, setNewNicknameInput] = useState('');
+  const [importJsonText, setImportJsonText] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
   const [avatarUrlInput, setAvatarUrlInput] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -234,6 +241,81 @@ export default function ProfileScreen() {
     } catch (err: any) {
       Alert.alert('내보내기 실패', err?.message || '데이터를 내보내는 중 오류가 발생했습니다.');
     }
+  };
+
+  const handleOpenImportModal = () => {
+    if (!user?.id) {
+      Alert.alert('알림', '로그인 후 데이터를 가져올 수 있습니다.');
+      return;
+    }
+    setAccountSheetVisible(false);
+    setImportJsonText('');
+    setImportModalVisible(true);
+  };
+
+  const handlePasteImportJson = async () => {
+    try {
+      const text = await Clipboard.getStringAsync();
+      if (!text || !text.trim()) {
+        Alert.alert('알림', '클립보드에 복사된 텍스트가 없습니다.');
+        return;
+      }
+      setImportJsonText(text);
+    } catch {
+      Alert.alert('오류', '클립보드 내용을 읽어오지 못했습니다.');
+    }
+  };
+
+  const handlePickImportWebFile = () => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = (e: any) => {
+      const file = e.target?.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setImportJsonText(reader.result);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const handleConfirmImportData = () => {
+    if (!user?.id) return;
+    if (!importJsonText.trim()) {
+      Alert.alert('알림', '복원할 JSON 데이터를 입력하거나 붙여넣어 주세요.');
+      return;
+    }
+    Alert.alert(
+      '데이터 복원',
+      '현재 기기의 여행·장소·링크·가계부 데이터가 입력한 백업 내용으로 덮어씌워집니다. 계속하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '복원하기',
+          onPress: async () => {
+            setIsImporting(true);
+            try {
+              const res = await importBackupJson(user.id, importJsonText);
+              if (!res.success) {
+                Alert.alert('가져오기 실패', res.message);
+                return;
+              }
+              setImportModalVisible(false);
+              setImportJsonText('');
+              Alert.alert('복원 완료', res.message);
+            } finally {
+              setIsImporting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleDeleteAccount = () => {
@@ -417,6 +499,15 @@ export default function ProfileScreen() {
             style={styles.menuRow}
           >
             <Text style={styles.menuRowTitle}>비밀번호 변경</Text>
+            <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.65}
+            onPress={() => setLegalModalVisible(true)}
+            style={styles.menuRow}
+          >
+            <Text style={styles.menuRowTitle}>이용약관 및 개인정보처리방침</Text>
             <ChevronRight size={18} color="#374151" strokeWidth={1.8} />
           </TouchableOpacity>
 
@@ -707,6 +798,15 @@ export default function ProfileScreen() {
 
             <TouchableOpacity
               activeOpacity={0.8}
+              onPress={handleOpenImportModal}
+              style={styles.sheetActionRow}
+            >
+              <Bookmark size={18} color="#1B2A4A" />
+              <Text style={styles.sheetActionText}>내 여행 데이터 가져오기 (JSON)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
               onPress={handleResetAllData}
               style={styles.sheetActionRow}
             >
@@ -734,6 +834,74 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* JSON 데이터 가져오기 모달 */}
+      <Modal visible={importModalVisible} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>여행 데이터 가져오기 (JSON)</Text>
+                <TouchableOpacity onPress={() => setImportModalVisible(false)}>
+                  <X size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.importWarningText}>
+                내보낸 Pinch JSON 백업 내용을 붙여넣으면 현재 계정의 여행·장소·링크·가계부 데이터가 복원됩니다.
+              </Text>
+
+              <View style={styles.importHelperRow}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={handlePasteImportJson}
+                  style={styles.importHelperBtn}
+                >
+                  <Text style={styles.importHelperBtnText}>클립보드 붙여넣기</Text>
+                </TouchableOpacity>
+                {Platform.OS === 'web' && (
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={handlePickImportWebFile}
+                    style={styles.importHelperBtn}
+                  >
+                    <Text style={styles.importHelperBtnText}>JSON 파일 선택</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TextInput
+                value={importJsonText}
+                onChangeText={setImportJsonText}
+                placeholder='{"app":"Pinch","data":{...}}'
+                placeholderTextColor="#9CA3AF"
+                multiline
+                textAlignVertical="top"
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.importInput}
+              />
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleConfirmImportData}
+                disabled={isImporting}
+                style={[styles.modalPrimaryBtn, isImporting && { opacity: 0.65 }]}
+              >
+                <Text style={styles.modalPrimaryBtnText}>
+                  {isImporting ? '복원 중...' : '데이터 복원하기'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* 이용약관 및 개인정보처리방침 모달 */}
+      <LegalModal
+        visible={legalModalVisible}
+        onClose={() => setLegalModalVisible(false)}
+      />
     </View>
   );
 }
@@ -1093,5 +1261,38 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#374151',
+  },
+  importWarningText: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: '#6B7280',
+    marginBottom: 10,
+  },
+  importHelperRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  importHelperBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#EEF2F8',
+  },
+  importHelperBtnText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#1B2A4A',
+  },
+  importInput: {
+    height: 150,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    fontSize: 12.5,
+    color: '#111827',
+    marginBottom: 14,
   },
 });

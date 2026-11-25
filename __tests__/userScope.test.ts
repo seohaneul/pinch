@@ -5,6 +5,7 @@ import { useAuthStore } from '../src/store/useAuthStore';
 import { usePlaceStore } from '../src/store/usePlaceStore';
 import { useTripStore } from '../src/store/useTripStore';
 import { initUserDataScope, useUserDataScope } from '../src/store/userDataScope';
+import { importBackupJson } from '../src/store/cloudSync';
 import {
   getStorageScope,
   scopedKey,
@@ -130,5 +131,38 @@ describe('Account-scoped local data (계정별 데이터 분리)', () => {
 
     const dataB = (await readScopedData('userB')) as any;
     assert.strictEqual(dataB['pinch-place-storage'].places.length, 2, 'userB untouched');
+  });
+
+  it('importBackupJson restores exported Pinch JSON and rejects invalid payloads', async () => {
+    const invalidRes = await importBackupJson('userB', '{not-valid-json');
+    assert.strictEqual(invalidRes.success, false);
+
+    const emptyRes = await importBackupJson('userB', JSON.stringify({ hello: 'world' }));
+    assert.strictEqual(emptyRes.success, false);
+
+    loginAs('userB');
+    await settle('userB');
+
+    const exportedSample = JSON.stringify({
+      app: 'Pinch',
+      data: {
+        'pinch-place-storage': {
+          places: [{ id: 'imp_1', name: '복원된 도쿄 타워', category: 'sight', address: '도쿄' }],
+        },
+        'pinch-trip-storage': {
+          trips: [{ id: 'trip_imp', title: '도쿄 복원 여행', destination: '도쿄', startDate: '2026-12-01', endDate: '2026-12-03', members: [] }],
+          currentTrip: { id: 'trip_imp', title: '도쿄 복원 여행', destination: '도쿄', startDate: '2026-12-01', endDate: '2026-12-03', members: [] },
+          activeTripId: 'trip_imp',
+          scheduleItems: [],
+          hasCompletedOnboarding: true,
+        },
+      },
+    });
+
+    const okRes = await importBackupJson('userB', exportedSample);
+    assert.strictEqual(okRes.success, true);
+    assert.strictEqual(usePlaceStore.getState().places.length, 1);
+    assert.strictEqual(usePlaceStore.getState().places[0].name, '복원된 도쿄 타워');
+    assert.strictEqual(useTripStore.getState().activeTripId, 'trip_imp');
   });
 });
