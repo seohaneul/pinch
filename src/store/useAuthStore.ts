@@ -6,6 +6,7 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../utils/supabase';
+import { clearScopedData } from './userScopedStorage';
 
 export interface AuthUser {
   id: string;
@@ -87,6 +88,27 @@ function buildAuthUserFromSupabase(
 let inFlightOAuthUrl: string | null = null;
 let lastHandledOAuthUrl: string | null = null;
 
+export interface ActionResult {
+  success: boolean;
+  message: string;
+}
+
+function getAuthRedirectUrl(): string {
+  const isWeb = Platform.OS === 'web';
+  const rawRedirect = Linking.createURL('auth/callback');
+  let redirectTo =
+    !isWeb && (!rawRedirect || rawRedirect.includes('null') || rawRedirect.includes('undefined'))
+      ? 'pinch://auth/callback'
+      : rawRedirect;
+  if (!isWeb && redirectTo.startsWith('pinch:///')) {
+    redirectTo = redirectTo.replace('pinch:///', 'pinch://');
+  }
+  if (!isWeb && redirectTo.startsWith('exps://')) {
+    redirectTo = redirectTo.replace('exps://', 'exp://');
+  }
+  return redirectTo;
+}
+
 function showAuthNotice(title: string, message: string) {
   if (Platform.OS !== 'web') {
     Alert.alert(title, message);
@@ -101,6 +123,7 @@ interface AuthState {
   isLoading: boolean;
   authError: string | null;
   authStatus: string | null;
+  needsPasswordReset: boolean;
 
   // Actions
   clearAuthError: () => void;
@@ -114,7 +137,11 @@ interface AuthState {
   logout: () => Promise<void>;
   updateNickname: (newNickname: string) => boolean;
   updateAvatar: (avatarUrl: string) => boolean;
-  changePassword: (currentPassword: string, newPassword: string) => { success: boolean; message: string };
+  changePassword: (currentPassword: string, newPassword: string) => Promise<ActionResult>;
+  resetPassword: (email: string) => Promise<ActionResult>;
+  completePasswordRecovery: (newPassword: string) => Promise<ActionResult>;
+  markPasswordRecovery: () => void;
+  deleteAccount: () => Promise<ActionResult>;
   updatePreferences: (prefs: {
     defaultBaseCurrency?: 'KRW' | 'JPY' | 'USD';
     defaultTransportMode?: 'TRANSIT' | 'WALK';
@@ -131,6 +158,7 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       authError: null,
       authStatus: null,
+      needsPasswordReset: false,
 
       clearAuthError: () => set({ authError: null }),
       cancelAuthLoading: () => set({ isLoading: false, authError: null, authStatus: null }),
@@ -402,7 +430,7 @@ export const useAuthStore = create<AuthState>()(
                   console.log('[AuthStore] Captured OAuth deep link via Linking');
                   try {
                     WebBrowser.dismissBrowser?.();
-                  } catch {}
+                  } catch { }
                   finish(event.url);
                 }
               });
@@ -632,7 +660,7 @@ export const useAuthStore = create<AuthState>()(
 
           // Supabase metadata update
           if (isSupabaseConfigured()) {
-            supabase.auth.updateUser({ data: { nickname: clean } }).catch(() => {});
+            supabase.auth.updateUser({ data: { nickname: clean } }).catch(() => { });
           }
 
           Alert.alert('완료', '닉네임이 성공적으로 변경되었습니다.');
@@ -651,23 +679,158 @@ export const useAuthStore = create<AuthState>()(
           if (isSupabaseConfigured()) {
             supabase.auth
               .updateUser({ data: { avatar_url: avatarUrl.trim() || null } })
-              .catch(() => {});
+              .catch(() => { });
           }
           return true;
         }
         return false;
       },
 
-      changePassword: (currentPassword: string, newPassword: string) => {
+      changePassword: async (currentPassword: string, newPassword: string) => {
         if (newPassword.length < 6) {
           return { success: false, message: '새 비밀번호는 최소 6자 이상이어야 합니다.' };
         }
 
-        if (isSupabaseConfigured()) {
-          supabase.auth.updateUser({ password: newPassword }).catch(() => {});
+        if (!isSupabaseConfigured()) {
+          return { success: true, message: '비밀번호가 성공적으로 변경되었습니다.' };
         }
 
-        return { success: true, message: '비밀번호가 성공적으로 변경되었습니다.' };
+        const user = get().user;
+        if (user?.provider && user.provider !== 'email') {
+          return {
+            success: false,
+            message: '소셜 로그인 계정은 비밀번호를 변경할 수 없습니다. 해당 서비스에서 관리해 주세요.',
+          };
+        }
+        if (!currentPassword) {
+          return { success: false, message: '현재 비밀번호를 입력해 주세요.' };
+        }
+        if (!user?.email) {
+          return { success: false, message: '계정 정보를 확인할 수 없습니다. 다시 로그인해 주세요.' };
+        }
+
+        try {
+          const { error: verifyError } = await withTimeout(
+            supabase.auth.signInWithPassword({ email: user.email, password: currentPassword }),
+            10000,
+            '현재 비밀번호 확인'
+          );
+          if (verifyError) {
+            return { success: false, message: '현재 비밀번호가 일치하지 않습니다.' };
+          }
+
+          const { error } = await withTimeout(
+            supabase.auth.updateUser({ password: newPassword }),
+            10000,
+            '비밀번호 변경'
+          );
+          if (error) {
+            const msg = /different from the old password/i.test(error.message)
+              ? '기존과 다른 비밀번호를 입력해 주세요.'
+              : error.message;
+            return { success: false, message: msg };
+          }
+          return { success: true, message: '비밀번호가 성공적으로 변경되었습니다.' };
+        } catch (err: any) {
+          return {
+            success: false,
+            message: err?.message || '비밀번호 변경 중 네트워크 오류가 발생했습니다.',
+          };
+        }
+      },
+
+      resetPassword: async (email: string) => {
+        const clean = email.trim();
+        if (!clean || !clean.includes('@')) {
+          return { success: false, message: '올바른 이메일 주소를 입력해 주세요.' };
+        }
+        if (!isSupabaseConfigured()) {
+          return { success: false, message: '서버에 연결할 수 없는 상태입니다.' };
+        }
+        try {
+          const { error } = await withTimeout(
+            supabase.auth.resetPasswordForEmail(clean, { redirectTo: getAuthRedirectUrl() }),
+            12000,
+            '비밀번호 재설정 메일 요청'
+          );
+          if (error) {
+            const msg = /rate limit/i.test(error.message)
+              ? '요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.'
+              : error.message;
+            return { success: false, message: msg };
+          }
+          return {
+            success: true,
+            message: '입력하신 이메일로 재설정 링크를 보냈습니다. 메일이 보이지 않으면 스팸함도 확인해 주세요.',
+          };
+        } catch (err: any) {
+          return { success: false, message: err?.message || '메일 요청 중 오류가 발생했습니다.' };
+        }
+      },
+
+      markPasswordRecovery: () => set({ needsPasswordReset: true }),
+
+      completePasswordRecovery: async (newPassword: string) => {
+        if (newPassword.length < 6) {
+          return { success: false, message: '새 비밀번호는 최소 6자 이상이어야 합니다.' };
+        }
+        if (!isSupabaseConfigured()) {
+          return { success: false, message: '서버에 연결할 수 없는 상태입니다.' };
+        }
+        try {
+          const { error } = await withTimeout(
+            supabase.auth.updateUser({ password: newPassword }),
+            10000,
+            '비밀번호 변경'
+          );
+          if (error) {
+            return { success: false, message: error.message };
+          }
+          set({ needsPasswordReset: false });
+          return { success: true, message: '새 비밀번호로 변경되었습니다.' };
+        } catch (err: any) {
+          return { success: false, message: err?.message || '비밀번호 변경 중 오류가 발생했습니다.' };
+        }
+      },
+
+      deleteAccount: async () => {
+        const user = get().user;
+        if (!user) {
+          return { success: false, message: '로그인이 필요합니다.' };
+        }
+
+        set({ isLoading: true });
+        try {
+          if (isSupabaseConfigured()) {
+            try {
+              await supabase.from('user_sync_backups').delete().eq('user_id', user.id);
+            } catch {}
+
+            const { error } = await withTimeout(
+              Promise.resolve(supabase.rpc('delete_own_account')),
+              15000,
+              '계정 삭제'
+            );
+            if (error) {
+              console.log('[AuthStore] delete_own_account failed:', error);
+              return {
+                success: false,
+                message: '계정 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요. 계속되면 문의해 주세요.',
+              };
+            }
+            try {
+              await supabase.auth.signOut({ scope: 'local' });
+            } catch {}
+          }
+
+          set({ isLoggedIn: false, user: null, needsPasswordReset: false });
+          await clearScopedData(user.id);
+          return { success: true, message: '계정과 저장된 데이터가 삭제되었습니다.' };
+        } catch (err: any) {
+          return { success: false, message: err?.message || '계정 삭제 중 오류가 발생했습니다.' };
+        } finally {
+          set({ isLoading: false });
+        }
       },
 
       updatePreferences: (prefs) => {

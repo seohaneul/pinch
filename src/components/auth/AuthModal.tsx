@@ -25,14 +25,27 @@ export const AuthGateScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
+  const [infoNotice, setInfoNotice] = useState<string | null>(null);
 
-  const { login, signup, loginWithSocial, isLoading, authError, authStatus, clearAuthError, cancelAuthLoading } = useAuthStore();
+  const { login, signup, loginWithSocial, resetPassword, isLoading, authError, authStatus, clearAuthError, cancelAuthLoading } = useAuthStore();
 
   const handleSubmit = async () => {
+    setInfoNotice(null);
     if (tab === 'login') {
       await login(email, password);
     } else {
       await signup(nickname, email, password);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    clearAuthError();
+    setInfoNotice(null);
+    const res = await resetPassword(email);
+    if (res.success) {
+      setInfoNotice(res.message);
+    } else {
+      useAuthStore.setState({ authError: res.message });
     }
   };
 
@@ -139,7 +152,16 @@ export const AuthGateScreen: React.FC = () => {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>비밀번호</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.inputLabel}>비밀번호</Text>
+                {tab === 'login' && (
+                  <TouchableOpacity onPress={handleResetPassword} disabled={isLoading}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: '#3B63C4' }}>
+                      비밀번호를 잊으셨나요?
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
               <View style={styles.inputWrapper}>
                 <Lock size={17} color="#64748B" style={{ marginRight: 10 }} />
                 <TextInput
@@ -157,6 +179,12 @@ export const AuthGateScreen: React.FC = () => {
           <Text style={styles.legalNotice}>
             로그인 시 서비스 이용약관 및 개인정보 처리방침에 동의하는 것으로 간주합니다.
           </Text>
+
+          {infoNotice ? (
+            <View style={[styles.errorBanner, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+              <Text style={[styles.errorBannerText, { color: '#1D4ED8' }]}>{infoNotice}</Text>
+            </View>
+          ) : null}
 
           {authError ? (
             <View style={styles.errorBanner}>

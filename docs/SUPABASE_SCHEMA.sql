@@ -40,6 +40,27 @@ CREATE POLICY "Users can manage their own backup"
 CREATE INDEX IF NOT EXISTS idx_user_sync_backups_updated_at 
     ON public.user_sync_backups (updated_at DESC);
 
+-- 6. 회원 탈퇴(본인 계정 삭제) RPC 함수
+CREATE OR REPLACE FUNCTION public.delete_own_account()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  uid uuid := auth.uid();
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+  DELETE FROM public.user_sync_backups WHERE user_id = uid::text;
+  DELETE FROM auth.users WHERE id = uid;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.delete_own_account() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.delete_own_account() TO authenticated;
+
 -- ==============================================================================
--- 완료: 위 쿼리를 실행하면 핀치 앱과 Supabase 간의 실시간 동기화가 완벽히 동작합니다.
+-- 완료: 위 쿼리를 실행하면 핀치 앱과 Supabase 간의 실시간 동기화 및 회원 탈퇴가 동작합니다.
 -- ==============================================================================

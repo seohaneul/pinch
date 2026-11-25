@@ -12,6 +12,7 @@ import {
   Keyboard,
   Image,
   Platform,
+  Share,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +33,7 @@ import {
   Camera,
 } from '@/components/common/CustomIcons';
 import { useSavedLinkStore } from '../../src/store/useSavedLinkStore';
+import { readScopedData } from '../../src/store/userScopedStorage';
 
 const AVATAR_PRESETS = [
   { id: 'preset:navy', bg: '#1B2A4A', color: '#FFFFFF', label: '네이비' },
@@ -70,6 +72,7 @@ export default function ProfileScreen() {
     updateNickname,
     updateAvatar,
     changePassword,
+    deleteAccount,
   } = useAuthStore();
 
   const { resetToDefaults: resetPlaces } = usePlaceStore();
@@ -147,7 +150,7 @@ export default function ProfileScreen() {
     setChangePasswordModalVisible(true);
   };
 
-  const handleSavePassword = () => {
+  const handleSavePassword = async () => {
     if (!currentPassword) {
       Alert.alert('알림', '현재 비밀번호를 입력해 주세요.');
       return;
@@ -161,7 +164,7 @@ export default function ProfileScreen() {
       return;
     }
 
-    const res = changePassword(currentPassword, newPassword);
+    const res = await changePassword(currentPassword, newPassword);
     if (res.success) {
       Alert.alert('완료', res.message);
       setChangePasswordModalVisible(false);
@@ -189,6 +192,71 @@ export default function ProfileScreen() {
         },
       },
     ]);
+  };
+
+  const handleExportData = async () => {
+    if (!user?.id) {
+      Alert.alert('알림', '로그인 후 데이터를 내보낼 수 있습니다.');
+      return;
+    }
+    try {
+      const scoped = await readScopedData(user.id);
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        app: 'Pinch',
+        account: {
+          id: user.id,
+          email: user.email,
+          nickname: user.nickname,
+          provider: user.provider || 'email',
+        },
+        data: scoped,
+      };
+      const json = JSON.stringify(payload, null, 2);
+
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `pinch-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setAccountSheetVisible(false);
+        return;
+      }
+
+      setAccountSheetVisible(false);
+      await Share.share({
+        title: 'Pinch 여행 데이터 백업 (JSON)',
+        message: json,
+      });
+    } catch (err: any) {
+      Alert.alert('내보내기 실패', err?.message || '데이터를 내보내는 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      '회원 탈퇴',
+      '정말 탈퇴하시겠습니까? 계정 정보와 이 기기에 저장된 여행·장소·가계부 데이터가 모두 영구 삭제되며 되돌릴 수 없습니다.',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '탈퇴하기',
+          style: 'destructive',
+          onPress: async () => {
+            const res = await deleteAccount();
+            setAccountSheetVisible(false);
+            if (!res.success) {
+              Alert.alert('회원 탈퇴 실패', res.message);
+            } else {
+              Alert.alert('완료', res.message);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleResetAllData = () => {
@@ -630,6 +698,15 @@ export default function ProfileScreen() {
 
             <TouchableOpacity
               activeOpacity={0.8}
+              onPress={handleExportData}
+              style={styles.sheetActionRow}
+            >
+              <Bookmark size={18} color="#1B2A4A" />
+              <Text style={styles.sheetActionText}>내 여행 데이터 내보내기 (JSON)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
               onPress={handleResetAllData}
               style={styles.sheetActionRow}
             >
@@ -640,10 +717,19 @@ export default function ProfileScreen() {
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={handleLogout}
+              style={styles.sheetActionRow}
+            >
+              <LogOut size={18} color="#4B5563" />
+              <Text style={styles.sheetActionText}>로그아웃</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleDeleteAccount}
               style={[styles.sheetActionRow, { borderBottomWidth: 0 }]}
             >
-              <LogOut size={18} color="#EF4444" />
-              <Text style={[styles.sheetActionText, { color: '#EF4444' }]}>로그아웃</Text>
+              <Trash2 size={18} color="#EF4444" />
+              <Text style={[styles.sheetActionText, { color: '#EF4444' }]}>회원 탈퇴 (계정 삭제)</Text>
             </TouchableOpacity>
           </View>
         </View>

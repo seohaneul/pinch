@@ -577,17 +577,17 @@ describe('Store Actions & Cross-Store Integration (FN-PLC, FN-PLN, FN-WAL)', () 
       assert.strictEqual(useAuthStore.getState().user?.nickname, '여행하는민지');
     });
 
-    it('changePassword enforces minimum 6 characters and valid inputs', () => {
+    it('changePassword enforces minimum 6 characters and valid inputs', async () => {
       // 1. Reject empty
-      const emptyRes = useAuthStore.getState().changePassword('', '');
+      const emptyRes = await useAuthStore.getState().changePassword('', '');
       assert.strictEqual(emptyRes.success, false);
 
       // 2. Reject short password
-      const shortRes = useAuthStore.getState().changePassword('oldpass', '123');
+      const shortRes = await useAuthStore.getState().changePassword('oldpass', '123');
       assert.strictEqual(shortRes.success, false);
 
       // 3. Accept valid password
-      const validRes = useAuthStore.getState().changePassword('oldpass', 'newsecurepass123');
+      const validRes = await useAuthStore.getState().changePassword('oldpass', 'newsecurepass123');
       assert.strictEqual(validRes.success, true);
     });
   });
