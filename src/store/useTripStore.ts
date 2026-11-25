@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { userScopedAsyncStorage } from './userScopedStorage';
 import { useAuthStore } from './useAuthStore';
 import type { Trip, DaySchedule, ScheduleItem, Place, Member, LodgingInfo, FlightInfo } from '../types';
+import type { CurrencyCode } from '../utils/settlementUtils';
 import type { TransportMode } from '../utils/geoUtils';
 import {
   calculateDistance,
@@ -46,7 +47,7 @@ interface TripState {
     memberNames?: string[];
     centerLat?: number;
     centerLng?: number;
-    currency?: 'KRW' | 'JPY' | 'USD' | 'EUR';
+    currency?: CurrencyCode;
   }) => Trip;
   deleteTrip: (tripId: string) => void;
   updateTrip: (tripId: string, updates: Partial<Trip>) => void;

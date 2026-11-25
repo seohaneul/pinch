@@ -1,4 +1,6 @@
-export type SupportedCurrency = 'JPY' | 'USD' | 'EUR' | 'KRW';
+import type { CurrencyCode } from './settlementUtils';
+
+export type SupportedCurrency = CurrencyCode;
 
 /**
  * 시간 입력 시 숫자만 입력해도 자동으로 [:] 콜론을 삽입하는 포매터 (예: "0930" -> "09:30")
@@ -111,6 +113,115 @@ export function resolveCurrencyByDestination(
   }
 
   if (
+    q.includes('베트남') ||
+    q.includes('다낭') ||
+    q.includes('하노이') ||
+    q.includes('나트랑') ||
+    q.includes('푸꾸옥') ||
+    q.includes('호이안') ||
+    q.includes('호치민') ||
+    q.includes('vietnam') ||
+    q.includes('danang') ||
+    q.includes('hanoi')
+  ) {
+    return 'VND';
+  }
+
+  if (
+    q.includes('태국') ||
+    q.includes('방콕') ||
+    q.includes('치앙마이') ||
+    q.includes('푸켓') ||
+    q.includes('파타야') ||
+    q.includes('thailand') ||
+    q.includes('bangkok') ||
+    q.includes('phuket')
+  ) {
+    return 'THB';
+  }
+
+  if (
+    q.includes('대만') ||
+    q.includes('타이베이') ||
+    q.includes('가오슝') ||
+    q.includes('taiwan') ||
+    q.includes('taipei')
+  ) {
+    return 'TWD';
+  }
+
+  if (
+    q.includes('홍콩') ||
+    q.includes('마카오') ||
+    q.includes('hong kong') ||
+    q.includes('macau')
+  ) {
+    return 'HKD';
+  }
+
+  if (q.includes('싱가포르') || q.includes('singapore')) {
+    return 'SGD';
+  }
+
+  if (
+    q.includes('세부') ||
+    q.includes('보라카이') ||
+    q.includes('마닐라') ||
+    q.includes('필리핀') ||
+    q.includes('cebu') ||
+    q.includes('philippines')
+  ) {
+    return 'PHP';
+  }
+
+  if (
+    q.includes('발리') ||
+    q.includes('인도네시아') ||
+    q.includes('자카르타') ||
+    q.includes('bali') ||
+    q.includes('indonesia')
+  ) {
+    return 'IDR';
+  }
+
+  if (q.includes('런던') || q.includes('영국') || q.includes('london') || q.includes('uk')) {
+    return 'GBP';
+  }
+
+  if (
+    q.includes('스위스') ||
+    q.includes('취리히') ||
+    q.includes('인터라켄') ||
+    q.includes('제네바') ||
+    q.includes('switzerland') ||
+    q.includes('zurich')
+  ) {
+    return 'CHF';
+  }
+
+  if (
+    q.includes('호주') ||
+    q.includes('시드니') ||
+    q.includes('멜버른') ||
+    q.includes('australia') ||
+    q.includes('sydney')
+  ) {
+    return 'AUD';
+  }
+
+  if (
+    q.includes('중국') ||
+    q.includes('상하이') ||
+    q.includes('베이징') ||
+    q.includes('칭다오') ||
+    q.includes('china') ||
+    q.includes('shanghai') ||
+    q.includes('beijing')
+  ) {
+    return 'CNY';
+  }
+
+  if (
     q.includes('유럽') ||
     q.includes('프랑스') ||
     q.includes('파리') ||
@@ -126,13 +237,9 @@ export function resolveCurrencyByDestination(
     q.includes('오스트리아') ||
     q.includes('체코') ||
     q.includes('프라하') ||
-    q.includes('런던') ||
-    q.includes('영국') ||
-    q.includes('스위스') ||
     q.includes('paris') ||
     q.includes('rome') ||
-    q.includes('barcelona') ||
-    q.includes('london')
+    q.includes('barcelona')
   ) {
     return 'EUR';
   }
@@ -145,16 +252,24 @@ export function getCurrencyDisplayInfo(code: SupportedCurrency): {
   symbol: string;
   label: string;
 } {
-  switch (code) {
-    case 'JPY':
-      return { code: 'JPY', symbol: '¥ JPY', label: '일본 엔화 (자동 설정)' };
-    case 'EUR':
-      return { code: 'EUR', symbol: '€ EUR', label: '유럽 유로 (자동 설정)' };
-    case 'KRW':
-      return { code: 'KRW', symbol: '₩ KRW', label: '대한민국 원 (자동 설정)' };
-    case 'USD':
-    default:
-      return { code: 'USD', symbol: '$ USD', label: '미국 달러 / 현지 통화 환산 (자동 설정)' };
-  }
+  const map: Record<SupportedCurrency, { symbol: string; label: string }> = {
+    JPY: { symbol: '¥ JPY', label: '일본 엔화 (자동 설정)' },
+    USD: { symbol: '$ USD', label: '미국 달러 (자동 설정)' },
+    EUR: { symbol: '€ EUR', label: '유럽 유로 (자동 설정)' },
+    KRW: { symbol: '₩ KRW', label: '대한민국 원 (자동 설정)' },
+    VND: { symbol: '₫ VND', label: '베트남 동 (자동 설정)' },
+    THB: { symbol: '฿ THB', label: '태국 바트 (자동 설정)' },
+    TWD: { symbol: 'NT$ TWD', label: '대만 달러 (자동 설정)' },
+    HKD: { symbol: 'HK$ HKD', label: '홍콩 달러 (자동 설정)' },
+    SGD: { symbol: 'S$ SGD', label: '싱가포르 달러 (자동 설정)' },
+    PHP: { symbol: '₱ PHP', label: '필리핀 페소 (자동 설정)' },
+    IDR: { symbol: 'Rp IDR', label: '인도네시아 루피아 (자동 설정)' },
+    GBP: { symbol: '£ GBP', label: '영국 파운드 (자동 설정)' },
+    CHF: { symbol: 'CHF', label: '스위스 프랑 (자동 설정)' },
+    AUD: { symbol: 'A$ AUD', label: '호주 달러 (자동 설정)' },
+    CNY: { symbol: '¥ CNY', label: '중국 위안 (자동 설정)' },
+  };
+  const info = map[code] || map.USD;
+  return { code, symbol: info.symbol, label: info.label };
 }
 

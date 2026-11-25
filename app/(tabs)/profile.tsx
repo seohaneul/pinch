@@ -75,7 +75,7 @@ export default function ProfileScreen() {
     user,
     defaultTransportMode,
     logout,
-    loginWithSocial,
+    linkSocialAccount,
     updatePreferences,
     updateNickname,
     updateAvatar,
@@ -182,9 +182,16 @@ export default function ProfileScreen() {
   };
 
   const handleConnectSocial = async (provider: 'google' | 'kakao') => {
-    const ok = await loginWithSocial(provider);
-    if (ok) {
+    if (user?.provider === provider) {
+      Alert.alert('알림', '이미 연동된 계정입니다.');
+      return;
+    }
+    const res = await linkSocialAccount(provider);
+    if (res.success) {
       setSocialConnectModalVisible(false);
+      Alert.alert('연동 완료', res.message);
+    } else {
+      Alert.alert('연동 실패', res.message);
     }
   };
 

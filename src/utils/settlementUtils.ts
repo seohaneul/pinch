@@ -1,4 +1,37 @@
-export type CurrencyCode = 'KRW' | 'JPY' | 'USD' | 'EUR';
+export type CurrencyCode =
+  | 'KRW'
+  | 'JPY'
+  | 'USD'
+  | 'EUR'
+  | 'VND'
+  | 'THB'
+  | 'TWD'
+  | 'HKD'
+  | 'SGD'
+  | 'PHP'
+  | 'IDR'
+  | 'GBP'
+  | 'CHF'
+  | 'AUD'
+  | 'CNY';
+
+export const SUPPORTED_CURRENCIES: CurrencyCode[] = [
+  'JPY',
+  'USD',
+  'EUR',
+  'KRW',
+  'VND',
+  'THB',
+  'TWD',
+  'HKD',
+  'SGD',
+  'PHP',
+  'IDR',
+  'GBP',
+  'CHF',
+  'AUD',
+  'CNY',
+];
 
 export interface WalletMember {
   id: string;
@@ -50,9 +83,20 @@ export interface MemberBalance {
 
 export const DEFAULT_EXCHANGE_RATES: Record<CurrencyCode, number> = {
   KRW: 1,
-  JPY: 9.15,     // 1 JPY = 9.15 KRW (100엔 = 915원)
+  JPY: 9.15,     // 1 JPY = 9.15 KRW
   USD: 1380.0,   // 1 USD = 1,380 KRW
   EUR: 1490.0,   // 1 EUR = 1,490 KRW
+  VND: 0.055,    // 1 VND = 0.055 KRW (100 VND = 5.5 KRW)
+  THB: 40.5,     // 1 THB = 40.5 KRW
+  TWD: 43.0,     // 1 TWD = 43.0 KRW
+  HKD: 177.0,    // 1 HKD = 177.0 KRW
+  SGD: 1030.0,   // 1 SGD = 1,030 KRW
+  PHP: 24.0,     // 1 PHP = 24.0 KRW
+  IDR: 0.088,    // 1 IDR = 0.088 KRW
+  GBP: 1750.0,   // 1 GBP = 1,750 KRW
+  CHF: 1560.0,   // 1 CHF = 1,560 KRW
+  AUD: 900.0,    // 1 AUD = 900 KRW
+  CNY: 192.0,    // 1 CNY = 192 KRW
 };
 
 export const CURRENCY_SYMBOLS: Record<CurrencyCode, string> = {
@@ -60,14 +104,25 @@ export const CURRENCY_SYMBOLS: Record<CurrencyCode, string> = {
   JPY: '¥',
   USD: '$',
   EUR: '€',
+  VND: '₫',
+  THB: '฿',
+  TWD: 'NT$',
+  HKD: 'HK$',
+  SGD: 'S$',
+  PHP: '₱',
+  IDR: 'Rp',
+  GBP: '£',
+  CHF: 'CHF ',
+  AUD: 'A$',
+  CNY: '¥',
 };
 
 /**
  * Format local currency with appropriate symbol
  */
 export function formatCurrency(amount: number, currency: CurrencyCode): string {
-  const sym = CURRENCY_SYMBOLS[currency];
-  if (currency === 'KRW' || currency === 'JPY') {
+  const sym = CURRENCY_SYMBOLS[currency] || currency;
+  if (currency === 'KRW' || currency === 'JPY' || currency === 'VND' || currency === 'IDR') {
     return `${sym}${Math.round(amount).toLocaleString()}`;
   }
   return `${sym}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

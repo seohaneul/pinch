@@ -132,6 +132,7 @@ interface AuthState {
   login: (email: string, password?: string) => Promise<boolean>;
   signup: (nickname: string, email: string, password?: string) => Promise<boolean>;
   loginWithSocial: (provider: 'google' | 'kakao') => Promise<boolean>;
+  linkSocialAccount: (provider: 'google' | 'kakao') => Promise<ActionResult>;
   handleOAuthCallbackUrl: (url: string, providerHint?: 'google' | 'kakao') => Promise<boolean>;
   syncSessionFromSupabase: () => Promise<void>;
   setSupabaseUser: (supaUser: SupabaseUser | null) => void;
@@ -544,7 +545,7 @@ export const useAuthStore = create<AuthState>()(
 
       handleOAuthCallbackUrl: async (callbackUrl: string, providerHint?: 'google' | 'kakao') => {
         if (!isSupabaseConfigured() || !callbackUrl) return false;
-        if (get().isLoggedIn || lastHandledOAuthUrl === callbackUrl) return true;
+        if (lastHandledOAuthUrl === callbackUrl) return true;
         if (inFlightOAuthUrl === callbackUrl) return false;
         inFlightOAuthUrl = callbackUrl;
 
@@ -798,6 +799,46 @@ export const useAuthStore = create<AuthState>()(
           return { success: true, message: '새 비밀번호로 변경되었습니다.' };
         } catch (err: any) {
           return { success: false, message: err?.message || '비밀번호 변경 중 오류가 발생했습니다.' };
+        }
+      },
+
+      linkSocialAccount: async (provider: 'google' | 'kakao') => {
+        const providerLabel = provider === 'kakao' ? '카카오' : 'Google';
+        if (!isSupabaseConfigured()) {
+          return { success: false, message: '서버에 연결할 수 없는 상태입니다.' };
+        }
+        try {
+          const redirectTo = getAuthRedirectUrl();
+          const { data, error } = await withTimeout(
+            supabase.auth.linkIdentity({
+              provider,
+              options: { redirectTo, skipBrowserRedirect: Platform.OS !== 'web' },
+            }),
+            10000,
+            `${providerLabel} 계정 연동`
+          );
+          if (error) {
+            return {
+              success: false,
+              message: error.message || `${providerLabel} 계정 연동에 실패했습니다.`,
+            };
+          }
+          if (Platform.OS !== 'web' && data?.url) {
+            const res = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+            if (res.type === 'success' && res.url) {
+              const ok = await get().handleOAuthCallbackUrl(res.url, provider);
+              if (ok) {
+                return { success: true, message: `${providerLabel} 계정이 연동되었습니다.` };
+              }
+            }
+            return { success: false, message: `${providerLabel} 계정 연동이 취소되었거나 완료되지 않았습니다.` };
+          }
+          return { success: true, message: `${providerLabel} 계정 연동 페이지로 이동합니다.` };
+        } catch (err: any) {
+          return {
+            success: false,
+            message: err?.message || `${providerLabel} 계정 연동 중 오류가 발생했습니다.`,
+          };
         }
       },
 

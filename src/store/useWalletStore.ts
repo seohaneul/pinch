@@ -47,7 +47,7 @@ export interface WalletState {
   getTourPackages: (tripId?: string) => TourPackageItem[];
   addExpense: (expense: Omit<ExpenseItem, 'id' | 'created_at' | 'krw_amount'>) => void;
   deleteExpense: (id: string) => void;
-  refreshLiveExchangeRates: () => Promise<void>;
+  refreshLiveExchangeRates: () => Promise<boolean>;
   toggleTransactionSettled: (id: string) => void;
   getMemberBalances: (tripId?: string, customMembers?: WalletMember[]) => MemberBalance[];
   getTransactions: (tripId?: string, customMembers?: WalletMember[]) => SettlementTransaction[];
@@ -246,10 +246,19 @@ export const useWalletStore = create<WalletState>()(
   refreshLiveExchangeRates: async () => {
     set({ isUpdatingRates: true });
     try {
-      const { rates, lastUpdated } = await fetchLiveExchangeRates();
-      // Recalculate KRW amount for all expenses based on new rates
+      const { rates, lastUpdated, source } = await fetchLiveExchangeRates();
+      const mergedRates = { ...DEFAULT_EXCHANGE_RATES, ...rates };
+      if (source === 'fallback') {
+        set({
+          isUpdatingRates: false,
+          lastExchangeRateUpdate: lastUpdated,
+        });
+        return false;
+      }
+
+      // Recalculate KRW amount for all expenses based on new live rates
       const updatedExpenses = get().expenses.map((item) => {
-        const newRate = rates[item.currency] || item.exchange_rate;
+        const newRate = mergedRates[item.currency] || item.exchange_rate;
         return {
           ...item,
           exchange_rate: newRate,
@@ -258,13 +267,15 @@ export const useWalletStore = create<WalletState>()(
       });
 
       set({
-        exchangeRates: rates,
+        exchangeRates: mergedRates,
         expenses: updatedExpenses,
         lastExchangeRateUpdate: lastUpdated,
         isUpdatingRates: false,
       });
-    } catch (e) {
+      return true;
+    } catch {
       set({ isUpdatingRates: false });
+      return false;
     }
   },
 

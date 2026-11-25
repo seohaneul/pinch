@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from '../utils/supabase';
+import { DEFAULT_EXCHANGE_RATES } from '../utils/settlementUtils';
 import { usePlaceStore } from './usePlaceStore';
 import { useSavedLinkStore } from './useSavedLinkStore';
 import { useTripStore } from './useTripStore';
@@ -135,7 +136,7 @@ function applyBackupPayload(payload: Partial<CloudBackupPayload>) {
     if (payload.wallet) {
       useWalletStore.setState({
         expenses: payload.wallet.expenses || [],
-        exchangeRates: payload.wallet.exchangeRates || { JPY: 9.15, USD: 1380, EUR: 1490, KRW: 1 },
+        exchangeRates: { ...DEFAULT_EXCHANGE_RATES, ...(payload.wallet.exchangeRates || {}) },
         settledTransactionIds: payload.wallet.settledTransactionIds || [],
         tripCurrencies: payload.wallet.tripCurrencies || {},
         categoryBudgets: payload.wallet.categoryBudgets || {},

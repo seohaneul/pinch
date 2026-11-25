@@ -1,5 +1,5 @@
 import type { CurrencyCode } from '../utils/settlementUtils';
-import { DEFAULT_EXCHANGE_RATES } from '../utils/settlementUtils';
+import { DEFAULT_EXCHANGE_RATES, SUPPORTED_CURRENCIES } from '../utils/settlementUtils';
 
 export interface ExchangeRateResult {
   rates: Record<CurrencyCode, number>;
@@ -8,18 +8,16 @@ export interface ExchangeRateResult {
 }
 
 /**
- * Fetch real-time foreign exchange rates from open ExchangeRate API
- * Base: KRW, calculates accurate multipliers for JPY (1 JPY = X KRW), USD, and EUR.
+ * Fetch real-time foreign exchange rates from open ExchangeRate API (Base: KRW).
+ * Calculates accurate multipliers for 15 major travel currencies (1 <CUR> = X KRW).
  */
 export async function fetchLiveExchangeRates(): Promise<ExchangeRateResult> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
-
-    const res = await fetch('https://open.er-api.com/v6/latest/USD', {
+    const res = await fetch('https://open.er-api.com/v6/latest/KRW', {
       signal: controller.signal,
     });
-    clearTimeout(timeoutId);
 
     if (!res.ok) {
       throw new Error(`Exchange rate API responded with status ${res.status}`);
@@ -27,20 +25,21 @@ export async function fetchLiveExchangeRates(): Promise<ExchangeRateResult> {
 
     const data = await res.json();
     if (data && data.result === 'success' && data.rates) {
-      const usdToKrw = Number(data.rates.KRW);
-      const usdToJpy = Number(data.rates.JPY);
-      const usdToEur = Number(data.rates.EUR);
+      const updatedRates: Record<CurrencyCode, number> = { ...DEFAULT_EXCHANGE_RATES, KRW: 1 };
 
-      const jpyToKrw = Number((usdToKrw / usdToJpy).toFixed(2));
-      const eurToKrw = Number((usdToKrw / usdToEur).toFixed(1));
-      const roundedUsdToKrw = Number(usdToKrw.toFixed(1));
-
-      const updatedRates: Record<CurrencyCode, number> = {
-        KRW: 1,
-        JPY: jpyToKrw,
-        USD: roundedUsdToKrw,
-        EUR: eurToKrw,
-      };
+      for (const code of SUPPORTED_CURRENCIES) {
+        if (code === 'KRW') {
+          updatedRates.KRW = 1;
+          continue;
+        }
+        const krwToCode = Number(data.rates[code]);
+        if (!Number.isFinite(krwToCode) || krwToCode <= 0) {
+          continue;
+        }
+        const raw = 1 / krwToCode;
+        const decimals = code === 'VND' || code === 'IDR' ? 4 : code === 'JPY' ? 2 : 1;
+        updatedRates[code] = Number(raw.toFixed(decimals));
+      }
 
       const now = new Date();
       const timeStr = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -56,9 +55,11 @@ export async function fetchLiveExchangeRates(): Promise<ExchangeRateResult> {
   } catch (error) {
     console.warn('Failed to fetch live exchange rates, using fallback:', error);
     return {
-      rates: DEFAULT_EXCHANGE_RATES,
+      rates: { ...DEFAULT_EXCHANGE_RATES },
       lastUpdated: '기본 환율 기준',
       source: 'fallback',
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

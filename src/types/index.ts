@@ -1,4 +1,5 @@
 import type { TransportMode } from '../utils/geoUtils';
+import type { CurrencyCode } from '../utils/settlementUtils';
 
 export type PlaceCategory =
   | 'ALL'
@@ -132,7 +133,7 @@ export interface Trip {
   members: Member[];
   budget?: number;
   createdAt: string;
-  currency?: 'KRW' | 'JPY' | 'USD' | 'EUR';
+  currency?: CurrencyCode;
   lodging?: LodgingInfo;
   lodgings?: LodgingInfo[];
   categoryBudgets?: Record<string, number>;

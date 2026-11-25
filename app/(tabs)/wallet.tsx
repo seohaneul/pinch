@@ -25,6 +25,7 @@ import {
   WalletMember,
   formatCurrency,
   CURRENCY_SYMBOLS,
+  SUPPORTED_CURRENCIES,
   convertToKrw,
 } from '../../src/utils/settlementUtils';
 import {
@@ -259,18 +260,13 @@ export default function WalletScreen() {
       : Math.round(totalKrw / currentRate);
 
   const getExchangeRateLabel = (cur: CurrencyCode) => {
-    switch (cur) {
-      case 'JPY':
-        return `100 JPY = ${Math.round(exchangeRates.JPY * 100)}원`;
-      case 'USD':
-        return `1 USD = ${Math.round(exchangeRates.USD)}원`;
-      case 'EUR':
-        return `1 EUR = ${Math.round(exchangeRates.EUR)}원`;
-      case 'KRW':
-        return `1 KRW = 1원`;
-      default:
-        return `${cur} 실시간 환율`;
+    const rate = exchangeRates[cur] || 0;
+    if (cur === 'KRW') return '1 KRW = 1원';
+    if (cur === 'JPY' || cur === 'VND' || cur === 'IDR') {
+      const per100 = cur === 'JPY' ? Math.round(rate * 100) : Number((rate * 100).toFixed(1));
+      return `100 ${cur} = ${per100.toLocaleString()}원`;
     }
+    return `1 ${cur} = ${Math.round(rate).toLocaleString()}원`;
   };
 
   // Active trip schedule items for linking
@@ -477,12 +473,21 @@ export default function WalletScreen() {
                   <Text className="text-xs font-bold text-mutedText">총 계획 예산 🎯</Text>
                 </View>
                 {/* Currency Selector Pills */}
-                <View className="flex-row items-center gap-1 bg-gray-100 p-1 rounded-full">
-                  {(['JPY', 'USD', 'EUR', 'KRW'] as CurrencyCode[]).map((cur) => (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ maxWidth: '62%' }}
+                  contentContainerStyle={{ gap: 4, alignItems: 'center' }}
+                  className="bg-gray-100 p-1 rounded-full"
+                >
+                  {[
+                    activeTripCurrency,
+                    ...SUPPORTED_CURRENCIES.filter((c) => c !== activeTripCurrency),
+                  ].map((cur) => (
                     <TouchableOpacity
                       key={cur}
-                      onPress={() => setTripCurrency(currentTrip?.id || 't_tokyo', cur)}
-                      className={`px-2 py-0.5 rounded-full ${activeTripCurrency === cur ? 'bg-primary' : 'bg-transparent'
+                      onPress={() => setTripCurrency(currentTrip?.id || 't_first', cur)}
+                      className={`px-2.5 py-1 rounded-full ${activeTripCurrency === cur ? 'bg-primary' : 'bg-transparent'
                         }`}
                     >
                       <Text
@@ -493,7 +498,7 @@ export default function WalletScreen() {
                       </Text>
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               </View>
 
               <View className="flex-row items-baseline justify-between mb-2">
@@ -814,12 +819,21 @@ export default function WalletScreen() {
                   <Text className="text-xs font-bold text-mutedText">실제 여행 지출 합계</Text>
                 </View>
                 {/* Currency Selector Pills */}
-                <View className="flex-row items-center gap-1 bg-gray-100 p-1 rounded-full">
-                  {(['JPY', 'USD', 'EUR', 'KRW'] as CurrencyCode[]).map((cur) => (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ maxWidth: '62%' }}
+                  contentContainerStyle={{ gap: 4, alignItems: 'center' }}
+                  className="bg-gray-100 p-1 rounded-full"
+                >
+                  {[
+                    activeTripCurrency,
+                    ...SUPPORTED_CURRENCIES.filter((c) => c !== activeTripCurrency),
+                  ].map((cur) => (
                     <TouchableOpacity
                       key={cur}
-                      onPress={() => setTripCurrency(currentTrip?.id || 't_tokyo', cur)}
-                      className={`px-2 py-0.5 rounded-full ${activeTripCurrency === cur ? 'bg-primary' : 'bg-transparent'
+                      onPress={() => setTripCurrency(currentTrip?.id || 't_first', cur)}
+                      className={`px-2.5 py-1 rounded-full ${activeTripCurrency === cur ? 'bg-primary' : 'bg-transparent'
                         }`}
                     >
                       <Text
@@ -830,7 +844,7 @@ export default function WalletScreen() {
                       </Text>
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               </View>
 
               {/* Main KRW Amount & Foreign Converted Amount */}
@@ -864,7 +878,15 @@ export default function WalletScreen() {
 
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  onPress={() => refreshLiveExchangeRates()}
+                  onPress={async () => {
+                    const ok = await refreshLiveExchangeRates();
+                    if (!ok) {
+                      Alert.alert(
+                        '환율 조회 실패',
+                        '실시간 환율을 불러오지 못했습니다. 네트워크 연결을 확인해 주세요.'
+                      );
+                    }
+                  }}
                   className="flex-row items-center bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg"
                 >
                   <RefreshCw size={11} color="#059669" style={{ marginRight: 4 }} />
@@ -1294,12 +1316,20 @@ export default function WalletScreen() {
             <ScrollView showsVerticalScrollIndicator={false} className="mt-3">
               {/* Currency Selector & Amount Input */}
               <Text className="text-xs font-bold text-mutedText mb-1.5">금액 및 통화</Text>
-              <View className="flex-row items-center gap-2 mb-2">
-                {(['JPY', 'KRW', 'USD', 'EUR'] as CurrencyCode[]).map((cur) => (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+                className="mb-2"
+              >
+                {[
+                  activeTripCurrency,
+                  ...SUPPORTED_CURRENCIES.filter((c) => c !== activeTripCurrency),
+                ].map((cur) => (
                   <TouchableOpacity
                     key={cur}
                     onPress={() => setCurrency(cur)}
-                    className={`flex-1 py-2 rounded-xl items-center border ${currency === cur
+                    className={`px-3 py-2 rounded-xl items-center border ${currency === cur
                         ? 'bg-primary border-primary'
                         : 'bg-white border-borderLine'
                       }`}
@@ -1312,7 +1342,7 @@ export default function WalletScreen() {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </ScrollView>
 
               {/* Amount Input */}
               <View className="bg-gray-50 border border-borderLine rounded-2xl px-4 py-3 flex-row items-center mb-1">
@@ -1321,7 +1351,11 @@ export default function WalletScreen() {
                 </Text>
                 <TextInput
                   value={amountStr}
-                  onChangeText={(txt) => setAmountStr(formatAmountInput(txt, currency !== 'KRW' && currency !== 'JPY'))}
+                  onChangeText={(txt) =>
+                    setAmountStr(
+                      formatAmountInput(txt, !['KRW', 'JPY', 'VND', 'IDR'].includes(currency))
+                    )
+                  }
                   placeholder="0"
                   keyboardType="numeric"
                   className="flex-1 text-2xl font-extrabold text-darkText"

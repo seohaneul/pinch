@@ -32,12 +32,14 @@ import {
   CurrencyCode,
   WalletCategory,
   CURRENCY_SYMBOLS,
+  SUPPORTED_CURRENCIES,
   convertToKrw,
 } from '../../src/utils/settlementUtils';
 import type { ScheduleItem, Place } from '../../src/types';
 import { openInGoogleMaps, openGoogleMapsDirections } from '../../src/utils/mapUtils';
 import { formatAmountInput, resolveCurrencyByDestination } from '../../src/utils/formatUtils';
 import { TripSwitcherModal } from '../../src/components/trip/TripSwitcherModal';
+import { CreateTripModal } from '../../src/components/trip/CreateTripModal';
 import { PlaceDetailModal } from '../../src/components/places/PlaceDetailModal';
 import {
   MapPin,
@@ -99,6 +101,7 @@ export default function PlannerScreen() {
 
   // Expense modal for stop
   const [expenseModalVisible, setExpenseModalVisible] = useState(false);
+  const [createTripModalVisible, setCreateTripModalVisible] = useState(false);
   const [selectedStopForExpense, setSelectedStopForExpense] = useState<ScheduleItem | null>(null);
   const [expenseTitle, setExpenseTitle] = useState('');
   const [expenseAmountStr, setExpenseAmountStr] = useState('');
@@ -263,7 +266,7 @@ export default function PlannerScreen() {
           </Text>
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => setTripSwitcherVisible(true)}
+            onPress={() => setCreateTripModalVisible(true)}
             className="bg-primary px-5 py-3 rounded-2xl flex-row items-center shadow-sm"
           >
             <Plus size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
@@ -273,6 +276,10 @@ export default function PlannerScreen() {
         <TripSwitcherModal
           visible={tripSwitcherVisible}
           onClose={() => setTripSwitcherVisible(false)}
+        />
+        <CreateTripModal
+          visible={createTripModalVisible}
+          onClose={() => setCreateTripModalVisible(false)}
         />
       </View>
     );
@@ -812,12 +819,20 @@ export default function PlannerScreen() {
 
                 {/* Currency selector */}
                 <Text className="text-xs font-bold text-mutedText mb-1.5">통화 및 금액</Text>
-                <View className="flex-row gap-2 mb-2">
-                  {(['JPY', 'KRW', 'USD', 'EUR'] as CurrencyCode[]).map((cur) => (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8 }}
+                  className="mb-2"
+                >
+                  {[
+                    expenseCurrency,
+                    ...SUPPORTED_CURRENCIES.filter((c) => c !== expenseCurrency),
+                  ].map((cur) => (
                     <TouchableOpacity
                       key={cur}
                       onPress={() => setExpenseCurrency(cur)}
-                      className={`flex-1 py-2 rounded-xl items-center border ${expenseCurrency === cur
+                      className={`px-3 py-2 rounded-xl items-center border ${expenseCurrency === cur
                         ? 'bg-primary border-primary'
                         : 'bg-white border-borderLine'
                         }`}
@@ -830,7 +845,7 @@ export default function PlannerScreen() {
                       </Text>
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
 
                 {/* Amount input */}
                 <View className="bg-gray-50 border border-borderLine rounded-2xl px-4 py-2.5 flex-row items-center mb-1">

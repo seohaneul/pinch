@@ -429,18 +429,18 @@ export const FlightModal: React.FC<FlightModalProps> = ({
 
     const returnData: SingleFlightLeg | undefined = hasReturnFlight
       ? {
-          flightNumber: retFlightNumber.trim(),
-          airline: retAirline.trim() || outboundData.airline || '귀국 항공편',
-          departureAirport: retDepAirport.trim() || outboundData.arrivalAirport,
-          departureDate: retDepDate.trim() || tripEndDate,
-          departureTime: retDepTime.trim() || '15:00',
-          arrivalAirport: retArrAirport.trim() || outboundData.departureAirport,
-          arrivalDate: computedRetArrDate,
-          arrivalTime: retArrTime.trim() || '18:00',
-          arrivalNextDay: retArrivalNextDay,
-          terminal: retTerminal.trim(),
-          memo: retMemo.trim(),
-        }
+        flightNumber: retFlightNumber.trim(),
+        airline: retAirline.trim() || outboundData.airline || '귀국 항공편',
+        departureAirport: retDepAirport.trim() || outboundData.arrivalAirport,
+        departureDate: retDepDate.trim() || tripEndDate,
+        departureTime: retDepTime.trim() || '15:00',
+        arrivalAirport: retArrAirport.trim() || outboundData.departureAirport,
+        arrivalDate: computedRetArrDate,
+        arrivalTime: retArrTime.trim() || '18:00',
+        arrivalNextDay: retArrivalNextDay,
+        terminal: retTerminal.trim(),
+        memo: retMemo.trim(),
+      }
       : undefined;
 
     const flightData: FlightInfo = {
