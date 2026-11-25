@@ -24,6 +24,7 @@ export interface WalletState {
   members: WalletMember[];
   activeTab: 'budget' | 'expenses' | 'settlement';
   exchangeRates: Record<CurrencyCode, number>;
+  allExchangeRates: Record<string, number>;
   lastExchangeRateUpdate: string;
   isUpdatingRates: boolean;
   settledTransactionIds: string[];
@@ -78,6 +79,7 @@ export const useWalletStore = create<WalletState>()(
   members: [],
   activeTab: 'expenses',
   exchangeRates: { ...DEFAULT_EXCHANGE_RATES },
+  allExchangeRates: { ...DEFAULT_EXCHANGE_RATES },
   lastExchangeRateUpdate: '실시간 환율 연동',
   isUpdatingRates: false,
   settledTransactionIds: [],
@@ -246,7 +248,7 @@ export const useWalletStore = create<WalletState>()(
   refreshLiveExchangeRates: async () => {
     set({ isUpdatingRates: true });
     try {
-      const { rates, lastUpdated, source } = await fetchLiveExchangeRates();
+      const { rates, allRates, lastUpdated, source } = await fetchLiveExchangeRates();
       const mergedRates = { ...DEFAULT_EXCHANGE_RATES, ...rates };
       if (source === 'fallback') {
         set({
@@ -268,6 +270,7 @@ export const useWalletStore = create<WalletState>()(
 
       set({
         exchangeRates: mergedRates,
+        allExchangeRates: { ...DEFAULT_EXCHANGE_RATES, ...allRates },
         expenses: updatedExpenses,
         lastExchangeRateUpdate: lastUpdated,
         isUpdatingRates: false,

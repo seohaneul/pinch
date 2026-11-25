@@ -3,6 +3,7 @@ import { DEFAULT_EXCHANGE_RATES, SUPPORTED_CURRENCIES } from '../utils/settlemen
 
 export interface ExchangeRateResult {
   rates: Record<CurrencyCode, number>;
+  allRates: Record<string, number>;
   lastUpdated: string;
   source: 'live' | 'cached' | 'fallback';
 }
@@ -26,6 +27,18 @@ export async function fetchLiveExchangeRates(): Promise<ExchangeRateResult> {
     const data = await res.json();
     if (data && data.result === 'success' && data.rates) {
       const updatedRates: Record<CurrencyCode, number> = { ...DEFAULT_EXCHANGE_RATES, KRW: 1 };
+      const allRates: Record<string, number> = { ...DEFAULT_EXCHANGE_RATES, KRW: 1 };
+
+      for (const [rawCode, rawVal] of Object.entries(data.rates)) {
+        const krwToCode = Number(rawVal);
+        if (!Number.isFinite(krwToCode) || krwToCode <= 0) continue;
+        if (rawCode === 'KRW') {
+          allRates.KRW = 1;
+          continue;
+        }
+        const rate = 1 / krwToCode;
+        allRates[rawCode] = rate;
+      }
 
       for (const code of SUPPORTED_CURRENCIES) {
         if (code === 'KRW') {
@@ -46,6 +59,7 @@ export async function fetchLiveExchangeRates(): Promise<ExchangeRateResult> {
 
       return {
         rates: updatedRates,
+        allRates,
         lastUpdated: timeStr,
         source: 'live',
       };
@@ -56,6 +70,7 @@ export async function fetchLiveExchangeRates(): Promise<ExchangeRateResult> {
     console.warn('Failed to fetch live exchange rates, using fallback:', error);
     return {
       rates: { ...DEFAULT_EXCHANGE_RATES },
+      allRates: { ...DEFAULT_EXCHANGE_RATES },
       lastUpdated: '기본 환율 기준',
       source: 'fallback',
     };

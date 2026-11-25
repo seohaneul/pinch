@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWalletStore } from '../../src/store/useWalletStore';
 import { useTripStore } from '../../src/store/useTripStore';
 import { CategoryBudgetModal } from '../../src/components/wallet/CategoryBudgetModal';
+import { CurrencyCalculatorModal } from '../../src/components/wallet/CurrencyCalculatorModal';
 import {
   CurrencyCode,
   WalletCategory,
@@ -107,6 +108,7 @@ export default function WalletScreen() {
 
   const { currentTrip, scheduleItems } = useTripStore();
   const [categoryBudgetModalVisible, setCategoryBudgetModalVisible] = useState(false);
+  const [calculatorVisible, setCalculatorVisible] = useState(false);
 
   // Tour/Package Expand state inside Budget Tab
   const [isTourExpanded, setIsTourExpanded] = useState(false);
@@ -876,24 +878,34 @@ export default function WalletScreen() {
                   </Text>
                 </View>
 
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={async () => {
-                    const ok = await refreshLiveExchangeRates();
-                    if (!ok) {
-                      Alert.alert(
-                        '환율 조회 실패',
-                        '실시간 환율을 불러오지 못했습니다. 네트워크 연결을 확인해 주세요.'
-                      );
-                    }
-                  }}
-                  className="flex-row items-center bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg"
-                >
-                  <RefreshCw size={11} color="#059669" style={{ marginRight: 4 }} />
-                  <Text className="text-[10px] font-bold text-emerald-700">
-                    {getExchangeRateLabel(activeTripCurrency)} ({lastExchangeRateUpdate || '실시간'})
-                  </Text>
-                </TouchableOpacity>
+                <View className="flex-row items-center gap-1.5">
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => setCalculatorVisible(true)}
+                    className="flex-row items-center bg-primary/10 px-2.5 py-1 rounded-lg"
+                  >
+                    <Coins size={11} color="#1B2A4A" style={{ marginRight: 4 }} />
+                    <Text className="text-[10px] font-extrabold text-primary">환율 계산기</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={async () => {
+                      const ok = await refreshLiveExchangeRates();
+                      if (!ok) {
+                        Alert.alert(
+                          '환율 조회 실패',
+                          '실시간 환율을 불러오지 못했습니다. 네트워크 연결을 확인해 주세요.'
+                        );
+                      }
+                    }}
+                    className="flex-row items-center bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg"
+                  >
+                    <RefreshCw size={11} color="#059669" style={{ marginRight: 4 }} />
+                    <Text className="text-[10px] font-bold text-emerald-700">
+                      {getExchangeRateLabel(activeTripCurrency)} ({lastExchangeRateUpdate || '실시간'})
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Budget Progress Bar */}
@@ -1585,6 +1597,12 @@ export default function WalletScreen() {
             setCategoryBudget(currentTrip?.id || 't_first', catKey, amt);
           });
         }}
+      />
+
+      <CurrencyCalculatorModal
+        visible={calculatorVisible}
+        onClose={() => setCalculatorVisible(false)}
+        defaultFromCurrency={activeTripCurrency}
       />
     </View>
   );
