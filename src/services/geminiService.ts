@@ -1,7 +1,6 @@
 import type { ExtractedPlaceItem, PlaceCategory } from '../types';
 import { fetchJsonWithTimeout, getCategoryFallbackImage } from '../utils/networkUtils';
-
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
+import { callGeminiGenerateContent, isGeminiAvailable } from './geminiClient';
 
 // 2026 검증된 고속 AI 모델 목록 (gemini-3.8-flash 200 OK 검증 완료)
 const SUPPORTED_MODELS = [
@@ -62,8 +61,8 @@ export async function extractPlacesWithGemini(
   url: string,
   destinationHint?: string
 ): Promise<GeminiExtractedResult | null> {
-  if (!GEMINI_API_KEY) {
-    console.log('[GeminiService] API Key is missing. Using heuristic fallback.');
+  if (!isGeminiAvailable()) {
+    console.log('[GeminiService] Gemini is unavailable. Using heuristic fallback.');
     return null;
   }
 
@@ -109,19 +108,10 @@ ${destinationHint ? `- 여행지 기준 맥락: ${destinationHint}` : ''}
 
   // 지원 모델 순차 시도 (Failover)
   for (const model of SUPPORTED_MODELS) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
-
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const data = await callGeminiGenerateContent(
+        model,
+        {
           contents: [
             {
               parts: [{ text: prompt }],
@@ -132,18 +122,10 @@ ${destinationHint ? `- 여행지 기준 맥락: ${destinationHint}` : ''}
             topP: 0.8,
             responseMimeType: 'application/json',
           },
-        }),
-      });
+        },
+        12000
+      );
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.warn(`[GeminiService] Model ${model} returned ${response.status}:`, errText.slice(0, 80));
-        continue;
-      }
-
-      const data = await response.json();
       const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!rawText) continue;
@@ -198,7 +180,6 @@ ${destinationHint ? `- 여행지 기준 맥락: ${destinationHint}` : ''}
         };
       }
     } catch (err: any) {
-      clearTimeout(timeoutId);
       if (err?.name === 'AbortError' || err?.message?.includes('canceled')) {
         console.warn(`[GeminiService] Model ${model} timed out after 12s, switching to next model.`);
       } else {
@@ -225,7 +206,7 @@ export async function fetchPlaceDetailedBriefing(
   category: string,
   address?: string
 ): Promise<PlaceAiBriefing | null> {
-  if (!GEMINI_API_KEY) return null;
+  if (!isGeminiAvailable()) return null;
 
   const prompt = `
 당신은 현지 여행 전문 가이드입니다. 아래 장소에 대해 여행자가 꼭 알아야 할 생생하고 유용한 상세 정보를 한국어로 분석해 주세요.
@@ -253,19 +234,17 @@ export async function fetchPlaceDetailedBriefing(
 `;
 
   for (const model of SUPPORTED_MODELS) {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-    const data = await fetchJsonWithTimeout<any>(endpoint, {
-      method: 'POST',
-      timeoutMs: 10000,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const data = await callGeminiGenerateContent(
+      model,
+      {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.3,
           responseMimeType: 'application/json',
         },
-      }),
-    });
+      },
+      10000
+    );
     const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!rawText) continue;
     try {

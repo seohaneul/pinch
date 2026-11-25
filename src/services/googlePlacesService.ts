@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { GooglePlaceDetails, PlaceReview } from '../types';
+import { callGeminiGenerateContent, isGeminiAvailable } from './geminiClient';
 
 const CACHE_PREFIX = 'pinch_real_place_cache_v8_';
 const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 
 /**
  * 장소의 실제 데이터(실제 공식 설명, 별점, 실제 사진, 실제 방문객 리뷰)를 불러옵니다.
@@ -59,7 +59,7 @@ export async function fetchGooglePlaceDetails(
   }
 
   // 3. Google Search Grounding (Gemini 3.5 Flash Lite)
-  if (!realDetails && GEMINI_API_KEY && !GEMINI_API_KEY.includes('placeholder')) {
+  if (!realDetails && isGeminiAvailable()) {
     try {
       realDetails = await fetchFromGeminiGoogleGrounding(placeName, address);
     } catch (err) {
@@ -310,8 +310,6 @@ async function fetchFromGeminiGoogleGrounding(
   placeName: string,
   address?: string
 ): Promise<GooglePlaceDetails | null> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
-
   const prompt = `
 당신은 전세계 구글 지도(Google Maps) 전문 데이터베이스입니다.
 장소명: "${placeName}"
@@ -340,25 +338,17 @@ async function fetchFromGeminiGoogleGrounding(
 코드블록 백틱 없이 순수 JSON만 출력하세요.
 `;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 7000);
-
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const data = await callGeminiGenerateContent(
+      'gemini-3.5-flash-lite',
+      {
         contents: [{ parts: [{ text: prompt }] }],
         tools: [{ google_search: {} }],
-      }),
-      signal: controller.signal,
-    });
+      },
+      7000
+    );
+    if (!data) return null;
 
-    clearTimeout(timeoutId);
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
 
@@ -377,7 +367,6 @@ async function fetchFromGeminiGoogleGrounding(
       )}`,
     };
   } catch (e) {
-    clearTimeout(timeoutId);
     return null;
   }
 }
