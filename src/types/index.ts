@@ -241,5 +241,6 @@ export interface SavedLink {
   summary: string;
   createdAt: string;
   extractedPlaces: ExtractedPlaceItem[];
+  status?: 'extracting' | 'ready' | 'error';
 }
 

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { userScopedAsyncStorage } from './userScopedStorage';
 import type { SavedLink } from '../types';
-import { parseLinkWithPlaces } from '../services/parserService';
+import { parseLinkWithPlaces, detectSnsPlatform } from '../services/parserService';
 import { useTripStore } from './useTripStore';
 
 interface SavedLinkState {
@@ -23,23 +23,46 @@ export const useSavedLinkStore = create<SavedLinkState>()(
       isExtractingLink: false,
 
       addLinkFromUrl: async (url: string, tripId?: string) => {
-        set({ isExtractingLink: true });
+        const allTrips = useTripStore.getState().trips;
+        const currentTrip = useTripStore.getState().currentTrip;
+        const activeTripId = tripId || currentTrip?.id || 't_first';
+        const targetTrip = allTrips.find((t) => t.id === activeTripId) || currentTrip;
+        const destinationHint = targetTrip?.destination || targetTrip?.title || '';
+
+        const tempId = `link_pending_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const pendingLink: SavedLink = {
+          id: tempId,
+          trip_id: activeTripId,
+          title: '링크에서 장소 분석 중...',
+          url,
+          platform: detectSnsPlatform(url),
+          thumbnailUrl: '',
+          summary: '링크 내용을 분석해 방문할 장소를 보관함에 정리하고 있습니다.',
+          createdAt: new Date().toISOString(),
+          extractedPlaces: [],
+          status: 'extracting',
+        };
+
+        set((state) => ({
+          savedLinks: [pendingLink, ...state.savedLinks],
+          isExtractingLink: true,
+        }));
+
         try {
-          const allTrips = useTripStore.getState().trips;
-          const currentTrip = useTripStore.getState().currentTrip;
-          const activeTripId = tripId || currentTrip?.id || 't_first';
-          const targetTrip = allTrips.find((t) => t.id === activeTripId) || currentTrip;
-          const destinationHint = targetTrip?.destination || targetTrip?.title || '';
           const newSavedLink = await parseLinkWithPlaces(url, activeTripId, destinationHint);
+          const readyLink: SavedLink = { ...newSavedLink, status: 'ready' };
 
           set((state) => ({
-            savedLinks: [newSavedLink, ...state.savedLinks],
+            savedLinks: state.savedLinks.map((l) => (l.id === tempId ? readyLink : l)),
             isExtractingLink: false,
           }));
 
-          return newSavedLink;
-        } catch (err) {
-          set({ isExtractingLink: false });
+          return readyLink;
+        } catch {
+          set((state) => ({
+            savedLinks: state.savedLinks.filter((l) => l.id !== tempId),
+            isExtractingLink: false,
+          }));
           return null;
         }
       },
@@ -76,7 +99,7 @@ export const useSavedLinkStore = create<SavedLinkState>()(
       storage: createJSONStorage(() => userScopedAsyncStorage),
       skipHydration: true,
       partialize: (state) => ({
-        savedLinks: state.savedLinks,
+        savedLinks: state.savedLinks.filter((l) => l.status !== 'extracting'),
       }),
     }
   )

@@ -10,6 +10,7 @@ import {
   Modal,
   Linking,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { Header } from '../../src/components/common/Header';
 import { Card, Badge, EmptyState } from '../../src/components/common/Card';
@@ -257,9 +258,10 @@ export default function PlacesScreen() {
     return ['LODGING', 'ATTRACTION', 'CAFE', 'RESTAURANT', 'SHOPPING', 'HOTEL', 'STAY', 'SPOT'].includes(upper);
   };
 
-  // 링크 핀치 핸들러: 링크 보관함에 먼저 추가하고, 장소 선택 모달을 띄움
+  // 링크 핀치 핸들러: 링크 보관함에 로딩 카드를 먼저 띄우고, 분석 완료 후 장소 선택 모달을 연결
   const handleExtractUrl = async (url: string) => {
     const activeId = activeTripId || currentTrip?.id || 't_first';
+    setActiveTab('LINKS');
     const newSavedLink = await addLinkFromUrl(url, activeId);
 
     if (newSavedLink) {
@@ -681,25 +683,42 @@ export default function PlacesScreen() {
           </View>
 
           {tripLinks.length > 0 ? (
-            tripLinks.map((link) => (
+            tripLinks.map((link) => {
+              const isExtracting = link.status === 'extracting';
+              return (
               <TouchableOpacity
                 key={link.id}
                 activeOpacity={0.9}
+                disabled={isExtracting}
                 onPress={() => setSelectedLinkForPlaces(link)}
-                style={styles.linkCard}
+                style={[styles.linkCard, isExtracting && { opacity: 0.9 }]}
               >
-                <Image
-                  source={{
-                    uri:
-                      !failedLinkThumbnails[link.id] && link.thumbnailUrl
-                        ? link.thumbnailUrl
-                        : link.extractedPlaces[0]?.imageUrl ||
-                        'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop',
-                  }}
-                  style={styles.linkThumb}
-                  resizeMode="cover"
-                  onError={() => setFailedLinkThumbnails((p) => ({ ...p, [link.id]: true }))}
-                />
+                {isExtracting ? (
+                  <View
+                    style={[
+                      styles.linkThumb,
+                      { backgroundColor: '#EEF2F8', alignItems: 'center', justifyContent: 'center' },
+                    ]}
+                  >
+                    <ActivityIndicator size="small" color="#1B2A4A" />
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#1B2A4A', marginTop: 6 }}>
+                      분석 중
+                    </Text>
+                  </View>
+                ) : (
+                  <Image
+                    source={{
+                      uri:
+                        !failedLinkThumbnails[link.id] && link.thumbnailUrl
+                          ? link.thumbnailUrl
+                          : link.extractedPlaces[0]?.imageUrl ||
+                          'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop',
+                    }}
+                    style={styles.linkThumb}
+                    resizeMode="cover"
+                    onError={() => setFailedLinkThumbnails((p) => ({ ...p, [link.id]: true }))}
+                  />
+                )}
                 <View style={styles.linkContent}>
                   <View style={styles.linkHeaderRow}>
                     <View style={styles.linkPlatformBadge}>
@@ -707,17 +726,19 @@ export default function PlacesScreen() {
                         {getPlatformChipText(link.platform)}
                       </Text>
                     </View>
-                    <TouchableOpacity
-                      onPress={() =>
-                        Alert.alert('링크 삭제', '저장된 링크를 삭제할까요?', [
-                          { text: '취소', style: 'cancel' },
-                          { text: '삭제', style: 'destructive', onPress: () => removeSavedLink(link.id) },
-                        ])
-                      }
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Trash2 size={14} color="#CBD5E1" />
-                    </TouchableOpacity>
+                    {!isExtracting && (
+                      <TouchableOpacity
+                        onPress={() =>
+                          Alert.alert('링크 삭제', '저장된 링크를 삭제할까요?', [
+                            { text: '취소', style: 'cancel' },
+                            { text: '삭제', style: 'destructive', onPress: () => removeSavedLink(link.id) },
+                          ])
+                        }
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Trash2 size={14} color="#CBD5E1" />
+                      </TouchableOpacity>
+                    )}
                   </View>
 
                   <Text style={styles.linkTitle} numberOfLines={2}>
@@ -729,12 +750,19 @@ export default function PlacesScreen() {
                   </Text>
 
                   <View style={styles.linkFooterRow}>
-                    <View style={styles.placesCountBadge}>
-                      <MapPin size={11} color="#1B2A4A" style={{ marginRight: 3 }} />
-                      <Text style={styles.placesCountBadgeText}>
-                        장소 {link.extractedPlaces.length}곳 포함
-                      </Text>
-                    </View>
+                    {isExtracting ? (
+                      <View style={[styles.placesCountBadge, { backgroundColor: '#EEF2F8' }]}>
+                        <ActivityIndicator size="small" color="#1B2A4A" style={{ marginRight: 5 }} />
+                        <Text style={styles.placesCountBadgeText}>AI 장소 추출 중...</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.placesCountBadge}>
+                        <MapPin size={11} color="#1B2A4A" style={{ marginRight: 3 }} />
+                        <Text style={styles.placesCountBadgeText}>
+                          장소 {link.extractedPlaces.length}곳 포함
+                        </Text>
+                      </View>
+                    )}
 
                     <TouchableOpacity
                       activeOpacity={0.7}
@@ -750,7 +778,8 @@ export default function PlacesScreen() {
                   </View>
                 </View>
               </TouchableOpacity>
-            ))
+              );
+            })
           ) : (
             <EmptyState
               icon={<LinkIcon size={28} color="#1B2A4A" />}

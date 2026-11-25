@@ -43,8 +43,8 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
   const [urlInput, setUrlInput] = useState('');
 
   useEffect(() => {
+    setActiveTab(defaultTab);
     if (visible) {
-      setActiveTab(defaultTab);
       setUrlInput('');
     }
   }, [visible, defaultTab]);
@@ -69,15 +69,12 @@ export const AddPlaceModal: React.FC<AddPlaceModalProps> = ({
     } catch {}
   };
 
-  const handleSubmitLink = async () => {
-    if (!urlInput.trim() || loading) return;
-    try {
-      await onExtract(urlInput.trim());
-      setUrlInput('');
-      onClose();
-    } catch {
-      // 추출 실패 시 입력값과 모달을 유지해 사용자가 다시 시도할 수 있게 함
-    }
+  const handleSubmitLink = () => {
+    const trimmed = urlInput.trim();
+    if (!trimmed) return;
+    setUrlInput('');
+    onClose();
+    void onExtract(trimmed);
   };
 
   return (
