@@ -299,18 +299,18 @@ export const CalendarRangePicker: React.FC<CalendarRangePickerProps> = ({
               const isSunday = index % 7 === 0;
               const isSaturday = index % 7 === 6;
 
+              const hasRange = Boolean(selectedStart && selectedEnd && !isSingleDayRange);
+
               return (
                 <TouchableOpacity
                   key={item.dateStr}
                   activeOpacity={0.8}
                   onPress={() => handleDayPress(item.dateStr)}
-                  style={[
-                    styles.dayCell,
-                    isInRange && styles.inRangeCell,
-                    isStart && !isSingleDayRange && selectedEnd && styles.rangeStartCell,
-                    isEnd && !isSingleDayRange && styles.rangeEndCell,
-                  ]}
+                  style={styles.dayCell}
                 >
+                  {hasRange && isInRange && <View style={styles.rangeStripFull} />}
+                  {hasRange && isStart && <View style={styles.rangeStripRight} />}
+                  {hasRange && isEnd && <View style={styles.rangeStripLeft} />}
                   <View
                     style={[
                       styles.dayCircle,
@@ -504,29 +504,39 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: '14.28%',
-    height: 52,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
     marginVertical: 2,
   },
-  inRangeCell: {
+  rangeStripFull: {
+    position: 'absolute',
+    top: 3,
+    bottom: 3,
+    left: 0,
+    right: 0,
     backgroundColor: '#EEF2F8',
   },
-  rangeStartCell: {
+  rangeStripRight: {
+    position: 'absolute',
+    top: 3,
+    bottom: 3,
+    left: '50%',
+    right: 0,
     backgroundColor: '#EEF2F8',
-    borderTopLeftRadius: 14,
-    borderBottomLeftRadius: 14,
   },
-  rangeEndCell: {
+  rangeStripLeft: {
+    position: 'absolute',
+    top: 3,
+    bottom: 3,
+    left: 0,
+    right: '50%',
     backgroundColor: '#EEF2F8',
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
   },
   dayCircle: {
-    minWidth: 38,
-    height: 44,
-    paddingHorizontal: 4,
+    width: 42,
+    height: 42,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',

@@ -246,15 +246,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
   const [selectedCandidate, setSelectedCandidate] = useState<DestinationCandidate | null>(null);
   const [searchResults, setSearchResults] = useState<DestinationCandidate[]>([]);
   const [isSearchingDest, setIsSearchingDest] = useState(false);
-  const [expandedCountries, setExpandedCountries] = useState<Record<string, boolean>>({
-    일본: true,
-    베트남: true,
-    '태국 · 동남아': false,
-    '대만 · 홍콩 · 마카오': false,
-    대한민국: false,
-    '미주 · 남태평양': false,
-    유럽: false,
-  });
+  const [selectedRegionTab, setSelectedRegionTab] = useState<string>('전체');
 
   // Step 2: 날짜 & 제목 & 동행 상태
   const [title, setTitle] = useState('');
@@ -1256,84 +1248,68 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                 </View>
               )}
 
-              {/* 트리 형식 인기 여행지 ([일본 - 후쿠오카, 도쿄] [베트남 - 다낭, 하노이]) */}
-              <Text style={styles.sectionSmallLabel}>국가별 인기 여행지 트리 (다중 선택 가능)</Text>
-              <View style={styles.treeContainer}>
-                {POPULAR_DESTINATION_TREE.map((group) => {
-                  const isExpanded = Boolean(expandedCountries[group.country]);
-                  const selectedInGroup = group.cities.filter((c) =>
-                    selectedCities.includes(c.name)
-                  );
+              {/* 깔끔한 지역 탭 + 도시 선택 그리드 */}
+              <Text style={styles.sectionSmallLabel}>인기 여행지 선택 (여러 도시 선택 가능)</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.regionTabRow}
+              >
+                {['전체', ...POPULAR_DESTINATION_TREE.map((g) => g.country)].map((region) => {
+                  const isActive = selectedRegionTab === region;
                   return (
-                    <View key={group.country} style={styles.treeCountryCard}>
-                      <TouchableOpacity
-                        activeOpacity={0.75}
-                        onPress={() =>
-                          setExpandedCountries((prev) => ({
-                            ...prev,
-                            [group.country]: !prev[group.country],
-                          }))
-                        }
-                        style={styles.treeCountryHeader}
-                      >
-                        <View style={styles.treeCountryTitleWrap}>
-                          <Text style={styles.treeCountryBracket}>
-                            [{group.country} - {group.cities.map((c) => c.name).join(', ')}]
-                          </Text>
-                          {selectedInGroup.length > 0 && (
-                            <View style={styles.treeSelectedCountBadge}>
-                              <Text style={styles.treeSelectedCountText}>
-                                {selectedInGroup.length}곳 선택됨
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                        {isExpanded ? (
-                          <ChevronUp size={18} color="#1B2A4A" />
-                        ) : (
-                          <ChevronDown size={18} color="#6B7280" />
-                        )}
-                      </TouchableOpacity>
-
-                      {isExpanded && (
-                        <View style={styles.treeBranchBody}>
-                          {group.cities.map((city, idx) => {
-                            const active = selectedCities.includes(city.name);
-                            const isLast = idx === group.cities.length - 1;
-                            return (
-                              <TouchableOpacity
-                                key={city.name}
-                                activeOpacity={0.8}
-                                onPress={() => handleToggleCity(city.name, city.lat, city.lng)}
-                                style={[
-                                  styles.treeCityNode,
-                                  active && styles.treeCityNodeActive,
-                                ]}
-                              >
-                                <Text style={styles.treeBranchConnector}>
-                                  {isLast ? '└' : '├'}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.treeCityText,
-                                    active && styles.treeCityTextActive,
-                                  ]}
-                                >
-                                  {city.name}
-                                </Text>
-                                {active ? (
-                                  <Check size={14} color="#FFFFFF" style={{ marginLeft: 6 }} />
-                                ) : (
-                                  <Plus size={13} color="#9CA3AF" style={{ marginLeft: 6 }} />
-                                )}
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      )}
-                    </View>
+                    <TouchableOpacity
+                      key={region}
+                      activeOpacity={0.8}
+                      onPress={() => setSelectedRegionTab(region)}
+                      style={[styles.regionTabChip, isActive && styles.regionTabChipActive]}
+                    >
+                      <Text style={[styles.regionTabText, isActive && styles.regionTabTextActive]}>
+                        {region}
+                      </Text>
+                    </TouchableOpacity>
                   );
                 })}
+              </ScrollView>
+
+              <View style={styles.cityGrid}>
+                {POPULAR_DESTINATION_TREE.filter(
+                  (g) => selectedRegionTab === '전체' || g.country === selectedRegionTab
+                ).flatMap((group) =>
+                  group.cities.map((city) => {
+                    const active = selectedCities.includes(city.name);
+                    return (
+                      <TouchableOpacity
+                        key={`${group.country}-${city.name}`}
+                        activeOpacity={0.82}
+                        onPress={() => handleToggleCity(city.name, city.lat, city.lng)}
+                        style={[styles.cityGridCard, active && styles.cityGridCardActive]}
+                      >
+                        <View style={styles.cityGridTextWrap}>
+                          <Text
+                            numberOfLines={1}
+                            style={[styles.cityGridName, active && styles.cityGridNameActive]}
+                          >
+                            {city.name}
+                          </Text>
+                          <Text
+                            numberOfLines={1}
+                            style={[styles.cityGridCountry, active && styles.cityGridCountryActive]}
+                          >
+                            {group.country}
+                          </Text>
+                        </View>
+                        <View style={[styles.cityGridCheck, active && styles.cityGridCheckActive]}>
+                          {active ? (
+                            <Check size={13} color="#1B2A4A" />
+                          ) : (
+                            <Plus size={13} color="#9CA3AF" />
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
               </View>
 
               <TouchableOpacity
@@ -2527,83 +2503,84 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
   },
-  treeContainer: {
-    gap: 10,
+  regionTabRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingBottom: 12,
   },
-  treeCountryCard: {
+  regionTabChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
   },
-  treeCountryHeader: {
+  regionTabChipActive: {
+    backgroundColor: '#1B2A4A',
+    borderColor: '#1B2A4A',
+  },
+  regionTabText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#4B5563',
+  },
+  regionTabTextActive: {
+    color: '#FFFFFF',
+  },
+  cityGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  cityGridCard: {
+    width: '48.2%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
-    paddingVertical: 13,
-    backgroundColor: '#F8FAFC',
-  },
-  treeCountryTitleWrap: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  treeCountryBracket: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#1B2A4A',
-    lineHeight: 19,
-  },
-  treeSelectedCountBadge: {
-    alignSelf: 'flex-start',
-    marginTop: 4,
-    backgroundColor: '#1B2A4A',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  treeSelectedCountText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  treeBranchBody: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  treeCityNode: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-    borderRadius: 10,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: '#E5E7EB',
   },
-  treeCityNodeActive: {
+  cityGridCardActive: {
     backgroundColor: '#1B2A4A',
     borderColor: '#1B2A4A',
   },
-  treeBranchConnector: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginRight: 4,
-    fontWeight: '700',
+  cityGridTextWrap: {
+    flex: 1,
+    marginRight: 8,
   },
-  treeCityText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1F2937',
+  cityGridName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
   },
-  treeCityTextActive: {
+  cityGridNameActive: {
     color: '#FFFFFF',
+  },
+  cityGridCountry: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  cityGridCountryActive: {
+    color: 'rgba(255, 255, 255, 0.78)',
+  },
+  cityGridCheck: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cityGridCheckActive: {
+    backgroundColor: '#FFFFFF',
   },
   presetRow: {
     flexDirection: 'row',

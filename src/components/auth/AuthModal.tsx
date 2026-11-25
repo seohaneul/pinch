@@ -75,10 +75,6 @@ export const AuthGateScreen: React.FC = () => {
             </View>
           </View>
 
-          <View style={styles.gateProgressTrack}>
-            <View style={[styles.gateProgressFill, { width: tab === 'login' ? '50%' : '100%' }]} />
-          </View>
-
           {/* Center Hero Title (Reference Image 3 Style) */}
           <View style={styles.gateHeroSection}>
             <Text style={styles.gateTitle}>
